@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# usage: sp-config KEY      print the value of KEY, or its default
+#        sp-config --list   print every KEY=value
+# Reads ${XDG_CONFIG_HOME:-~/.config}/super-project/config: KEY=value lines, a line starting
+# with # is a comment, a leading ~ in a value expands to $HOME, nothing else expands. A
+# missing file or key gives the default. The mods parse the file by the same rules.
+set -euo pipefail
+dir="${XDG_CONFIG_HOME:-$HOME/.config}/super-project"
+file="$dir/config"
+keys=(PROJECTS_DIR PUBLISHED_DIR ROOTS PRIVATE_STRINGS BIN_DIR OVERLAY_DIR)
+
+# The last KEY=value line for $1 in the file, if any.
+raw() {
+  [ -f "$file" ] || return 0
+  awk -v k="$1" '
+    /^[[:space:]]*(#|$)/ { next }
+    { i = index($0, "="); if (!i) next
+      key = substr($0, 1, i - 1); gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
+      val = substr($0, i + 1);    gsub(/^[[:space:]]+|[[:space:]]+$/, "", val)
+      if (key == k) { v = val; found = 1 } }
+    END { if (found) print v }' "$file"
+}
+
+# shellcheck disable=SC2088 # the defaults keep a literal ~, which expands below
+get() {
+  local v
+  v=$(raw "$1")
+  if [ -z "$v" ]; then
+    case "$1" in
+      PROJECTS_DIR) v="~/projects" ;;
+      PUBLISHED_DIR) v="$(get PROJECTS_DIR)/published-oss" ;;
+      ROOTS) v="$dir/roots" ;;
+      PRIVATE_STRINGS) v="$dir/private-strings.txt" ;;
+      BIN_DIR) v="~/.local/bin" ;;
+      OVERLAY_DIR) v="$dir/overlay" ;;
+      *) echo "sp-config: unknown key $1 (keys: ${keys[*]})" >&2; return 2 ;;
+    esac
+  fi
+  [[ $v == "~" || $v == "~/"* ]] && v="$HOME${v:1}"
+  printf '%s\n' "$v"
+}
+
+case "${1:-}" in
+  --list) for k in "${keys[@]}"; do printf '%s=%s\n' "$k" "$(get "$k")"; done ;;
+  ''|-h|--help) sed -n '2,6s/^# \{0,1\}//p' "$0"; [ -n "${1:-}" ] ;;
+  *) get "$1" ;;
+esac

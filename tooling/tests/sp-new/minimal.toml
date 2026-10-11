@@ -1,0 +1,55 @@
+# The smallest file sp-new accepts: one module, one milestone, no runtime, default sessions.
+[project]
+name = "Tiny Tool"
+dir = "tiny-tool"
+owner = "example-org"
+date = "2026-01-02"
+summary = "A tiny tool."
+vision = "One command that does one thing well."
+defaults = ["One user, Linux."]
+language = "Python"
+domain_invariants = "exit codes"
+private_data = "tokens"
+never_exported = "tokens"
+diagram = "U[user] --> T[tool]"
+layers = ["**Tool** (`TT`): the command."]
+glossary_groups = ["Terms"]
+
+[[rules]]
+group = "Interfaces"
+items = ["The command's flags are stable within a major version."]
+
+[[tracks]]
+id = "T1"
+name = "Tool"
+
+[[milestones]]
+id = "M1"
+title = "First command"
+delivers = "The command runs."
+goal = "The command runs on a sample input."
+capabilities = "`tiny --help`."
+goals = ["Run on a sample input."]
+gate = { name = "runs", artifact = "a passing run on the sample" }
+[[milestones.acceptance]]
+criterion = "The sample passes."
+how = "`tiny sample.txt` exits 0."
+
+[[modules]]
+code = "TT"
+name = "Tool"
+repo = "tiny-tool-cli"
+owns = "the command"
+track = "T1"
+description = "The tiny command."
+purpose = "Do one thing."
+boundaries = ["Reads its input file only."]
+never_does = "Never writes outside its output path."
+invariants = ["Exit 0 only on success."]
+checks = "pytest"
+setup = "pip install -e ."
+usage = "tiny sample.txt"
+exit_criteria = "The sample passes."
+[[modules.steps]]
+id = "TT-1.1"
+title = "Parse the input"

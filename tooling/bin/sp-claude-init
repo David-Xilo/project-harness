@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+# usage: sp-claude-init <root> [--skill <name>]... [--force]
+# Sets up a root, and brings it up to this copy of project-template when run again: the
+# project skills and .zed/settings.json it places are listed with their hashes in
+# .claude/project-template.lock. A placed file nobody edited is updated (or removed when
+# this version no longer ships it); an edited one is kept and reported, unless --force.
+#   --skill copies a private skill from the overlay (`sp-config OVERLAY_DIR`/skills/<name>);
+#           the lock remembers it, so later runs update it too
+set -euo pipefail
+here=$(dirname "$(readlink -f "$0")")
+TPL=$(realpath "$here/../skills")
+config="$here/sp-config"
+root=""; extra=(); force=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --skill) [ $# -ge 2 ] || { echo "--skill needs a name"; exit 1; }; extra+=("$2"); shift ;;
+    --force) force=1 ;;
+    *) root="$1" ;;
+  esac; shift
+done
+[ -n "$root" ] && cd "$root" || { echo "usage: sp-claude-init <root> [--skill <name>]... [--force]"; exit 1; }
+git rev-parse --show-toplevel >/dev/null 2>&1 || { echo "not a git repo: $PWD"; exit 1; }
+echo "== $(basename "$PWD")"
+
+# global pieces this relies on
+for f in ~/.claude/commands/session.md "$TPL/publish/SKILL.md" "$TPL/go-public/SKILL.md"; do
+  [ -e "$f" ] || echo "!! global piece missing: $f"
+done
+
+# docs the session command reads, and the ones sessions update
+for f in AGENTS.md plan.md handoffs.md operator.md; do
+  [ -f "$f" ] || echo "!! missing $f"
+done
+grep -q '^##* Session IDs' plan.md 2>/dev/null || echo "!! plan.md has no Session IDs section"
+grep -q 'Publish status' handoffs.md 2>/dev/null || echo "!! handoffs.md has no Publish status table"
+
+# This copy's version: sp-update writes .source next to tooling/ in a version it unpacks;
+# a checkout answers from git.
+source_file="$here/../../.source"
+if [ -f "$source_file" ]; then
+  commit=$(awk '$1 == "commit" { print $2 }' "$source_file")
+  version=$(awk '$1 == "version" { print $2 }' "$source_file")
+else
+  commit=$(git -C "$here" rev-parse HEAD 2>/dev/null || echo unknown)
+  version=$(git -C "$here" describe --tags --always --dirty 2>/dev/null || echo unknown)
+fi
+
+# What the last run placed: path -> hash, and the overlay skills it was given.
+lock=.claude/project-template.lock
+declare -A was=() now=()
+if [ -f "$lock" ]; then
+  while read -r kind a b; do
+    case "$kind" in
+      file) was[$b]=$a ;;
+      overlay) [[ " ${extra[*]} " == *" $a "* ]] || extra+=("$a") ;;
+    esac
+  done < "$lock"
+fi
+kept=()
+hash() { sha256sum < "$1" | cut -d' ' -f1; }
+
+# Place $1 at $2 unless the copy there was edited since the last run.
+place() {
+  local want have
+  want=$(hash "$1")
+  if [ -f "$2" ]; then
+    have=$(hash "$2")
+    if [ "$have" = "$want" ]; then now[$2]=$want; return 0; fi
+    if [ "$have" != "${was[$2]:-}" ] && [ $force = 0 ]; then
+      kept+=("$2"); [ -n "${was[$2]:-}" ] && now[$2]=${was[$2]}
+      return 0
+    fi
+    echo "updated $2"
+  else
+    echo "added $2"
+  fi
+  mkdir -p "$(dirname "$2")" && cp "$1" "$2" && now[$2]=$want
+}
+
+# project skills: every shipped one, plus the overlay ones (--skill now or in the lock)
+overlay="$("$config" OVERLAY_DIR)/skills"
+for dir in "$TPL"/*/; do
+  name=$(basename "$dir")
+  while IFS= read -r f; do place "$f" ".claude/skills/$name/${f#"$dir"}"; done < <(find "$dir" -type f | sort)
+done
+for name in "${extra[@]}"; do
+  [ -d "$overlay/$name" ] || { echo "!! no skill $name in $overlay"; continue; }
+  while IFS= read -r f; do place "$f" ".claude/skills/$name/${f#"$overlay/$name/"}"; done < <(find "$overlay/$name" -type f | sort)
+done
+
+# Zed: exclude big folders, keep .zed out of git
+[ -f "$TPL/zed-settings.json" ] && place "$TPL/zed-settings.json" .zed/settings.json
+
+# A file the last run placed that this version no longer ships goes, unless it was edited.
+for path in "${!was[@]}"; do
+  [ -n "${now[$path]:-}" ] && continue
+  [[ " ${kept[*]} " == *" $path "* ]] && continue
+  if [ ! -f "$path" ]; then continue; fi
+  if [ "$(hash "$path")" = "${was[$path]}" ] || [ $force = 1 ]; then
+    rm "$path" && rmdir -p --ignore-fail-on-non-empty "$(dirname "$path")" && echo "removed $path"
+  else
+    kept+=("$path"); now[$path]=${was[$path]}
+  fi
+done
+
+{
+  echo "# Written by sp-claude-init: what project-template placed here. Commit it with .claude/skills."
+  echo "version $version"
+  echo "commit $commit"
+  for name in "${extra[@]}"; do echo "overlay $name"; done
+  for path in "${!now[@]}"; do echo "file ${now[$path]} $path"; done | sort -k3
+} > "$lock"
+for path in "${kept[@]}"; do echo "!! kept $path: edited here (--force replaces it)"; done
+echo "at project-template $version"
+
+ex=$(git rev-parse --git-path info/exclude)
+grep -qxF '.zed/' "$ex" 2>/dev/null || echo '.zed/' >> "$ex"
+
+# git safety
+[ "$(git config --get submodule.recurse || true)" = "true" ] && echo "!! submodule.recurse is true: run git config --unset submodule.recurse"
+
+# ops board: register the root
+roots=$("$config" ROOTS)
+mkdir -p "$(dirname "$roots")"
+touch "$roots"
+grep -qxF "$PWD" "$roots" || { echo "$PWD" >> "$roots"; echo "added to $roots"; }
+
+echo "Commit .claude/skills and $lock with the root; .zed/ stays out of git."

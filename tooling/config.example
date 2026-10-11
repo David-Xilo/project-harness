@@ -1,0 +1,22 @@
+# project-template tooling config. Copy to ~/.config/super-project/config and keep only
+# the lines you change. KEY=value, one per line; a leading ~ expands to $HOME, nothing else
+# expands. Read with `sp-config KEY`; the values below are the defaults.
+
+# Where a bare workspace name resolves, and where new workspace roots go.
+PROJECTS_DIR=~/projects
+
+# Where the publish skill exports a public repository (<repo>-oss).
+# Default: PROJECTS_DIR/published-oss
+#PUBLISHED_DIR=~/projects/published-oss
+
+# The registered workspace roots, one absolute path per line.
+ROOTS=~/.config/super-project/roots
+
+# Strings that must never be published, one per line (leak-check, publish skill).
+PRIVATE_STRINGS=~/.config/super-project/private-strings.txt
+
+# Where tooling/install links the scripts; must be on PATH.
+BIN_DIR=~/.local/bin
+
+# Private additions: skills/<name> (sp-claude-init --skill <name>) and mods/<name>.
+OVERLAY_DIR=~/.config/super-project/overlay

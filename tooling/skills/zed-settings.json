@@ -1,0 +1,8 @@
+{
+  "soft_wrap": "editor_width",
+  "file_scan_exclusions": [
+    "**/.git", "**/.svn", "**/.hg", "**/.jj", "**/CVS",
+    "**/.DS_Store", "**/Thumbs.db", "**/.classpath", "**/.settings",
+    "data", "**/node_modules", ".claude/worktrees"
+  ]
+}

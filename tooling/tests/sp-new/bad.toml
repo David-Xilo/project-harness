@@ -1,0 +1,68 @@
+# Every class of mistake sp-new must report, all at once.
+[project]
+name = "Bad"
+dir = "bad"
+owner = "o"
+summary = "s"
+vision = "v"
+defaults = ["d"]
+language = "Go"
+domain_invariants = "x"
+private_data = "x"
+never_exported = "x"
+diagram = "A --> B"
+layers = ["l"]
+glossary_groups = ["g"]
+colour = "typo"
+
+[[rules]]
+group = "g"
+items = ["r"]
+
+[[tracks]]
+id = "T1"
+name = "One"
+
+[[tracks]]
+id = "T2"
+name = "Nobody holds me"
+
+[[sessions]]
+id = "S1"
+name = "One"
+tracks = ["T1"]
+
+[[milestones]]
+id = "M1"
+title = "t"
+delivers = "d"
+goal = "g"
+capabilities = "c"
+goals = ["g"]
+gate = { name = "g", artifact = "a" }
+[[milestones.acceptance]]
+criterion = "c"
+how = "h"
+
+[[modules]]
+code = "AB"
+name = "A"
+repo = "a"
+owns = "o"
+track = "T1"
+description = "d"
+purpose = "p"
+boundaries = ["b"]
+never_does = "n"
+invariants = ["i"]
+checks = "c"
+setup = "s"
+exit_criteria = "e"
+[[modules.steps]]
+id = "AB-1.1"
+title = "one"
+depends = ["AB-1.2"]
+[[modules.steps]]
+id = "AB-1.2"
+title = "two"
+depends = ["AB-1.1", "ZZ-1.1"]

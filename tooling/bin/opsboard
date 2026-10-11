@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+# usage: opsboard [--md|--tsv] [root ...]   (no roots: read the roots file, `sp-config ROOTS`)
+#   a root path inside a listed root (e.g. a submodule) maps to that listed root
+md=0; tsv=0
+case "${1:-}" in --md) md=1; shift ;; --tsv) tsv=1; shift ;; esac
+cfg=$("$(dirname "$(readlink -f "$0")")/sp-config" ROOTS)
+listed=(); [ -f "$cfg" ] && mapfile -t listed < <(grep -v -e '^[[:space:]]*#' -e '^[[:space:]]*$' "$cfg")
+if [ $# -eq 0 ]; then
+  [ ${#listed[@]} -gt 0 ] || { echo "No roots: pass them or list them in $cfg"; exit 1; }
+  roots=("${listed[@]}")
+else
+  roots=()
+  for p in "$@"; do
+    p=$(realpath -m "$p"); best=""
+    for r in "${listed[@]}"; do r=$(realpath -m "$r")
+      [[ "$p/" == "$r/"* && ${#r} -gt ${#best} ]] && best=$r; done
+    roots+=("${best:-$p}")
+  done
+fi
+
+# operator.md: every ### entry under a ## section is open, except "### Done…" and a
+# **Status:** starting with done. Entries under "## Later" or titled "Later…" are later.
+# **When:** gives when to act: "now" (also when missing), a YYYY-MM-DD date (shown as
+# "now" from that day), "standing" (a repeated task) or a condition (shown as "when asked").
+# A title starting "O<n> " gives the task ID; **Session:** (else the first session ID in
+# **Tell:**) gives whom to tell "O<n> done".
+# mode sum: kind<TAB>section<TAB>task<TAB>status<TAB>line<TAB>when<TAB>id<TAB>tell
+# mode det: full markdown of open entries
+ops() { [ -f "$1/operator.md" ] && awk -v mode="$2" -v root="$1" -v today="$(date +%F)" '
+  function fix(x,   o, g) { o=""
+    while (match(x, /\]\([^)]*\)/)) { g=substr(x, RSTART+2, RLENGTH-3)
+      if (g ~ /^#/) g=root "/operator.md" g; else if (g !~ /^(https?:|mailto:|\/|~)/) g=root "/" g
+      o=o substr(x, 1, RSTART-1) "](" g ")"; x=substr(x, RSTART+RLENGTH) }
+    return o x }
+  function when(x,   d) { gsub(/`/,"",x)
+    if (x=="" || x ~ /^now/) return "now"
+    if (x ~ /^standing/) return "standing"
+    if (match(x, /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/)) { d=substr(x, 1, 10); return d > today ? d : "now" }
+    return "when asked" }
+  function flush(   st, k, wn, id, task, tl) { if (t=="") return
+    st=s; gsub(/`/,"",st); if (st ~ /^done/) { t=""; return }
+    wn=when(w); id="—"; task=t
+    if (match(t, /^O[0-9]+ /)) { id=substr(t, 1, RLENGTH-1); task=substr(t, RLENGTH+1) }
+    tl=who; if (tl=="" && match(tell, /(S|CP)[0-9]+/)) tl=substr(tell, RSTART, RLENGTH)
+    if (tl=="") tl="—"
+    if (st=="") st=(u!="" ? "Unblocks: " u : "open")
+    k=(sec ~ /^Later/ || t ~ /^Later/) ? "later" : "you"
+    if (mode=="sum") { gsub(/\[|\]\([^)]*\)/,"",st); ub=u; gsub(/\[|\]\([^)]*\)/,"",ub); gsub(/\t/," ",ub); gsub(/\t/," ",sec); gsub(/\t/," ",task); gsub(/\t/," ",own)
+      printf "%s\t%s\t%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\n", k, sec, task, substr(st,1,90), ln, wn, id, tl, ub, own }
+    else if (k=="you") printf "\n#### %s\n\n_%sWhen: %s · %s · [operator.md](%s/operator.md) line %d_\n\n%s", t, (id!="—" ? "Tell " tl ": \"" id " done\" · " : ""), wn, sec, root, ln, body
+    t="" }
+  /^```/ { fence=!fence }
+  !fence && /^(#|##|###) / { flush()
+    if (/^## /) { sec=$0; sub(/^## +/,"",sec) }
+    if (/^### /) { t=$0; sub(/^### +/,"",t); ln=NR; body=""; s=""; u=""; w=""; who=""; tell=""; own=""; if (t ~ /^Done/) t="" }
+    next }
+  t!="" { l=$0
+    if (!fence) {
+      if (s=="" && /\*\*Status:\*\*/) { s=$0; sub(/.*\*\*Status:\*\* */,"",s) }
+      if (w=="" && /\*\*When:\*\*/) { w=$0; sub(/.*\*\*When:\*\* */,"",w) }
+      if (who=="" && /\*\*Session:\*\*/) { who=$0; sub(/.*\*\*Session:\*\* */,"",who); gsub(/`/,"",who); sub(/[ ,;.].*/,"",who) }
+      if (tell=="" && /\*\*Tell:\*\*/) { tell=$0; sub(/.*\*\*Tell:\*\* */,"",tell) }
+      if (own=="" && /\*\*Owner:\*\*/) { own=$0; sub(/.*\*\*Owner:\*\* */,"",own); sub(/\.( .*)?$/,"",own) }
+      if (u=="" && /\*\*Unblocks:\*\*/) { u=$0; sub(/.*\*\*Unblocks:\*\* */,"",u); sub(/ *\*\*[A-Z][^*]*:\*\*.*/,"",u) }
+      if (/^#/) l="##" l; else l=fix(l) }
+    body=body l "\n" }
+  END { flush() }' "$1/operator.md"; }
+hand() { [ -f "$1/handoffs.md" ] && awk -F'|' '
+  /^\| *(H|UI-CR)[0-9]+ / { id=$2; ft=$4; st=$7; gsub(/^ +| +$/,"",id); gsub(/^ +| +$/,"",ft); gsub(/^ +/,"",st)
+    if (st !~ /^(closed|declined)/) printf "%s\t%s\t%s\n", id, ft, substr(st,1,90) }' "$1/handoffs.md"; }
+# rows of the Checkpoint status and Publish status tables that are not at rest
+stat() { [ -f "$1/handoffs.md" ] && awk -F'|' '
+  /^## / { sec=""; if ($0 ~ /Checkpoint status/) sec="checkpoint"; if ($0 ~ /Publish status/) sec="publish"; next }
+  sec!="" && /^\| / && !/^\|[- |]*$/ { n=NF-1; who=$2; st=$(n-1); gsub(/^ +| +$/,"",who); gsub(/^ +| +$/,"",st)
+    if (who ~ /^(Session|Repository|Module)$/) next
+    if (st !~ /^(free|idle|planned|published)/) printf "%s\t%s\t%s\n", sec, who, st }' "$1/handoffs.md"; }
+
+# checkpoint status in one line ("CP5: working S1, S3 · reached S2, S4 · CP5 idle") and, when
+# every session row reads reached and the checkpoint session's row reads idle, a "ready"
+# line: id<TAB>text. Output: line 1 the summary (or empty), line 2 the ready task (or empty).
+cpsum() { [ -f "$1/handoffs.md" ] && awk -F'|' '
+  /^## / { sec=($0 ~ /Checkpoint status/); next }
+  sec && /^\| / && !/^\|[- |]*$/ { who=$2; cp=$3; st=$4; gsub(/^ +| +$/,"",cp); gsub(/^ +| +$/,"",st)
+    if (who ~ /^ *Session *$/) next
+    gsub(/`/,"",who); sub(/^ +/,"",who); sub(/ .*/,"",who); sub(/ .*/,"",st)
+    if (who ~ /^CP/) { cpw=who; cps=st; next }
+    n++; if (st!="reached") all=0; else r++; byst[st]=byst[st] (byst[st]=="" ? "" : ", ") who
+    if (cp!="" && cp !~ /none/) name=cp }
+  BEGIN { all=1 }
+  END { if (!n) exit
+    line=(name!="" ? name ": " : ""); sep=""
+    if ("working" in byst) { line=line sep "working " byst["working"]; sep=" · " }
+    if ("reached" in byst) { line=line sep "reached " byst["reached"]; sep=" · " }
+    for (k in byst) if (k!="free" && k!="working" && k!="reached") { line=line sep k " " byst[k]; sep=" · " }
+    if (cpw!="" && cps!="idle") line=line sep cpw " " cps
+    if (line ~ /: $/ || line=="") line=""
+    print line
+    if (all && cps=="idle" && name!="") printf "%s\tCommit every session'"'"'s work, close the sessions and run `/session %s`\n", name, name
+    else print "" }' "$1/handoffs.md"; }
+
+[ $md -eq 1 ] && { echo "# Ops board"; echo; echo "_Updated $(date '+%Y-%m-%d %H:%M')_"; }
+for root in "${roots[@]}"; do
+  name=$(basename "$root"); o=$(ops "$root" sum); h=$(hand "$root"); c=$(stat "$root")
+  cpo=$(cpsum "$root"); cs=$(echo "$cpo" | sed -n 1p); cr=$(echo "$cpo" | sed -n 2p)
+  missing=""; for f in AGENTS.md plan.md handoffs.md; do [ -f "$root/$f" ] || missing="$missing $f"; done
+  # --tsv: one row per fact, led by its kind and root (op: the sum columns, then unblocks, owner)
+  if [ $tsv -eq 1 ]; then
+    [ -n "$missing" ] && printf 'missing\t%s\t%s\n' "$root" "${missing# }"
+    [ -n "$cs" ] && printf 'cp\t%s\t%s\n' "$root" "$cs"
+    [ -n "$cr" ] && printf 'cpready\t%s\t%s\n' "$root" "$cr"
+    for kind in op:o status:c handoff:h; do v=${kind#*:}; [ -n "${!v}" ] && printf '%s\n' "${!v}" | sed "s|^|${kind%%:*}\t$root\t|"; done
+    continue
+  fi
+  if [ $md -eq 0 ]; then
+    echo "== $name"; [ -n "$missing" ] && echo "  !! missing:$missing"
+    [ -n "$cs" ] && echo "  [checkpoint] $cs"
+    [ -n "$c" ] && echo "$c" | awk -F'\t' '$1!="checkpoint" {printf "  [%-10s] %-30s %s\n",$1,$2,$3}'
+    [ -n "$cr" ] && echo "$cr" | awk -F'\t' '{printf "  [you    ] %-10s %-5s %-4s %s\n","now",$1,"—",$2}'
+    [ -n "$o" ] && echo "$o" | awk -F'\t' '{printf "  [%-7s] %-10s %-5s %-4s %s › %s: %s\n",$1,($1=="you"?$6:""),$7,$8,$2,$3,$4}'
+    [ -n "$h" ] && echo "$h" | awk -F'\t' '{printf "  [handoff] %-7s %-18s %s\n",$1,$2,$3}'
+    echo; continue
+  fi
+  echo; echo "## $name"
+  [ -n "$missing" ] && { echo; echo "> **Missing:**$missing (/session will stop)"; }
+  [ -n "$cs" ] && { echo; echo "**Checkpoint:** $cs"; }
+  p=$(echo "$c" | awk -F'\t' '$1=="publish"')
+  if [ -n "$p" ]; then echo; echo "### Publish status"; echo
+    echo "| Who | Status |"; echo "|---|---|"
+    echo "$p" | awk -F'\t' '{gsub(/\|/,"\\|"); printf "| %s | %s |\n",$2,$3}'; fi
+  echo; echo "### Waiting on you"; echo
+  if [ -n "$cr" ] || echo "$o" | grep -q '^you'; then echo "| ID | When | Tell | Section | Task | Status |"; echo "|---|---|---|---|---|---|"
+    [ -n "$cr" ] && echo "$cr" | awk -F'\t' '{printf "| %s | now | — | Checkpoint | %s | every session reached it |\n",$1,$2}'
+    echo "$o" | awk -F'\t' '$1=="you" {gsub(/\|/,"\\|"); printf "| %s | %s | %s | %s | %s | %s |\n",$7,$6,$8,$2,$3,$4}'
+    echo; echo "_Conventions (where commands run, keys, sudo) are at the top of [operator.md]($root/operator.md)._"
+    ops "$root" det
+  else echo "Nothing."; fi
+  if echo "$o" | grep -q '^later'; then echo; echo "### Later"; echo
+    echo "$o" | awk -F'\t' -v r="$root" '$1=="later" {printf "- %s**%s** (%s): %s · [operator.md](%s/operator.md) line %d\n",($7!="—"?$7 " ":""),$3,$2,$4,r,$5}'; fi
+  echo; echo "### Open handoffs"; echo
+  if [ -n "$h" ]; then echo "| ID | From → to | Status |"; echo "|---|---|---|"
+    echo "$h" | awk -F'\t' '{gsub(/\|/,"\\|"); printf "| %s | %s | %s |\n",$1,$2,$3}'
+    echo; echo '```mermaid'; echo 'flowchart LR'
+    echo "$h" | awk -F'\t' '{ if (split($2,a,"→")<2) next
+      n=split(a[1],f,","); m=split(a[2],t,",")
+      for(i=1;i<=n;i++) for(j=1;j<=m;j++){ x=f[i]; y=t[j]; gsub(/[^A-Za-z0-9]/,"",x); gsub(/[^A-Za-z0-9]/,"",y)
+        if (x!="" && y!="") printf "  %s -->|%s| %s\n", x, $1, y } }'
+    echo '```'
+  else echo "None."; fi
+done

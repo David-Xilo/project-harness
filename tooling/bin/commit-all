@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -uo pipefail
+root="${1:?usage: commit-all <root>}"; cd "$root" || exit 1
+top=$(git config -f .gitmodules --get-regexp '^submodule\..*\.path$' 2>/dev/null | awk '{print $2}')
+mods=$(for t in $top; do  # nested submodules first, deepest first, then their parent
+  [ -d "$t" ] && git -C "$t" submodule foreach --recursive --quiet 'echo "$displaypath"' 2>/dev/null | tac | sed "s|^|$t/|"
+  echo "$t"; done)
+last=""
+commit_repo() {  # $1 = repo dir, $2 = label
+  local s; s=$(git -C "$1" status -s --ignore-submodules=dirty)
+  [ -z "$s" ] && return
+  echo; echo "== $2"; echo "$s"
+  read -rp "message (Enter = '${last}', s = skip): " m
+  [ "$m" = s ] && return
+  [ -z "$m" ] && m="$last"
+  [ -z "$m" ] && { echo "skipped: no message"; return; }
+  last="$m"
+  git -C "$1" add -A && git -C "$1" commit -q -m "$m" && echo "committed $2"
+}
+for m in $mods; do commit_repo "$m" "$m"; done
+commit_repo . "$(basename "$PWD") (root)"
+echo; echo "Done. Press Enter to close."; read -r

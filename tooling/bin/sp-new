@@ -1,0 +1,597 @@
+#!/usr/bin/env python3
+"""usage: sp-new <project.toml> [--root <dir>]   render a new root from the file
+       sp-new --check <project.toml>             check the file and print what it describes
+       sp-new --modules <root>                   after O1: fill each new module repository
+Every value a new project needs lives in one project.toml (tooling/project.example.toml
+documents each key). The root is the file's project.root, or PROJECTS_DIR/<dir>; it must
+not exist yet. The file is kept in <root>/.claude/project.toml, which --modules reads.
+Nothing is left to fill by hand: a missing key, a leftover {{ or a template note fails."""
+import datetime, json, os, re, shutil, subprocess, sys, tomllib
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+REPO = HERE.parent.parent
+WORKSPACE, MODULE = REPO / "workspace", REPO / "module"
+
+
+class Bad(Exception):
+    pass
+
+
+# --- a small mustache: {{x}}, {{a.b}}, {{.}}, {{#x}}…{{/x}}, {{^x}}…{{/x}} -------------
+
+TAG = re.compile(r"\{\{([#^/]?)\s*([\w.]+)\s*\}\}")
+STANDALONE = re.compile(r"^[ \t]*(\{\{[#^/]\s*[\w.]+\s*\}\})[ \t]*\n", re.M)
+MISSING = object()
+
+
+def parse(text, name):
+    text = STANDALONE.sub(r"\1", text)
+    root, stack, pos = [], [], 0
+    cur = root
+    for m in TAG.finditer(text):
+        if m.start() > pos:
+            cur.append(text[pos:m.start()])
+        kind, key = m.groups()
+        if kind in "#^" and kind:
+            node = (kind, key, [])
+            cur.append(node)
+            stack.append((cur, key))
+            cur = node[2]
+        elif kind == "/":
+            if not stack or stack[-1][1] != key:
+                raise Bad(f"{name}: {{{{/{key}}}}} closes nothing open")
+            cur = stack.pop()[0]
+        else:
+            cur.append(("=", key))
+        pos = m.end()
+    if stack:
+        raise Bad(f"{name}: {{{{#{stack[-1][1]}}}}} is never closed")
+    cur.append(text[pos:])
+    return root
+
+
+def lookup(key, ctx, name):
+    if key == ".":
+        return ctx[-1]
+    first, *rest = key.split(".")
+    for frame in reversed(ctx):
+        if isinstance(frame, dict) and first in frame:
+            val = frame[first]
+            for part in rest:
+                if not isinstance(val, dict) or part not in val:
+                    raise Bad(f"{name}: no value for {{{{{key}}}}}")
+                val = val[part]
+            return val
+    raise Bad(f"{name}: no value for {{{{{key}}}}}")
+
+
+def render(nodes, ctx, name):
+    out = []
+    for node in nodes:
+        if isinstance(node, str):
+            out.append(node)
+        elif node[0] == "=":
+            val = lookup(node[1], ctx, name)
+            if val is None or isinstance(val, (list, dict, bool)):
+                raise Bad(f"{name}: {{{{{node[1]}}}}} has no text to insert")
+            out.append(str(val))
+        else:
+            kind, key, body = node
+            val = lookup(key, ctx, name)
+            if kind == "^":
+                if not val:
+                    out.append(render(body, ctx, name))
+            elif isinstance(val, list):
+                out.extend(render(body, ctx + [item], name) for item in val)
+            elif isinstance(val, dict):
+                if val:
+                    out.append(render(body, ctx + [val], name))
+            elif val:
+                out.append(render(body, ctx, name))
+    return "".join(out)
+
+
+def fill(src, ctx):
+    text = render(parse(src.read_text(), src.name), [ctx], src.name)
+    left = [w for w in ("{{", "<!-- template") if w in text]
+    if left:
+        raise Bad(f"{src.name}: {', '.join(left)} left after rendering")
+    return text
+
+
+# --- the file: schema and checks ------------------------------------------------------
+
+# S is one line, C one line that also lands in a table cell (so no "|"), M any Markdown text
+S, C, M = "one line of text", "one line of text without |", "text"
+L, D, LD = "list of text", "table", "list of tables"
+STEPS = (LD, True, {"id": (C, True), "title": (C, True), "definition": (S, False),
+                    "priority": (C, False), "depends": (L, False)})
+SCHEMA = {
+    "project": (D, True, {
+        "name": (C, True), "dir": (C, True), "owner": (S, True), "root": (S, False),
+        "date": (S, False), "summary": (M, True), "vision": (M, True),
+        "defaults": (L, True), "language": (S, True), "v1_milestone": (S, False),
+        "domain_invariants": (M, True), "private_data": (M, True),
+        "never_exported": (M, True), "diagram": (M, True), "layers": (L, True),
+        "glossary_groups": (L, True), "hard_rules": (L, False),
+    }),
+    "rules": (LD, True, {"group": (S, True), "items": (L, True)}),
+    "runtime": (D, False, {
+        "name": (S, True), "session": (C, True), "monitoring": (M, True),
+        "checks": (LD, True, {"check": (S, True), "how": (S, True)}),
+        "scripts": (L, False), "free": (L, False), "docker_free": (L, False),
+        "commit_first": (LD, False, {"command": (S, True), "repos": (L, True)}),
+    }),
+    "tracks": (LD, True, {"id": (C, True), "name": (C, True)}),
+    "sessions": (LD, False, {"id": (C, True), "name": (C, True), "tracks": (L, True)}),
+    "milestones": (LD, True, {
+        "id": (C, True), "title": (C, True), "delivers": (C, True), "goal": (M, True),
+        "capabilities": (M, True), "goals": (L, True),
+        "gate": (D, True, {"name": (C, True), "artifact": (C, True)}),
+        "acceptance": (LD, True, {"criterion": (S, True), "how": (S, True)}),
+    }),
+    "modules": (LD, True, {
+        "code": (C, True), "name": (C, True), "repo": (C, True), "owns": (C, True),
+        "track": (C, True), "description": (M, True), "purpose": (M, True),
+        "boundaries": (L, True), "never_does": (M, True), "invariants": (L, True),
+        "checks": (M, True), "setup": (M, True), "usage": (M, False),
+        "exit_criteria": (M, True), "steps": STEPS,
+    }),
+    "future_modules": (LD, False, {
+        "code": (C, True), "name": (C, True), "repo": (C, True), "owns": (C, True),
+        "track": (C, True), "created_at": (C, True), "may_do_now": (C, False),
+        "waits_for": (C, True), "steps": STEPS,
+    }),
+}
+
+
+def check_shape(data, schema, where, errs):
+    for key in data:
+        if key not in schema:
+            errs.append(f"{where}{key}: unknown key")
+    for key, spec in schema.items():
+        kind, required = spec[0], spec[1]
+        val = data.get(key)
+        here = f"{where}{key}"
+        if val is None or val == "" or val == []:
+            if required:
+                errs.append(f"{here}: missing ({kind})")
+            continue
+        if kind in (S, C, M):
+            if not isinstance(val, str):
+                errs.append(f"{here}: should be {kind}")
+            elif kind != M and "\n" in val.strip():
+                errs.append(f"{here}: should be one line")
+            elif kind == C and "|" in val:
+                errs.append(f"{here}: has a |, which would break its table row")
+        elif kind == L and not (isinstance(val, list) and all(isinstance(v, str) and v for v in val)):
+            errs.append(f"{here}: should be a {kind}, none empty")
+        elif kind == D:
+            if isinstance(val, dict):
+                check_shape(val, spec[2], here + ".", errs)
+            else:
+                errs.append(f"{here}: should be a {kind}")
+        elif kind == LD:
+            if isinstance(val, list) and all(isinstance(v, dict) for v in val):
+                for i, item in enumerate(val, 1):
+                    check_shape(item, spec[2], f"{here}[{i}].", errs)
+            else:
+                errs.append(f"{here}: should be a {kind} ([[{key}]])")
+
+
+def config(key, default):
+    out = subprocess.run([str(HERE / "sp-config"), key], capture_output=True, text=True)
+    return out.stdout.strip() or os.path.expanduser(default)
+
+
+def tilde(path):
+    home = os.path.expanduser("~")
+    return "~" + path[len(home):] if path == home or path.startswith(home + "/") else path
+
+
+def slug(text):
+    return re.sub(r"[^\w\- ]", "", text.strip().lower()).replace(" ", "-")
+
+
+def joined(items, last=" and "):
+    items = list(items)
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + last + items[-1]
+
+
+def build(data, root_override=None):
+    """Check the file and build the render context; raise Bad with every problem at once."""
+    errs = []
+    check_shape(data, SCHEMA, "", errs)
+    if errs:
+        raise Bad("\n".join(errs))
+    p = data["project"]
+    errs = []
+
+    ms = data["milestones"]
+    for i, m in enumerate(ms, 1):
+        if m["id"] != f"M{i}":
+            errs.append(f"milestones[{i}].id: {m['id']}, expected M{i} (in order)")
+    mnum = {m["id"]: i for i, m in enumerate(ms, 1)}
+    v1 = p.get("v1_milestone")
+    if v1 and v1 not in mnum:
+        errs.append(f"project.v1_milestone: {v1} is not a milestone")
+
+    tracks = data["tracks"]
+    for i, t in enumerate(tracks, 1):
+        if t["id"] != f"T{i}":
+            errs.append(f"tracks[{i}].id: {t['id']}, expected T{i} (in order)")
+    tname = {t["id"]: t["name"] for t in tracks}
+
+    sessions = data.get("sessions") or [
+        {"id": f"S{i}", "name": t["name"], "tracks": [t["id"]]} for i, t in enumerate(tracks, 1)]
+    if len(sessions) > 4:
+        errs.append(f"sessions: {len(sessions)}, at most four track sessions run at once (SD3)")
+    held = {}
+    for i, s in enumerate(sessions, 1):
+        if s["id"] != f"S{i}":
+            errs.append(f"sessions[{i}].id: {s['id']}, expected S{i} (in order)")
+        for t in s["tracks"]:
+            if t not in tname:
+                errs.append(f"sessions[{i}].tracks: {t} is not a track")
+            elif t in held:
+                errs.append(f"sessions: {t} is held by {held[t]} and {s['id']}")
+            held[t] = s["id"]
+    for t in tname:
+        if t not in held:
+            errs.append(f"tracks: no session holds {t}")
+
+    mods, fut = data["modules"], data.get("future_modules", [])
+    seen_code, seen_repo, bad_code = set(), set(), set()
+    for kind, group in (("modules", mods), ("future_modules", fut)):
+        for i, m in enumerate(group, 1):
+            if not re.fullmatch(r"[A-Z]{2,5}", m["code"]):
+                errs.append(f"{kind}[{i}].code: {m['code']}, use 2-5 capital letters")
+                bad_code.add(m["code"])
+            if m["code"] in seen_code:
+                errs.append(f"{kind}[{i}].code: {m['code']} is used twice")
+            if m["repo"] in seen_repo:
+                errs.append(f"{kind}[{i}].repo: {m['repo']} is used twice")
+            seen_code.add(m["code"]); seen_repo.add(m["repo"])
+            if m["track"] not in tname:
+                errs.append(f"{kind}[{i}].track: {m['track']} is not a track")
+            if kind == "future_modules" and m["created_at"] not in mnum:
+                errs.append(f"{kind}[{i}].created_at: {m['created_at']} is not a milestone")
+
+    steps, bad_ids = {}, set()
+    for kind, group in (("modules", mods), ("future_modules", fut)):
+        for m in group:
+            if m["code"] in bad_code:  # its step IDs cannot be read; the code error says why
+                bad_ids.update(st["id"] for st in m["steps"])
+                continue
+            for j, st in enumerate(m["steps"], 1):
+                where = f"{kind}[{m['code']}].steps[{j}]"
+                hit = re.fullmatch(rf"{re.escape(m['code'])}-(\d+)\.(\d+)", st["id"])
+                if not hit:
+                    errs.append(f"{where}.id: {st['id']}, expected {m['code']}-<milestone>.<n>")
+                    bad_ids.add(st["id"])
+                    continue
+                if f"M{int(hit[1])}" not in mnum:
+                    errs.append(f"{where}.id: {st['id']}, milestone M{int(hit[1])} is not planned")
+                    bad_ids.add(st["id"])
+                    continue
+                if st["id"] in steps:
+                    errs.append(f"{where}.id: {st['id']} is used twice")
+                pri = st.get("priority", "P0")
+                if pri not in ("P0", "P1", "P2", "M"):
+                    errs.append(f"{where}.priority: {pri}, use P0, P1, P2 or M")
+                steps[st["id"]] = {
+                    "id": st["id"], "title": st["title"].rstrip("."),
+                    "definition": (st.get("definition") or st["title"]).rstrip("."),
+                    "pri": pri, "depends": st.get("depends", []), "code": m["code"],
+                    "track": m["track"], "m": int(hit[1]), "n": int(hit[2]),
+                }
+    for st in steps.values():
+        for d in st["depends"]:
+            if d in bad_ids:
+                continue
+            if d not in steps:
+                errs.append(f"{st['id']}.depends: {d} is not a step")
+            elif steps[d]["m"] > st["m"]:
+                errs.append(f"{st['id']}.depends: {d} is in a later milestone (M{steps[d]['m']})")
+    for i, m in enumerate(fut, 1):
+        if m["created_at"] in mnum:
+            early = [s["id"] for s in steps.values()
+                     if s["code"] == m["code"] and s["m"] < mnum[m["created_at"]]]
+            if early:
+                errs.append(f"future_modules[{i}].steps: {', '.join(early)} before "
+                            f"{m['created_at']}, when the module is created")
+
+    rt = data.get("runtime")
+    if rt and rt["session"] not in {s["id"] for s in sessions}:
+        errs.append(f"runtime.session: {rt['session']} is not a session")
+    if rt and not rt.get("scripts"):
+        for key in ("free", "docker_free", "commit_first"):
+            if rt.get(key):
+                errs.append(f"runtime.{key}: set only with runtime.scripts")
+    for i, cf in enumerate((rt or {}).get("commit_first", []), 1):
+        for r in cf["repos"]:
+            if r not in {m["repo"] for m in mods}:
+                errs.append(f"runtime.commit_first[{i}].repos: {r} is not a module repository")
+    m1 = [s for s in steps.values() if s["m"] == 1]
+    if not m1:
+        errs.append("M1 has no step: give a module a step <CODE>-1.1")
+    if errs:
+        raise Bad("\n".join(errs))
+
+    # dependency order: stable topological sort, which also finds cycles
+    order, state = [], {}
+
+    def visit(sid, path):
+        if state.get(sid) == "done":
+            return
+        if state.get(sid) == "open":
+            raise Bad("steps: dependency cycle " + " → ".join(path + [sid]))
+        state[sid] = "open"
+        for d in steps[sid]["depends"]:
+            visit(d, path + [sid])
+        state[sid] = "done"
+        order.append(sid)
+
+    for sid in sorted(steps, key=lambda s: (steps[s]["m"], steps[s]["n"], s)):
+        visit(sid, [])
+    rank = {sid: i for i, sid in enumerate(order)}
+    by_rank = lambda ids: sorted(ids, key=rank.get)
+    unblocks = {sid: [] for sid in steps}
+    for st in steps.values():
+        for d in st["depends"]:
+            unblocks[d].append(st["id"])
+
+    def version(i):
+        if v1 and i >= mnum[v1]:
+            return f"v1.{i - mnum[v1]}.0"
+        return f"v0.{i}.0"
+
+    session_of = {t: s["id"] for s in sessions for t in s["tracks"]}
+    ctx = {
+        "name": p["name"], "slug": slug(f"What {p['name']} is"), "dir": p["dir"],
+        "owner": p["owner"], "summary": p["summary"].strip(), "vision": p["vision"].strip(),
+        "defaults": p["defaults"], "language": p["language"],
+        "v1_milestone": v1 or "a later milestone",
+        "domain_invariants": p["domain_invariants"], "private_data": p["private_data"],
+        "never_exported": p["never_exported"], "diagram": p["diagram"].strip(),
+        "layers": p["layers"], "n": str(len(sessions)), "last_m": str(len(ms)),
+        "date": p.get("date") or datetime.date.today().isoformat(),
+        "rules": data["rules"],
+        "glossary_groups": [{"group_name": g, "group_slug": slug(g)} for g in p["glossary_groups"]],
+        "hard_rules": p.get("hard_rules", []),
+        "published_dir": tilde(config("PUBLISHED_DIR", "~/projects/published-oss")),
+        "milestone_order": " → ".join(m["id"] for m in ms),
+        "later_cps": ("`CP2` (M2)" if len(ms) == 2 else
+                      f"`CP2`–`CP{len(ms)}`, one per milestone" if len(ms) > 2 else "none planned"),
+        "runtime": None, "future": [], "codes": [],
+    }
+    root = Path(root_override or os.path.expanduser(p.get("root") or str(Path(config("PROJECTS_DIR", "~/projects")) / p["dir"])))
+    ctx["root"] = str(root.resolve() if root.exists() else root.absolute())
+    if rt:
+        ctx["runtime"] = {"runtime_name": rt["name"], "runtime_session": rt["session"],
+                          "monitoring": rt["monitoring"], "checks": rt["checks"]}
+    ctx["workspace_json"] = None
+    if rt and rt.get("scripts"):  # the workspace mod's rule: only these sessions run the scripts
+        ctx["workspace_json"] = {"runtime": {
+            "scripts": rt["scripts"], "runners": rf"^(?:{rt['session']}|CP\d+)$",
+            "free": rt.get("free", []), "dockerFree": rt.get("docker_free", []),
+            "cite": 'plan.md "Track rules"',
+            "commitFirst": {cf["command"]: cf["repos"] for cf in rt.get("commit_first", [])},
+        }}
+
+    def step_row(sid):
+        st = steps[sid]
+        nxt = by_rank(unblocks[sid]) or [f"CP{st['m']}"]
+        return {**st, "depends_text": ", ".join(by_rank(st["depends"])) or "—",
+                "unblocks_text": ", ".join(nxt)}
+
+    ctx["milestones"] = []
+    for i, m in enumerate(ms, 1):
+        ids = by_rank(s for s in steps if steps[s]["m"] == i)
+        owners = sorted({steps[s]["code"] for s in ids}, key=[x["code"] for x in mods + fut].index)
+        scope = []
+        for s in sessions:
+            mine = [x for x in ids if steps[x]["track"] in s["tracks"]]
+            scope.append(f"`{s['id']}`: {', '.join(mine) if mine else 'none'}")
+        ctx["milestones"].append({
+            "id": m["id"], "num": str(i), "title": m["title"], "goal": m["goal"].strip(),
+            "delivers": m["delivers"], "capabilities": m["capabilities"], "goals": m["goals"],
+            "version": version(i), "cp": f"CP{i}", "open": i == 1,
+            "gate_id": f"G{i}-{m['gate']['name']}", "gate_artifact": m["gate"]["artifact"],
+            "owners_text": ", ".join(owners) or "—",
+            "acceptance": m["acceptance"], "steps": [step_row(s) for s in ids],
+            "scope_text": "; ".join(scope),
+            "next_m": ms[i]["id"] if i < len(ms) else "—", "last": i == len(ms),
+        })
+    ctx["m1"] = ctx["milestones"][0]
+    ctx["first_step"] = by_rank(s["id"] for s in m1)[0]
+    ctx["cross_order"] = " → ".join(by_rank(s["id"] for s in m1) + ["CP1"])
+
+    def cells(code):
+        out = []
+        for i in range(1, len(ms) + 1):
+            ns = sorted(steps[s]["n"] for s in steps if steps[s]["code"] == code and steps[s]["m"] == i)
+            out.append({"cell": "—" if not ns else f"{i}.{ns[0]}" + (f"–{i}.{ns[-1]}" if len(ns) > 1 else "")})
+        return out
+
+    def module_steps(code):
+        mine = by_rank(s for s in steps if steps[s]["code"] == code)
+        firstm = min((steps[s]["m"] for s in mine), default=1)
+        groups = []
+        for i, m in enumerate(ctx["milestones"], 1):
+            ids = [s for s in mine if steps[s]["m"] == i]
+            if ids:
+                groups.append({"id": m["id"], "gate_id": m["gate_id"],
+                               "steps": [step_row(s) for s in ids]})
+        nxt = []
+        for s in mine:
+            if steps[s]["m"] == firstm:
+                waits = steps[s]["depends"]
+                nxt.append({**steps[s], "num": str(len(nxt) + 1),
+                            "waits": f" Waits for {joined(by_rank(waits))}." if waits else ""})
+        return mine, groups, nxt
+
+    ctx["modules"] = []
+    for m in mods:
+        mine, groups, nxt = module_steps(m["code"])
+        usage = (m.get("usage") or "").strip()
+        ctx["modules"].append({
+            "code": m["code"], "module": m["name"], "repo": m["repo"], "owns": m["owns"],
+            "track": m["track"], "track_name": tname[m["track"]], "session": session_of[m["track"]],
+            "description": m["description"].strip(), "purpose": m["purpose"].strip(),
+            "boundaries": m["boundaries"], "never_does": m["never_does"],
+            "invariants": m["invariants"], "checks": m["checks"].strip(),
+            "checks_indented": m["checks"].strip().replace("\n", "\n  "),
+            "setup": m["setup"].strip(), "usage": usage, "exit_criteria": m["exit_criteria"],
+            "cells": cells(m["code"]), "milestone_steps": groups, "next": nxt,
+            "open_text": ", ".join(s["id"] for s in nxt) or "nothing planned",
+        })
+    for m in fut:
+        _, _, nxt = module_steps(m["code"])
+        ctx["future"].append({
+            "code": m["code"], "module": m["name"], "repo": m["repo"], "owns": m["owns"],
+            "track": m["track"], "created_at": f"{nxt[0]['id']} ({m['created_at']})",
+            "may_do_now": m.get("may_do_now") or "Research and agreed fixtures only",
+            "waits_for": m["waits_for"], "fsteps": [steps[s] for s in by_rank(
+                s for s in steps if steps[s]["code"] == m["code"])],
+        })
+    ctx["codes"] = [{"code": m["code"], "module": m["name"]} for m in mods + fut]
+
+    ctx["tracks"] = []
+    for t in tracks:
+        now = [s for s in order if steps[s]["track"] == t["id"] and steps[s]["m"] == 1]
+        later = []
+        for i in range(2, len(ms) + 1):
+            ids = [s for s in order if steps[s]["track"] == t["id"] and steps[s]["m"] == i]
+            if ids:
+                later.append(f"M{i}: {', '.join(ids)}")
+        ctx["tracks"].append({"id": t["id"], "track_name": t["name"],
+                              "queue": ", ".join(now) or "—", "then": "; ".join(later) or "—"})
+
+    ctx["sessions"] = []
+    for s in sessions:
+        repos = [m["repo"] for m in mods if m["track"] in s["tracks"]]
+        reads = joined([f"`{r}/plan.md`" for r in repos]) + (
+            " and its AGENTS.md" if len(repos) == 1 else " and their AGENTS.md") if repos else (
+            "the root plan only (no repository yet)")
+        ctx["sessions"].append({
+            "id": s["id"], "session_name": s["name"],
+            "tracks_text": ", ".join(f"{t} {tname[t]}" for t in s["tracks"]),
+            "track_ids": joined(s["tracks"]),
+            "repos_text": ", ".join(f"`{r}`" for r in repos) or "no repository yet",
+            "reads": reads,
+        })
+    ctx["tracks_line"] = ", ".join(f"{t['id']} {t['name']}" for t in tracks)
+    ctx["sessions_line"] = ", ".join(f"`{s['id']}` holds {s['track_ids']}" for s in ctx["sessions"])
+    return ctx, root
+
+
+# --- commands -------------------------------------------------------------------------
+
+def load(path):
+    try:
+        with open(path, "rb") as f:
+            return tomllib.load(f)
+    except (OSError, tomllib.TOMLDecodeError) as e:
+        raise Bad(f"{path}: {e}")
+
+
+def new_root(toml, root_override):
+    ctx, root = build(load(toml), root_override)
+    if root.exists():
+        raise Bad(f"{root} exists; sp-new only creates a new root")
+    out = {}
+    for src in sorted(WORKSPACE.rglob("*")):
+        rel = src.relative_to(WORKSPACE)
+        if src.is_dir() or (rel.name == "operations.md" and not ctx["runtime"]):
+            continue
+        out[rel] = fill(src, ctx)
+    for rel, text in out.items():
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text(text)
+    (root / ".claude").mkdir(exist_ok=True)
+    shutil.copyfile(toml, root / ".claude" / "project.toml")
+    extra = ".claude/project.toml"
+    if ctx["workspace_json"]:
+        (root / ".claude" / "workspace.json").write_text(json.dumps(ctx["workspace_json"], indent=2) + "\n")
+        extra += " and .claude/workspace.json"
+    print(f"created {root}: {len(out)} files, {extra}")
+
+
+def modules(root):
+    """Fill each module repository that holds only its first README. A filled one is left
+    alone, so this runs again when a later milestone's O task creates a repository."""
+    root = Path(root).resolve()
+    ctx, _ = build(load(root / ".claude" / "project.toml"), root)
+    ctx["date"] = datetime.date.today().isoformat()  # the day the modules are filled
+    agents = (root / "AGENTS.md").read_text()
+    common = re.search(r"^## Common working rules\n(.*?)(?=^## )", agents, re.S | re.M)
+    if not common:
+        raise Bad(f"{root}/AGENTS.md has no '## Common working rules' section")
+    ctx["common_rules"] = common[1].strip()
+    todo, errs, notes = [], [], []
+    for m in ctx["modules"]:
+        dest = root / m["repo"]
+        if not (dest / ".git").exists():
+            errs.append(f"{m['repo']}: not a repository yet (O1 adds it)")
+            continue
+        extra = sorted(x.name for x in dest.iterdir() if x.name not in (".git", "README.md"))
+        if extra:
+            notes.append(f"left {m['repo']} alone: it holds {', '.join(extra)}")
+            continue
+        todo.append((m, dest))
+    for m in ctx["future"]:
+        if (root / m["repo"] / ".git").exists():
+            errs.append(f"{m['repo']}: exists, but {m['code']} is still in [[future_modules]]; "
+                        f"move it to [[modules]] in {root}/.claude/project.toml with a module's "
+                        f"keys, then run this again")
+    if errs:
+        raise Bad("\n".join(errs))
+    for line in notes:
+        print(line)
+    for m, dest in todo:
+        mctx = {**ctx, **m}
+        files = {src.name: fill(src, mctx) for src in sorted(MODULE.iterdir()) if src.is_file()}
+        for name, text in files.items():
+            (dest / name).write_text(text)
+        print(f"filled {m['repo']}: {', '.join(files)}")
+    if not todo:
+        print("nothing to fill")
+
+
+def check(toml):
+    ctx, root = build(load(toml))
+    print(f"{ctx['name']} at {root}{' (exists!)' if root.exists() else ''}")
+    for s in ctx["sessions"]:
+        print(f"  {s['id']} {s['session_name']}: {s['tracks_text']}; writes {s['repos_text']}")
+    for m in ctx["milestones"]:
+        print(f"  {m['id']} {m['title']} → {m['version']}, gate {m['gate_id']}: "
+              + (", ".join(s["id"] for s in m["steps"]) or "no steps"))
+    if ctx["runtime"]:
+        print(f"  runtime: {ctx['runtime']['runtime_name']}, run by {ctx['runtime']['runtime_session']}")
+    print("ok")
+
+
+def main(argv):
+    try:
+        if len(argv) == 2 and argv[0] == "--check":
+            check(argv[1])
+        elif len(argv) == 2 and argv[0] == "--modules":
+            modules(argv[1])
+        elif len(argv) == 1 and not argv[0].startswith("-"):
+            new_root(argv[0], None)
+        elif len(argv) == 3 and argv[1] == "--root":
+            new_root(argv[0], argv[2])
+        else:
+            print(__doc__.strip())
+            return 2
+    except Bad as e:
+        print(f"sp-new: {e}" if "\n" not in str(e) else "sp-new: fix these, then run it again:\n  "
+              + str(e).replace("\n", "\n  "), file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
