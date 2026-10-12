@@ -49,6 +49,9 @@ jobs:
       - name: leak-check tests
         run: tooling/tests/leak-check/run.sh
 
+      - name: publish-check tests
+        run: tooling/tests/publish-check/run.sh
+
       - name: Mod tests
         run: |
           claude plugin test tooling/mods/session-reset

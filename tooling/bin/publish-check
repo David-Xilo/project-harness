@@ -1,0 +1,220 @@
+#!/usr/bin/env bash
+# usage: publish-check [--snapshot] [<repo>]
+# Checks the local gates a repository passes before it goes public, and every push after:
+# 1 clean, 2 leaks, 3 files, 4 ci, 5 dependabot, 6 hook, 7 signing, 8 agents (plan.md,
+# "Publishing in the open"). <repo> is a path, by default the current directory.
+# --snapshot skips leak-check --history: a snapshot does not carry the history.
+# Prints one line per gate, ok, FAIL or warn, with counts and file names only, never what
+# matched. Exits 1 on a FAIL, 2 when a gate cannot be checked.
+set -uo pipefail
+here=$(dirname "$(readlink -f "$0")")
+snapshot=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -h | --help) sed -n '2,8s/^# \{0,1\}//p' "$0"; exit 0 ;;
+    --snapshot) snapshot=1; shift ;;
+    -*) echo "publish-check: unknown option $1" >&2; exit 2 ;;
+    *) break ;;
+  esac
+done
+[ $# -le 1 ] || { echo "publish-check: one repository at a time" >&2; exit 2; }
+top=$(git -C "${1:-.}" rev-parse --show-toplevel 2>/dev/null) || {
+  echo "publish-check: ${1:-.} is not in a git repository" >&2; exit 2; }
+cd "$top" || exit 2
+tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+
+fails=0 warns=0 unknown=0
+n=0
+# $1: ok, FAIL, warn or cannot; $2: the gate; $3: what was found. Detail lines, already
+# indented, come from "$tmp/detail" and are cleared after.
+report() {
+  n=$((n + 1))
+  case "$1" in
+    FAIL) fails=$((fails + 1)) ;;
+    warn) warns=$((warns + 1)) ;;
+    cannot) unknown=$((unknown + 1)); set -- FAIL "$2" "cannot check: $3" ;;
+  esac
+  printf '%-4s  %d %-10s %s\n' "$1" "$n" "$2" "$3"
+  [ -s "$tmp/detail" ] && cat "$tmp/detail"
+  : >"$tmp/detail"
+}
+: >"$tmp/detail"
+detail() { printf '        %s\n' "$@" >>"$tmp/detail"; }
+tracked() { git ls-files --error-unmatch -- "$1" >/dev/null 2>&1; }
+join() { local IFS=,; local s="$*"; printf '%s' "${s//,/, }"; }
+plural() { [ "$1" = 1 ] && printf '1 %s' "$2" || printf '%s %ss' "$1" "$2"; }
+
+short=$top
+[[ $top == "$HOME"/* ]] && short="~${top#"$HOME"}"
+echo "publish-check: $short$([ $snapshot = 1 ] && echo " (snapshot)")"
+
+# 1 The working tree is clean and committed.
+if ! git rev-parse -q --verify HEAD >/dev/null; then
+  report FAIL clean "no commits yet"
+else
+  git status --porcelain --untracked-files=normal >"$tmp/status"
+  c=$(wc -l <"$tmp/status")
+  if [ "$c" = 0 ]; then
+    report ok clean "nothing to commit"
+  else
+    head -n 20 "$tmp/status" | while IFS= read -r l; do detail "$l"; done
+    [ "$c" -gt 20 ] && detail "… and $((c - 20)) more"
+    report FAIL clean "$(plural "$c" file) changed or untracked"
+  fi
+fi
+
+# 2 leak-check on the tracked files, and on the history unless --snapshot.
+runs=("")
+[ $snapshot = 0 ] && git rev-parse -q --verify HEAD >/dev/null && runs+=(--history)
+said=() status=ok nodeny=
+for r in "${runs[@]}"; do
+  "$here/leak-check" ${r:+"$r"} >"$tmp/leak" 2>&1 </dev/null
+  case $? in
+    0) ;;
+    1) status=FAIL; sed -n 's/^  //p' "$tmp/leak" | while IFS= read -r l; do detail "$l"; done ;;
+    *) status=cannot; said=("$(grep -m1 . "$tmp/leak" | sed 's/^leak-check: //')"); break ;;
+  esac
+  said+=("$(grep -m1 '^leak-check: .* in ' "$tmp/leak" | sed 's/^leak-check: //')")
+  grep -q 'no denylist at' "$tmp/leak" && nodeny=$(grep -m1 -o 'no denylist at [^;]*' "$tmp/leak")
+done
+if [ $status != cannot ]; then
+  [ $snapshot = 1 ] && said+=("history skipped (--snapshot)")
+  [ -n "$nodeny" ] && said+=("$nodeny, gitleaks only")
+  [ -n "$nodeny" ] && [ $status = ok ] && status=warn
+fi
+report "$status" leaks "$(printf '%s\n' "${said[@]}" | paste -sd ';' | sed 's/;/; /g')"
+
+# 3 The public files exist, are tracked and are not empty. GitHub also reads SECURITY.md and
+# CONTRIBUTING.md from .github/ and docs/.
+missing=() empty=() found=()
+need() { # $@: the paths that count; the first is the one named
+  local f
+  for f; do
+    if tracked "$f" && [ -e "$f" ]; then
+      if [ -s "$f" ]; then found+=("$f"); else empty+=("$f"); fi
+      return
+    fi
+  done
+  missing+=("$1")
+}
+need LICENSE LICENSE.md LICENSE.txt COPYING
+need README.md README
+for f in SECURITY.md CONTRIBUTING.md; do need "$f" ".github/$f" "docs/$f"; done
+need CHANGELOG.md
+need .gitignore
+if [ ${#missing[@]} -eq 0 ] && [ ${#empty[@]} -eq 0 ]; then
+  report ok files "$(join "${found[@]}")"
+else
+  [ ${#missing[@]} -gt 0 ] && detail "missing: $(join "${missing[@]}")"
+  [ ${#empty[@]} -gt 0 ] && detail "empty: $(join "${empty[@]}")"
+  report FAIL files "$((${#missing[@]} + ${#empty[@]})) of 6 missing or empty"
+fi
+
+# 4 CI: workflows with top-level permissions, every uses: pinned to a commit SHA (local ./
+# actions and docker:// images aside), a step that runs gitleaks or leak-check, and zizmor
+# clean when it is installed.
+mapfile -t wfs < <(git ls-files -- '.github/workflows/*.yml' '.github/workflows/*.yaml' | awk -F/ 'NF == 3')
+problems=0 pinned=0 scans=()
+if [ ${#wfs[@]} -eq 0 ]; then
+  detail "no workflow in .github/workflows/"
+  problems=1
+fi
+for wf in "${wfs[@]}"; do
+  [ -f "$wf" ] || continue
+  name=${wf#.github/workflows/}
+  grep -qE '^permissions:' "$wf" || { detail "$name: no top-level permissions"; problems=$((problems + 1)); }
+  loose=0
+  while IFS= read -r u; do
+    u=${u#\"}; u=${u%\"}; u=${u#\'}; u=${u%\'}
+    case "$u" in ./* | docker://*) continue ;; esac
+    if [[ $u =~ @[0-9a-f]{40}$ ]]; then pinned=$((pinned + 1)); else loose=$((loose + 1)); fi
+  done < <(grep -E '^[[:space:]]*(-[[:space:]]+)?uses:' "$wf" \
+    | sed -E 's/^[^:]*uses:[[:space:]]*//; s/[[:space:]]+#.*$//; s/[[:space:]]+$//')
+  [ $loose -gt 0 ] && { detail "$name: $(plural $loose action) not pinned to a commit SHA"; problems=$((problems + 1)); }
+  sed -E 's/(^|[[:space:]])#.*$//' "$wf" \
+    | grep -qE "gitleaks[\"']?[[:space:]]+(detect|dir|git|protect|stdin)([[:space:]]|$)|gitleaks/gitleaks-action@|leak-check" \
+    && scans+=("$name")
+done
+if [ ${#wfs[@]} -gt 0 ] && [ ${#scans[@]} -eq 0 ]; then
+  detail "no workflow step runs gitleaks or leak-check"
+  problems=$((problems + 1))
+fi
+zizmor_said="zizmor is not installed" zizmor=missing
+if command -v zizmor >/dev/null && [ -d .github ]; then
+  zizmor --offline --format=json .github >"$tmp/zizmor.json" 2>"$tmp/zizmor.err" </dev/null
+  zc=$?
+  if { [ $zc = 0 ] || [ $zc -ge 10 ]; } && z=$(jq 'length' "$tmp/zizmor.json" 2>/dev/null); then
+    if [ "$z" = 0 ]; then
+      zizmor=ok zizmor_said="zizmor clean"
+    else
+      zizmor=fail
+      jq -r '.[] | .locations[0].symbolic.key.Local.given_path // "?"' "$tmp/zizmor.json" \
+        | sed 's|^\./||' | sort | uniq -c | while read -r k f; do detail "zizmor: $(plural "$k" finding) in $f"; done
+      problems=$((problems + 1))
+    fi
+  else
+    zizmor=cannot zizmor_said="zizmor failed (exit $zc)"
+  fi
+fi
+if [ $problems -gt 0 ]; then
+  report FAIL ci "$(plural "$problems" problem) in $(plural ${#wfs[@]} workflow)"
+elif [ $zizmor = cannot ]; then
+  report cannot ci "$zizmor_said"
+else
+  report "$([ $zizmor = ok ] && echo ok || echo warn)" ci \
+    "$(plural ${#wfs[@]} workflow): top-level permissions, $(plural $pinned action) pinned by SHA, leak scan in $(join "${scans[@]}"); $zizmor_said"
+fi
+
+# 5 Dependabot covers github-actions.
+dep=
+for f in .github/dependabot.yml .github/dependabot.yaml; do tracked "$f" && [ -f "$f" ] && dep=$f && break; done
+if [ -z "$dep" ]; then
+  report FAIL dependabot "no .github/dependabot.yml"
+elif grep -vE '^[[:space:]]*#' "$dep" | grep -qE "package-ecosystem:[[:space:]]*[\"']?github-actions[\"']?([[:space:]]|$)"; then
+  report ok dependabot "$dep covers github-actions"
+else
+  report FAIL dependabot "$dep does not cover github-actions"
+fi
+
+# 6 The pre-push hook is this repository's tooling/git-hooks/pre-push: a link to it in the
+# hooks folder, or core.hooksPath naming its folder.
+want=$(readlink -f "$here/../git-hooks/pre-push")
+hook=$(git rev-parse --git-path hooks/pre-push) # relative to $top, or absolute
+hshort=$hook
+[[ $hook == "$top"/* ]] && hshort=${hook#"$top"/}
+if [ -e "$hook" ] && [ "$(readlink -f "$hook")" = "$want" ]; then
+  report ok hook "$hshort runs leak-check"
+elif [ -e "$hook" ]; then
+  report FAIL hook "$hshort is not tooling/git-hooks/pre-push"
+else
+  report FAIL hook "no pre-push hook at $hshort"
+fi
+
+# 7 Commits are signed.
+sign=$(git config --type=bool --get commit.gpgsign 2>/dev/null || true)
+key=$(git config --get user.signingkey 2>/dev/null || true)
+if [ "$sign" = true ] && [ -n "$key" ]; then
+  report ok signing "commit.gpgsign is true and user.signingkey is set"
+else
+  [ "$sign" = true ] || detail "commit.gpgsign is not true"
+  [ -n "$key" ] || detail "user.signingkey is not set"
+  report FAIL signing "commits are not signed"
+fi
+
+# 8 An AGENTS.md has its "Public repository" section.
+if ! tracked AGENTS.md; then
+  report ok agents "no AGENTS.md"
+elif grep -qE '^## Public repository[[:space:]]*$' AGENTS.md; then
+  report ok agents "AGENTS.md has its \"Public repository\" section"
+else
+  report FAIL agents "AGENTS.md has no \"## Public repository\" section"
+fi
+
+if [ $fails = 0 ] && [ $warns = 0 ]; then
+  echo "publish-check: every gate passes"
+else
+  echo "publish-check: $fails FAIL, $warns warn"
+fi
+[ $unknown -gt 0 ] && exit 2
+[ $fails -gt 0 ] && exit 1
+exit 0

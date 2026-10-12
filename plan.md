@@ -119,7 +119,7 @@ found through its own symlink.
 | Repository path | What | Installed at |
 |---|---|---|
 | `workspace/`, `module/` | Template docs, copied by setup | — |
-| `tooling/bin/` | `opsboard`, `sp-claude-init`, `sp-update`, `commit-all`, `push-all`, `sp-config`, `leak-check` | `BIN_DIR` |
+| `tooling/bin/` | `opsboard`, `sp-claude-init`, `sp-update`, `commit-all`, `push-all`, `sp-config`, `leak-check`, `publish-check` | `BIN_DIR` |
 | `tooling/bin/session-sweep.sh` | Session sweep | `~/.claude/bin/` |
 | `tooling/hooks/` | `git-guard.sh`, `typecheck.sh` | `~/.claude/hooks/` |
 | `tooling/mods/` | `session-reset/`, `workspace/` (whole folders) | `~/.claude/mods/` |
@@ -407,13 +407,27 @@ Done 2026-10-12: PUB-1.11, developed in the open ([D11](#decisions)).
 - GitHub shows `c338a16` as unverified (`unknown_key`): the signing key is not on the
   account yet (O3, first item).
 
+Done 2026-10-12: PUB-1.12, `tooling/bin/publish-check [--snapshot] [<repo>]`.
+- The eight [local gates](#publishing-in-the-open-d11), one line each (`ok`, `FAIL` or
+  `warn`), with the files or counts under a `FAIL`; exit 1 on a `FAIL`, 2 when a gate
+  cannot be checked (leak-check or zizmor fails, or the path is not a repository).
+- Choices: `LICENSE` may also be `LICENSE.md`, `LICENSE.txt` or `COPYING`, and
+  SECURITY.md and CONTRIBUTING.md may sit in `.github/` or `docs/`, as GitHub reads them.
+  zizmor runs `--offline` with its default persona over `.github/`. A missing denylist
+  is a `warn` on leaks: gitleaks alone ran. A repository with no commits skips
+  `--history`.
+- `tooling/tests/publish-check/run.sh`: 35 checks pass, a repository that passes and a
+  copy that fails each gate, with a stub zizmor. CI runs it; shellcheck 0.11.0 is clean.
+- On this repository, before the commit, every gate but clean passed, and ci passed
+  with zizmor 1.16.0 (run through `uvx`); without zizmor, ci is a `warn`.
+
 **Next (2026-10-12).**
 - **O3:** harden `project-template` by hand from
   [tooling/publish/hardening.md](tooling/publish/hardening.md), in its order, starting
   with the signing key. Once PUB-1.13 lands, `gh-harden David-Xilo/project-template`
   confirms it. Unblocks: the rulesets, and Gate M1.
 - The operator confirms **Gate M1** from the evidence above, or names what is missing.
-- Then PUB-1.12 to PUB-1.17 in order, then T4.
+- Then PUB-1.13 to PUB-1.17 in order, then T4.
 - For v0.1.1 (PUB-1.17), found while releasing:
   - Sign tags: `git tag -s`, or `tag.gpgSign` in the operator's git config.
   - session-reset: a preview's non-command code block whose line has an apostrophe
@@ -445,7 +459,7 @@ gates ([publishing in the open](#publishing-in-the-open-d11)).
 | [x] | P0 | PUB-1.8: Audit the first public tree: gitleaks and the denylist over the files, the tests, shellcheck and the links; the operator reads every file | PUB-1.4–1.7, PUB-1.10 | Operator signs off. Done 2026-10-11: every check clean, signed off |
 | [x] | P0 | PUB-1.9: Go public | PUB-1.8 | The public repository has v0.1.0: the commit, the tag and the GitHub Release; its CI passes. Done 2026-10-11 |
 | [x] | P0 | PUB-1.11: Develop in the open ([D11](#decisions)). The public repository is renamed `project-template` and becomes the development home; the private one is renamed `project-template-private` and archived (O8, done). This plan joins the public tree; README shrinks to what stays true between releases; CONTRIBUTING takes pull requests into `development`; `tooling/publish/hardening.md` lists every GitHub setting | PUB-1.9 | Done 2026-10-12: committed on `development`; O3 open |
-| [ ] | P0 | PUB-1.12: `tooling/bin/publish-check [--snapshot] [<repo>]`: the [local gates](#publishing-in-the-open-d11) in one command. One line per gate, `ok`, `FAIL` or `warn`, with counts and file names only; exit 1 on a `FAIL`, 2 when it cannot check. `tooling/tests/publish-check/run.sh` builds scratch repositories that pass and that fail each gate | PUB-1.11 | Tests pass; every gate passes on this repository |
+| [x] | P0 | PUB-1.12: `tooling/bin/publish-check [--snapshot] [<repo>]`: the [local gates](#publishing-in-the-open-d11) in one command. One line per gate, `ok`, `FAIL` or `warn`, with counts and file names only; exit 1 on a `FAIL`, 2 when it cannot check. `tooling/tests/publish-check/run.sh` builds scratch repositories that pass and that fail each gate | PUB-1.11 | Tests pass; every gate passes on this repository. Done 2026-10-12: 35 checks pass |
 | [ ] | P0 | PUB-1.13: `tooling/bin/gh-harden <owner/repo> [--apply] [--main <b>] [--dev <b>] [--check-name <name>]`. With no option it reads every item of `hardening.md` and prints `ok`, `missing` or `after public`, with the command that sets it. `--apply` sets the missing ones, then reads them again. Rulesets come from `tooling/publish/rulesets/*.json`; a ruleset with an existing name is updated, not added twice. It never changes visibility, and it names the UI-only items. session-reset counts `gh-harden --apply` as a write and `gh-harden` alone as a read. Tests run it against a stub `gh` on `PATH` | PUB-1.11 | Tests pass; after O3, `gh-harden David-Xilo/project-template` prints only `ok` and the UI-only items |
 | [ ] | P1 | PUB-1.14: Templates and the hook for any repository. `tooling/publish/`: SECURITY.md, CONTRIBUTING.md and CHANGELOG.md skeletons; a `leaks.yml` workflow (checkout and gitleaks pinned, `contents: read`, gitleaks over the tree and the history); `dependabot.yml` for actions. `tooling/install --hook <repo>…` links the pre-push hook into other repositories | PUB-1.12 | A scratch repository with only the templates and a README passes `publish-check` |
 | [ ] | P0 | PUB-1.15: The publish action ([publishing in the open](#publishing-in-the-open-d11)). `go-public` becomes the operator's entry point, `/go-public <repo>`: it records the intent and writes the whole plan, its gates, commands and operator tasks. `publish` runs the plan in `publish-<repo>`, P1 to P6, in place or as a snapshot. Both skills work for a workspace module and for a standalone repository | PUB-1.12, PUB-1.13, PUB-1.14 | On a fixture workspace, `/go-public` writes the steps, the decision, the status row and the operator tasks, and every gate and command is named in them |

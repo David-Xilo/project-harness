@@ -9,6 +9,8 @@ brings.
   the working branch, `main` the latest release, and the plan is public.
 - `tooling/publish/hardening.md`: the GitHub settings for a public repository, with the
   settings page and the API call for each.
+- `publish-check [--snapshot] [<repo>]`: the local gates a repository passes before it
+  goes public, one line each.
 
 ## v0.1.0 (2026-10-11)
 

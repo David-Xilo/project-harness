@@ -37,6 +37,7 @@ defaults; `sp-config <KEY>` prints yours.
 | registry | `ROOTS` (`~/.config/super-project/roots`) | One root per line. The mods, the ops board, `/operator-steps` and the session sweep act only on these roots |
 | private strings | `PRIVATE_STRINGS` (`~/.config/super-project/private-strings.txt`) | Strings that must never be published; leak-check and the `publish` skill look for them |
 | leak check | `leak-check [<revisions>… \| --history]`; this repository's `.git/hooks/pre-push` | Runs gitleaks and the private strings (in any case) on the tracked files, on a range of commits and their messages, or on the whole history. It prints file names and counts only, never what matched. The pre-push hook runs it on what a push sends, and a hit stops the push |
+| publish check | `publish-check [--snapshot] [<repo>]` | The local gates before a repository goes public, one line each with `ok`, `FAIL` or `warn`: a clean tree, leak-check on the files and (unless `--snapshot`) the history, the public files, CI (top-level `permissions:`, actions pinned by SHA, a gitleaks or leak-check step, zizmor clean when installed), Dependabot for actions, the pre-push hook, signed commits, and AGENTS.md's "Public repository" section. Exit 1 on a `FAIL`, 2 when a gate cannot be checked |
 | overlay | `OVERLAY_DIR` (`~/.config/super-project/overlay`) | What stays private: `skills/<name>` for `sp-claude-init --skill`, and `mods/<name>`, which install adds to the plugin dirs it prints |
 
 **Project skills.** They live in [tooling/skills/](tooling/skills), and `sp-claude-init`
