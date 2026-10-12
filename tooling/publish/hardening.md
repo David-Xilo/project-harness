@@ -6,6 +6,9 @@ so it can be set by hand or by `gh api`. Every call needs admin rights on the re
 Below, `R` stands for `repos/<owner>/<repo>`, and the protected branches are `main` and
 `development`.
 
+`tooling/bin/gh-harden <owner>/<repo>` reads every item below and prints the command for
+each one that is missing; `--apply` sets them, never visibility or the account items.
+
 The plan behind it: [plan.md, publishing in the open](../../plan.md#publishing-in-the-open-d11).
 
 ## 1. Once per account (operator)
@@ -51,7 +54,8 @@ A required check rejects a push whose commit has not passed it. A commit that al
 passed on another branch can be pushed, so fast-forwarding `main` to a commit that passed
 on `development` works. Create them with `POST R/rulesets`, list them with
 `GET R/rulesets` and match on `name`, and change one with `PUT R/rulesets/<id>`. Settings
-→ Rules → Rulesets shows the same. No bypass list.
+→ Rules → Rulesets shows the same. No bypass list. The bodies are in
+[rulesets/](rulesets).
 
 | Ruleset | Target | Rules |
 |---|---|---|

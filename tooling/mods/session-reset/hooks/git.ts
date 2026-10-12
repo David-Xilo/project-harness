@@ -154,9 +154,9 @@ const MENTIONS = new Set([
   'tldr', 'info', 'apropos', 'cat', 'less', 'more', 'head', 'tail', 'test', '[', '[[', 'jq', 'awk', 'sed', 'wc',
   'ls', 'file', 'stat', 'cd', 'pushd', 'mkdir', 'export', 'local', 'declare', 'unset', 'alias', 'unalias',
 ])
-const GIT_LIKE = new Set(['git', 'gh', 'commit-all', 'push-all'])
+const GIT_LIKE = new Set(['git', 'gh', 'commit-all', 'push-all', 'gh-harden'])
 // A word that names git or gh anywhere in the text, for commands the parse cannot follow.
-const NAMES_GIT = /(?:^|[\s;&|(`'"=/])(?:git|gh|commit-all|push-all)(?=$|[\s;&|)`'"])/m
+const NAMES_GIT = /(?:^|[\s;&|(`'"=/])(?:git|gh|commit-all|push-all|gh-harden)(?=$|[\s;&|)`'"])/m
 
 // The person's zsh aliases (gp → git push): the Bash tool's shell has them.
 let aliases = new Map<string, string>()
@@ -377,6 +377,10 @@ function judgeSegment(words: string[], depth: number, isArgument = false, isPrev
   }
   if (name === 'push-all') {
     return { writes: 1 }
+  }
+  // It changes the GitHub settings only with --apply.
+  if (name === 'gh-harden') {
+    return { writes: args.includes('--apply') ? 1 : 0 }
   }
   if (name === 'gh') {
     let k = 0

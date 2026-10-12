@@ -85,6 +85,8 @@ describe('approve gate', () => {
     expect((await $.tool.call(bash('git status'))).deny).toBeUndefined()
     expect((await $.tool.call(bash('git commit -m "docs: x"'))).deny).toContain('approved Ready to commit preview')
     expect((await $.tool.call(bash('git push --force'))).deny).toContain('never run')
+    expect((await $.tool.call(bash('gh-harden acme/x'))).deny).toBeUndefined()
+    expect((await $.tool.call(bash('gh-harden acme/x --apply'))).deny).toContain('approved Ready to commit preview')
   })
 
   test('an approve with a condition is not an approval', async ($, on) => {

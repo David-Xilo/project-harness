@@ -119,7 +119,7 @@ found through its own symlink.
 | Repository path | What | Installed at |
 |---|---|---|
 | `workspace/`, `module/` | Template docs, copied by setup | — |
-| `tooling/bin/` | `opsboard`, `sp-claude-init`, `sp-update`, `commit-all`, `push-all`, `sp-config`, `leak-check`, `publish-check` | `BIN_DIR` |
+| `tooling/bin/` | `opsboard`, `sp-claude-init`, `sp-update`, `commit-all`, `push-all`, `sp-config`, `leak-check`, `publish-check`, `gh-harden` | `BIN_DIR` |
 | `tooling/bin/session-sweep.sh` | Session sweep | `~/.claude/bin/` |
 | `tooling/hooks/` | `git-guard.sh`, `typecheck.sh` | `~/.claude/hooks/` |
 | `tooling/mods/` | `session-reset/`, `workspace/` (whole folders) | `~/.claude/mods/` |
@@ -127,7 +127,7 @@ found through its own symlink.
 | `tooling/skills/` | `add-objective`, `balance-sessions`, `go-public`, `milestone-checkpoints`, `publish`, `zed-settings.json` | copied per root by `sp-claude-init` |
 | `tooling/claude/git-rules.md` | The git rules, without personal lines | `~/.claude/git-rules.md`, imported by `~/.claude/CLAUDE.md` |
 | `tooling/git-hooks/pre-push` | Runs leak-check on what a push sends | this checkout's `.git/hooks/` |
-| `tooling/publish/` | The GitHub hardening reference; rulesets (PUB-1.13) and templates (PUB-1.14) | — |
+| `tooling/publish/` | The GitHub hardening reference, its rulesets (PUB-1.13) and templates (PUB-1.14) | — |
 | `tooling/config.example` | Every config key with its default | — |
 | `tooling/install` | Links, backs up, `--check` | — |
 
@@ -421,13 +421,36 @@ Done 2026-10-12: PUB-1.12, `tooling/bin/publish-check [--snapshot] [<repo>]`.
 - On this repository, before the commit, every gate but clean passed, and ci passed
   with zizmor 1.16.0 (run through `uvx`); without zizmor, ci is a `warn`.
 
+Built 2026-10-12: PUB-1.13, `tooling/bin/gh-harden`.
+- It reads the 17 items of `hardening.md` through `gh api` (one GET per path):
+  account items (the signing key, from the verification of the default branch's newest
+  commit; vigilant mode and two-factor are `ui`), the 9 before the switch, the 2 after
+  it, and the 3 rulesets from `tooling/publish/rulesets/*.json`. A ruleset with required
+  signatures waits for the signing key; `main` waits for its branch and for the CI check
+  to pass on it. `--apply` writes only `missing` items, never visibility or the account
+  items, then reads again.
+- session-reset counts `gh-harden --apply` as a write and `gh-harden` alone as a read;
+  its 9 tests (with two new lines) and `tsc` pass.
+- Tests skipped at the operator's request; shellcheck 0.11.0 is clean. The stub-`gh`
+  test is deferred to a later step.
+- A `missing` ruleset names what differs: enforcement, target, bypass actors, the refs it
+  applies to, a missing rule or its parameters.
+- First read of `David-Xilo/project-harness`: 14 items `ok` or `ui`. Missing: features
+  (wiki and projects on), the `main` ruleset's `required_status_checks` rule, and
+  `release-tags`; the operator's tag ruleset has another name.
+- **O9:** rename the tag ruleset to `release-tags` (Settings → Rules → Rulesets), so
+  `--apply` updates it instead of adding a second one. Then
+  `gh-harden David-Xilo/project-harness --apply` runs from a preview, and PUB-1.13 is
+  done when it prints only `ok` and `ui`.
+
 **Next (2026-10-12).**
 - **O3:** harden `project-template` by hand from
   [tooling/publish/hardening.md](tooling/publish/hardening.md), in its order, starting
   with the signing key. Once PUB-1.13 lands, `gh-harden David-Xilo/project-template`
   confirms it. Unblocks: the rulesets, and Gate M1.
 - The operator confirms **Gate M1** from the evidence above, or names what is missing.
-- Then PUB-1.13 to PUB-1.17 in order, then T4.
+- Finish PUB-1.13 (O9, then `--apply`), then PUB-1.18, then PUB-1.14 to PUB-1.17 in order,
+  then T4.
 - For v0.1.1 (PUB-1.17), found while releasing:
   - Sign tags: `git tag -s`, or `tag.gpgSign` in the operator's git config.
   - session-reset: a preview's non-command code block whose line has an apostrophe
@@ -465,6 +488,7 @@ gates ([publishing in the open](#publishing-in-the-open-d11)).
 | [ ] | P0 | PUB-1.15: The publish action ([publishing in the open](#publishing-in-the-open-d11)). `go-public` becomes the operator's entry point, `/go-public <repo>`: it records the intent and writes the whole plan, its gates, commands and operator tasks. `publish` runs the plan in `publish-<repo>`, P1 to P6, in place or as a snapshot. Both skills work for a workspace module and for a standalone repository | PUB-1.12, PUB-1.13, PUB-1.14 | On a fixture workspace, `/go-public` writes the steps, the decision, the status row and the operator tasks, and every gate and command is named in them |
 | [ ] | P0 | PUB-1.16: Templates and docs follow D11: `workspace/plan.md` "Public release" and the `publish-<repo>` session row, `handoffs.md`, `AGENTS.md`, `decisions.md` SD10, WORKFLOW.md (skills, going public, design choices, registering a root), SETUP.md. Drop `PUBLISHED_DIR` (`sp-config`, `config.example`, `sp-new`'s `published_dir`, SETUP's `additionalDirectories` step) and the `-oss` names. CI runs the new tests | PUB-1.15 | `sp-new` tests pass; `PUBLISHED_DIR` and `-oss` appear only in the CHANGELOG and this plan's history; links resolve |
 | [ ] | P1 | PUB-1.17: v0.1.1. The fixes listed under "Next", the CHANGELOG, then `main` fast-forwarded to the release commit, the signed tag and the Release | PUB-1.16 | v0.1.1 tagged; CI passes on `main` and the tag |
+| [ ] | P0 | PUB-1.18: The name `project-harness` ([D12](#decisions)). The operator renamed the GitHub repository on 2026-10-12. README, SETUP, WORKFLOW, `config.example`, `/new-project`, `sp-claude-init` and `sp-update` say `project-harness`; the per-root lock becomes `.claude/project-harness.lock`, and `sp-claude-init` and `sp-update` read the old `project-template.lock` once and move it. This plan's title and steps follow. The remote URL is updated from a preview. "Super project" stays the name of what it runs, so `sp-*`, `~/.config/super-project/` and the state folders keep their names | PUB-1.11 | The old name appears only in the CHANGELOG, this plan's history and the lock migration; `sp-new` tests pass |
 
 - [ ] **Gate M1:** a clean checkout installs and runs in a live workspace → v0.1.0.
   v0.1.0 is released; the evidence is in the PUB-1.9 note above, and the operator confirms.
@@ -647,3 +671,4 @@ Public since 2026-10-11 (v0.1.0) and developed in the open since 2026-10-12
 | D9 | A new project is set up from one file: the `new-project` skill interviews the operator in one batch and writes `.claude/project.toml` (or the operator edits it), and `sp-new` renders every root and module document from it. Agents no longer fill tokens by hand across the docs | 2026-10-11 |
 | D10 | Replaced by D11. ~~Publish by export: the repository stays private with its history and `plan.md`; `scripts/export-public` copies an allowlist into a public `<repo>-oss`, one commit per release~~ | 2026-10-11 |
 | D11 | Develop in the open. A repository goes public under its own name and is developed there: in place when its history is clean, else one audited snapshot in a new repository of that name, with the old one renamed `<repo>-private` and archived. The gates are local (`publish-check`, the pre-push hook) and on GitHub (`gh-harden`); `/go-public <repo>` plans the whole release. This repository is the first: the public `project-template` is its home, with this plan ([publishing in the open](#publishing-in-the-open-d11)). Replaces D10 | 2026-10-12 |
+| D12 | The repository is `project-harness`: the harness a super project's sessions run in. "Super project" stays the name of what it runs (a root and its module submodules), so the `sp-*` commands and the `super-project` folders keep their names | 2026-10-12 |
