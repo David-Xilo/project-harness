@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # usage: gh-harden <owner/repo> [--apply] [--main <b>] [--dev <b>] [--check-name <name>]
-# Reads every item of tooling/publish/hardening.md on GitHub through gh api and prints one
+# Reads every GitHub setting a public repository needs through gh api and prints one
 # line each: ok, missing (with the command that sets it), after public, waiting (for
 # what), or ui (set by hand, not readable here). --apply sets the missing items, then reads
 # them all again. It never changes visibility, and never the operator's account items.

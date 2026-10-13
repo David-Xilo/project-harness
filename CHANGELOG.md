@@ -7,15 +7,16 @@ brings.
 
 - Developed in the open: this repository is now the development home. `development` is
   the working branch, `main` the latest release, and the plan is public.
-- `tooling/publish/hardening.md`: the GitHub settings for a public repository, with the
-  settings page and the API call for each.
 - `publish-check [--snapshot] [<repo>]`: the local gates a repository passes before it
   goes public, one line each.
-- `gh-harden <owner/repo> [--apply]`: reads, and sets, the GitHub settings of
-  `tooling/publish/hardening.md`; the rulesets ship in `tooling/publish/rulesets/`.
+- `gh-harden <owner/repo> [--apply]`: reads, and sets, the GitHub settings of a public
+  repository; the rulesets ship in `tooling/publish/rulesets/`.
 - `tooling/publish/templates/`: the public files, a gitleaks workflow and Dependabot for
   any repository going public; `tooling/install --hook <repo>…` links the pre-push hook
   into it.
+- `/go-public <repo>` plans a public release, in place or as a snapshot: the steps P1–P6
+  with their gates, the records and the operator tasks. The `publish` skill works them,
+  for a workspace module or a standalone repository.
 - Renamed `project-harness` (from `project-template`). `sp-claude-init` writes
   `.claude/project-harness.lock` and moves a root's `project-template.lock` on its next
   run; the `sp-*` commands and the `super-project` folders keep their names.
