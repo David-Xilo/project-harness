@@ -187,7 +187,7 @@ keeps them and the queues in step with the work.
    research.md.
 6. Open, acknowledge, deliver or close handoff rows.
 7. Record the result and the next step in the docs, then show the Ready to commit
-   preview and run it on "approve". Once it succeeds the session is cleared and restarted
+   preview, with its `Review:` line from step 4, and run it on "approve". Once it succeeds the session is cleared and restarted
    with `/session <ID>` (the session-reset mod); "approve, then <note>" hands a note to
    the restarted session. On "continue", take the next item.
 

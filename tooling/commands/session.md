@@ -20,6 +20,6 @@ The first word is the session ID. Anything after it is my note for your next ste
 
    The plan lists the files you will change, the checks you will run and the open decisions. For any other step, go on without one.
 
-Commits follow the "Ready to commit" preview in `~/.claude/git-rules.md`. Before the preview, record the step's result and the next step in the docs this session may edit. When I answer "approve" and the commands succeed (or I commit myself and say "committed"), this session is cleared and restarted with `/session <ID>`, so anything not in the docs is lost.
+Commits follow the "Ready to commit" preview in `~/.claude/git-rules.md`. Before the preview, run `code-review` on the diff and fix what it finds (the preview's `Review:` line says what it found), then record the step's result and the next step in the docs this session may edit. When I answer "approve" and the commands succeed (or I commit myself and say "committed"), this session is cleared and restarted with `/session <ID>`, so anything not in the docs is lost.
 
 Open operator.md, release.md or capabilities.md only when you need to update them.

@@ -7,9 +7,12 @@ this file to `~/.claude/git-rules.md`; import it from `~/.claude/CLAUDE.md` with
 The session-reset mod enforces these rules; the git-guard hook blocks the destructive
 commands.
 
-1. **Ready to commit.** When work is ready, say "Ready to commit" and show, per
-   repository and in the order they will run:
+1. **Ready to commit.** Before it, run the `code-review` skill on the diff and fix what
+   it finds, or say why a finding stays. When work is ready, say "Ready to commit" and
+   show, per repository and in the order they will run:
    - the changed files (`git status --short`) and `git diff --stat`;
+   - a `Review:` line: what `code-review` found and what was fixed (`Review: code-review,
+     2 findings, both fixed`), or `Review: docs only, reread` when no code changed;
    - the exact commit message;
    - every command, word for word: `git add <explicit paths>` (never `-A` or `.`),
      `git commit -m "…"`, and any `push`, `tag -a`, `switch`, `merge` or `gh release`.
