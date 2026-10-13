@@ -115,6 +115,39 @@ describe('approve gate', () => {
 
     expect(w.commands).toEqual(['/session S1', '/clear', '/session S1 go A.4'])
   })
+
+  // Regression, 2026-10-11: a commit message in its own code block names git, and was
+  // taken for the preview's first command, so the approved `git add` was refused.
+  test('a code block that only names git is not a command', async ($, on) => {
+    world(on)
+    await $.session.start(start)
+    const answer = [
+      'Ready to commit', '', '```', ' M docs/plan.md', '```', '', '```', 'PUB-1.5: docs and the shipped git rules', '```', '',
+      '```', 'git add docs/plan.md', 'git commit -m "PUB-1.5: docs and the shipped git rules"', '```',
+    ].join('\n')
+    await $.turn.complete(turn(answer))
+    await $.prompt.submit({ text: 'approve', wait: false, origin: COMPOSER })
+
+    expect((await $.tool.call(bash('git add docs/plan.md'))).deny).toBeUndefined()
+    expect((await $.tool.call(bash('git commit -m "PUB-1.5: docs and the shipped git rules"'))).deny).toBeUndefined()
+    expect((await $.tool.call(bash('timeout 60 git push'))).deny).toContain('every command of the approved preview has run')
+  })
+
+  // Regression, 2026-10-11: a note with an apostrophe ("the operator's approve") in the
+  // commands' code block opened a quote that joined every line after it, the commands too,
+  // so the approved push was refused.
+  test('an unclosed quote outside a command does not join the lines after it', async ($, on) => {
+    world(on)
+    await $.session.start(start)
+    const answer = [
+      'Ready to commit', '', '```', "Runs after the operator's approve.", 'git add docs/plan.md', 'git push origin development', '```',
+    ].join('\n')
+    await $.turn.complete(turn(answer))
+    await $.prompt.submit({ text: 'approve', wait: false, origin: COMPOSER })
+
+    expect((await $.tool.call(bash('git add docs/plan.md'))).deny).toBeUndefined()
+    expect((await $.tool.call(bash('git push origin development'))).deny).toBeUndefined()
+  })
 })
 
 describe('roots', () => {

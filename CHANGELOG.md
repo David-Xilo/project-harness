@@ -20,6 +20,8 @@ brings.
 - The workspace templates, WORKFLOW.md and SETUP.md follow the new publishing model.
   `PUBLISHED_DIR` and the `<repo>-oss` names are gone; an old `PUBLISHED_DIR` line in the
   config is ignored.
+- session-reset: a note with an apostrophe in a preview's command block no longer hides
+  the commands after it, so their approve runs them.
 - Renamed `project-harness` (from `project-template`). `sp-claude-init` writes
   `.claude/project-harness.lock` and moves a root's `project-template.lock` on its next
   run; the `sp-*` commands and the `super-project` folders keep their names.

@@ -298,14 +298,10 @@ unless there is a bug or tricky logic.
   and command. The first real `/go-public` is its run.
 - For v0.1.1 (PUB-1.17), found while releasing:
   - Sign tags: `git tag -s`, or `tag.gpgSign` in the operator's git config.
-  - session-reset: a preview's non-command code block was taken for a command twice. On
-    2026-10-11 a commit message in its own block that named git (fixed in
-    `judge(command, depth, isPreview)`); later a line with an apostrophe ("the
-    operator's approve"), which refused the approved push. A line counts only when git or
-    gh is its command, and an unclosed quote must not join the lines after it. Add a
-    regression test for both at the end of `describe('approve gate', …)` in
-    `tooling/mods/session-reset/tests/register.test.ts`, outside auto mode (auto mode's
-    check gave no verdict on that edit).
+  - Done: session-reset's preview parser. An unclosed quote now joins the next lines only
+    when its line is a git or gh command, and both 2026-10-11 bugs have a regression test
+    (11 tests and `tsc` pass). Edits to session-reset get no verdict from auto mode's
+    check; make them outside auto mode.
 - Elsewhere, not in this repository: a workspace planned under the export model (D10:
   `<repo>-oss` names, `PUBLISHED_DIR`, its own copies of the publish skills) moves to D11
   after `sp-update` brings it the new skills. There, `/go-public <repo>` plans each module again, and

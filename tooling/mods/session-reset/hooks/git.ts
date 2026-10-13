@@ -426,8 +426,8 @@ export function normalize(command: string): string {
   return command.replace(/\\\n/g, ' ').replace(/\s+#\s*approved\s*$/i, '').replace(/\s+/g, ' ').trim()
 }
 
-// True while a line ends inside an open quote, so the command goes on in the next line.
-function isOpen(text: string): boolean {
+// The quote a line ends inside ('' when none), so the command goes on in the next line.
+function openQuote(text: string): string {
   let quote = ''
   for (let i = 0; i < text.length; i++) {
     const c = text[i]
@@ -440,11 +440,11 @@ function isOpen(text: string): boolean {
     } else if (c === "'" || c === '"') {
       quote = c
     } else if (c === '#' && (i === 0 || /\s/.test(text[i - 1] as string))) {
-      return false
+      return ''
     }
   }
 
-  return quote !== ''
+  return quote
 }
 
 // The commands of a "Ready to commit" preview: each command inside the answer's fenced code
@@ -458,7 +458,12 @@ export function previewCommands(answer: string): string[] {
       if (line === '') {
         continue
       }
-      while ((/\\$/.test(line) || isOpen(line)) && i + 1 < lines.length) {
+      // An open quote goes on in the next lines only when the line, closed where it breaks,
+      // is a git or gh command: a note such as "the operator's approve" is not one, and must
+      // not join the commands after it.
+      const quote = openQuote(line)
+      const joins = quote === '' || judge(line + quote, 0, true).writes > 0
+      while ((/\\$/.test(line) || (joins && openQuote(line) !== '')) && i + 1 < lines.length) {
         line = /\\$/.test(line) ? `${line.slice(0, -1)} ${(lines[++i] as string).trim()}` : `${line}\n${lines[++i]}`
       }
       // A heredoc goes on to its end line, unless the open-quote join above already took it
