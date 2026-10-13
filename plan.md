@@ -92,7 +92,7 @@ BOARD-4.3 touch only `opsboard` and may start during T2.
 | **T2 Commit loop** | Every approve whose commands succeed ends in a session restart | M3 | v0.3.0 |
 | **T3 Session board** | The ops board shows each session ID: live or not, working, waiting or idle, since when | M4 | v0.4.0 |
 
-T1 Public (M1) is built and released as v0.1.0 and v0.1.1; only its gate is left.
+T1 Public (M1) is done: v0.1.0 and v0.1.1.
 
 **Waiting on the operator:** the `O<n>` tasks, under "Open operator tasks" in the tracker.
 
@@ -104,9 +104,7 @@ operator task is O10.
 
 **Open operator tasks:** none.
 
-**Next.**
-- The operator confirms **Gate M1** from the evidence under it, or names what is missing.
-- Then T4, from AUTO-2.1.
+**Next:** T4, from AUTO-2.1.
 
 **Notes.**
 - The publish skills (`go-public`, `publish`) were checked by reading, not on a fixture
@@ -120,15 +118,6 @@ operator task is O10.
   (`<repo>-oss` names, `PUBLISHED_DIR`, its own copies of the publish skills) moves to D11
   after `sp-update` brings it v0.1.1. There, `/go-public <repo>` plans each module again,
   and the operator decides the names and any module paths that named `-oss`.
-
-### T1 Public (M1)
-
-- [ ] **Gate M1:** a clean checkout installs and runs in a live workspace → v0.1.0.
-  Evidence: v0.1.0 is released (`c338a16`, CI passed on `main` and the tag); its archive
-  from GitHub installs into a scratch home, and a second install links nothing; the
-  operator's live workspaces run the same files from this checkout; `gh-harden
-  David-Xilo/project-harness` prints only `ok` and `ui` (2026-10-13). The operator
-  confirms.
 
 ### T4 Autopilot (M2)
 
