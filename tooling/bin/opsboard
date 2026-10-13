@@ -98,17 +98,86 @@ cpsum() { [ -f "$1/handoffs.md" ] && awk -F'|' '
     if (all && cps=="idle" && name!="") printf "%s\tCommit every session'"'"'s work, close the sessions and run `/session %s`\n", name, name
     else print "" }' "$1/handoffs.md"; }
 
+# Each S<n> session of plan.md's session table: id, state, next step, ready count, what
+# blocks it, its checkpoint row and its autopilot. A session's work is its tracks' module
+# plans' "Next" items (`1. **<step>** …`, continued on indented lines) that are not done:
+# ticked `- [x] **<step>**` under "Milestone steps", or reading "done" right after the ID.
+# An item is ready when everything the first sentence after its "Waits for" names is
+# clear: a step done or no longer in any plan, a delivered or closed handoff, an O<n> no
+# longer open. State: reached (its checkpoint row), else ready, blocked, idle (nothing
+# next) or "no plan" (none of its tracks has a module plan the modules table links).
+# Autopilot comes from the files session-reset writes, one line each:
+# root<TAB>id<TAB>target<TAB>count<TAB>max<TAB>waiting.
+# Output: id<TAB>state<TAB>next<TAB>ready<TAB>blocked by<TAB>checkpoint<TAB>autopilot
+pilots="${XDG_STATE_HOME:-$HOME/.local/state}/super-project/autopilot"
+sessions() { [ -f "$1/plan.md" ] || return 0
+  local map plan plans=()
+  # The root goes in through the environment: awk -v and sed would read \ and & in it.
+  map=$(R="$1" awk -F'|' '
+    /^\| *Code *\| *Module *\|/ { mod=1; next }
+    mod && !/^\|/ { mod=0 }
+    mod && match($3, /\]\([^)]*\/plan\.md\)/) { r=substr($3, RSTART+2, RLENGTH-3); t=$5; gsub(/[ `*]/,"",t); print "module\t" t "\t" ENVIRON["R"] "/" r }
+    /^\| *`S[0-9]+`/ { match($2, /S[0-9]+/); id=substr($2, RSTART, RLENGTH); n=split($3, p, ","); ts=""
+      for (i=1; i<=n; i++) { x=p[i]; gsub(/[`*]/,"",x); sub(/^ +/,"",x); sub(/ .*/,"",x); if (x!="") ts=ts (ts=="" ? "" : " ") x }
+      print "session\t" id "\t" ts }' "$1/plan.md")
+  while IFS= read -r plan; do [ -f "$plan" ] && plans+=("$plan")
+  done < <(printf '%s\n' "$map" | awk -F'\t' '$1=="module" && !seen[$3]++ { print $3 }')
+  { printf '%s\n' "$map"
+    printf '%s\n' "$h" | awk -F'\t' 'NF { print "handoff\t" $1 "\t" $3 }'
+    printf '%s\n' "$o" | awk -F'\t' '$7 ~ /^O[0-9]+$/ { print "op\t" $7 }'
+    printf '%s\n' "$c" | awk -F'\t' '$1=="checkpoint" { w=$2; gsub(/`/,"",w); sub(/ .*/,"",w); s=$3; sub(/ .*/,"",s); print "cp\t" w "\t" s }'
+    cat "$pilots"/*.tsv 2>/dev/null | R="$1" awk -F'\t' 'BEGIN { r=ENVIRON["R"]; sub(/\/+$/,"",r) }
+      { p=$1; sub(/\/+$/,"",p) } p==r && NF>=5 { print "pilot\t" $2 "\t" $3 "\t" $4 "\t" $5 "\t" $6 }'
+  } | awk -F'\t' '
+    FILENAME=="-" { if ($1=="session") { ids[++n]=$2; tr[$2]=$3 } else if ($1=="module") trk[$3]=$2
+      else if ($1=="handoff") hs[$2]=$3; else if ($1=="op") ops[$2]=1; else if ($1=="cp") cp[$2]=$3
+      else if ($1=="pilot") pl[$2]=$4 "/" $5 " → " ($3=="" ? "checkpoint" : $3) ($6=="" ? "" : ", waiting for you: " $6)
+      next }
+    function step(x) { return x ~ /^[A-Z][A-Z0-9]*-[0-9]+(\.[0-9]+)*$/ }
+    FNR==1 { t=trk[FILENAME]; planned[t]=1; cur="" }
+    /^## / { sec=$0; cur=""; next }
+    sec ~ /^## Next/ && /^[0-9]+\. / { cur=""
+      if (match($0, /^[0-9]+\. \*\*[^*]+\*\*/)) { id=substr($0, RSTART, RLENGTH); rest=substr($0, RSTART+RLENGTH)
+        sub(/^[0-9]+\. \*\*/,"",id); sub(/\*\*$/,"",id)
+        if (step(id) && !((t, id) in listed)) { listed[t, id]=1; cur=id; items[t]=items[t] " " id; known[id]=1; txt[id]=rest } }
+      next }
+    sec ~ /^## Next/ && cur!="" && /^[ \t]+[^ \t]/ { txt[cur]=txt[cur] " " $0; next }
+    sec ~ /^## Next/ { cur="" }
+    sec ~ /^## Milestone steps/ && match($0, /^- \[[ xX]\] \*\*[^*]+\*\*/) { id=substr($0, RSTART+8, RLENGTH-10)
+      if (step(id)) { known[id]=1; if ($0 ~ /^- \[[xX]\]/) done[id]=1 } }
+    # What still blocks an item: the step IDs, H<n> and O<n> its "Waits for" sentence names.
+    function blocks(x) { return x ~ /^H[0-9]+$/ ? (x in hs && hs[x] !~ /^delivered/) : x ~ /^O[0-9]+$/ ? (x in ops) : (x in known) && !(x in done) }
+    function blockers(id,   w, n, tok, i, x, b) { b=""; w=txt[id]
+      if (!match(w, /Waits for /)) return ""
+      w=substr(w, RSTART+RLENGTH); if (match(w, /\.([ \t]|$)/)) w=substr(w, 1, RSTART-1)
+      n=split(w, tok, /[^A-Za-z0-9.-]+/)
+      for (i=1; i<=n; i++) { x=tok[i]; sub(/\.+$/,"",x)
+        if ((step(x) || x ~ /^[HO][0-9]+$/) && blocks(x)) b=b (b=="" ? "" : ", ") x }
+      return b }
+    END { for (id in txt) if (txt[id] ~ /^[ \t]*(\*\*)?([Ii]s )?[Dd]one([^A-Za-z]|$)/) done[id]=1
+      for (i=1; i<=n; i++) { s=ids[i]; nx=""; first=""; ready=0; by=""; hp=0; k=split(tr[s], ts, " ")
+        for (j=1; j<=k; j++) { if (ts[j] in planned) hp=1; m=split(items[ts[j]], it, " ")
+          for (q=1; q<=m; q++) { if (it[q] in done) continue
+            if (first=="") first=it[q]; b=blockers(it[q])
+            if (b=="") { ready++; if (nx=="") nx=it[q] } else if (index(", " by ", ", ", " b ", ")==0) by=by (by=="" ? "" : ", ") b } }
+        if (nx=="") nx=(first=="" ? "—" : first)
+        # (s in cp) before cp[s]: reading cp[s] would create it.
+        c=(s in cp ? cp[s] : "—")
+        st=(c=="reached" ? "reached" : ready>0 ? "ready" : first!="" ? "blocked" : hp ? "idle" : "no plan")
+        printf "%s\t%s\t%s\t%d\t%s\t%s\t%s\n", s, st, nx, ready, (ready>0 || by=="" ? "—" : by), c, (s in pl ? pl[s] : "—") } }' - "${plans[@]}"; }
+
 [ $md -eq 1 ] && { echo "# Ops board"; echo; echo "_Updated $(date '+%Y-%m-%d %H:%M')_"; }
 for root in "${roots[@]}"; do
   name=$(basename "$root"); o=$(ops "$root" sum); h=$(hand "$root"); c=$(stat "$root")
   cpo=$(cpsum "$root"); cs=$(echo "$cpo" | sed -n 1p); cr=$(echo "$cpo" | sed -n 2p)
+  ss=$(sessions "$root")
   missing=""; for f in AGENTS.md plan.md handoffs.md; do [ -f "$root/$f" ] || missing="$missing $f"; done
   # --tsv: one row per fact, led by its kind and root (op: the sum columns, then unblocks, owner)
   if [ $tsv -eq 1 ]; then
     [ -n "$missing" ] && printf 'missing\t%s\t%s\n' "$root" "${missing# }"
     [ -n "$cs" ] && printf 'cp\t%s\t%s\n' "$root" "$cs"
     [ -n "$cr" ] && printf 'cpready\t%s\t%s\n' "$root" "$cr"
-    for kind in op:o status:c handoff:h; do v=${kind#*:}; [ -n "${!v}" ] && printf '%s\n' "${!v}" | sed "s|^|${kind%%:*}\t$root\t|"; done
+    for kind in op:o status:c handoff:h session:ss; do v=${kind#*:}; [ -n "${!v}" ] && printf '%s\n' "${!v}" | sed "s|^|${kind%%:*}\t$root\t|"; done
     continue
   fi
   if [ $md -eq 0 ]; then
@@ -118,6 +187,7 @@ for root in "${roots[@]}"; do
     [ -n "$cr" ] && echo "$cr" | awk -F'\t' '{printf "  [you    ] %-10s %-5s %-4s %s\n","now",$1,"—",$2}'
     [ -n "$o" ] && echo "$o" | awk -F'\t' '{printf "  [%-7s] %-10s %-5s %-4s %s › %s: %s\n",$1,($1=="you"?$6:""),$7,$8,$2,$3,$4}'
     [ -n "$h" ] && echo "$h" | awk -F'\t' '{printf "  [handoff] %-7s %-18s %s\n",$1,$2,$3}'
+    [ -n "$ss" ] && echo "$ss" | awk -F'\t' '{printf "  [session] %-4s %-8s %s%s%s\n",$1,$2,$3,($2=="ready" ? " · " $4 " ready" : $5!="—" ? " · blocked by " $5 : ""),($7!="—" ? " · autopilot " $7 : "")}'
     echo; continue
   fi
   echo; echo "## $name"
@@ -127,6 +197,9 @@ for root in "${roots[@]}"; do
   if [ -n "$p" ]; then echo; echo "### Publish status"; echo
     echo "| Who | Status |"; echo "|---|---|"
     echo "$p" | awk -F'\t' '{gsub(/\|/,"\\|"); printf "| %s | %s |\n",$2,$3}'; fi
+  if [ -n "$ss" ]; then echo; echo "### Sessions"; echo
+    echo "| Session | State | Next | Ready | Blocked by | Checkpoint | Autopilot |"; echo "|---|---|---|---|---|---|---|"
+    echo "$ss" | awk -F'\t' '{gsub(/\|/,"\\|"); printf "| %s | %s | %s | %s | %s | %s | %s |\n",$1,$2,$3,$4,$5,$6,$7}'; fi
   echo; echo "### Waiting on you"; echo
   if [ -n "$cr" ] || echo "$o" | grep -q '^you'; then echo "| ID | When | Tell | Section | Task | Status |"; echo "|---|---|---|---|---|---|"
     [ -n "$cr" ] && echo "$cr" | awk -F'\t' '{printf "| %s | now | — | Checkpoint | %s | every session reached it |\n",$1,$2}'

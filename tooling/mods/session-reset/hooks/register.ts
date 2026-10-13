@@ -88,6 +88,25 @@ async function autopilot($: EngineInterface): Promise<SessionResetAutopilot | nu
   return (await $.state.get(AUTOPILOT)).value ?? null
 }
 
+// Sets autopilot, on (`pilot`) or off (null), and writes it where opsboard reads it: one
+// line root<TAB>id<TAB>target<TAB>count<TAB>max<TAB>waiting per session, empty when off.
+async function setAutopilot($: EngineInterface, pilot: SessionResetAutopilot | null) {
+  const was = await autopilot($)
+  await $.state.set(AUTOPILOT, pilot)
+  const at = pilot ?? was
+  if (!at) {
+    return
+  }
+  const home = (await $.env.get('HOME')) ?? ''
+  const dir = `${(await $.env.get('XDG_STATE_HOME')) || `${home}/.local/state`}/super-project/autopilot`
+  const line = pilot
+    ? `${[pilot.root, pilot.id, pilot.target ?? '', pilot.count, pilot.max, pilot.waiting ?? ''].join('\t')}\n`
+    : ''
+  await $.fs.write(`${dir}/${at.root.replace(/[^\w.-]/g, '_')}__${at.id}.tsv`, line).catch(() => {
+    $.ui.toast('session-reset could not write the autopilot state for opsboard.', { timeoutMs: 15000 })
+  })
+}
+
 // A value from the tooling config, by the rules of `sp-config`: KEY=value lines in
 // ${XDG_CONFIG_HOME:-~/.config}/super-project/config, # comments, the last line wins, a
 // leading ~ expands, and a missing file or key gives the default.
@@ -122,7 +141,7 @@ async function workspaceRoot($: EngineInterface, cwd: string): Promise<string | 
 // The operator committed by hand: they took over, so autopilot ends.
 async function takeOver($: EngineInterface) {
   if (await autopilot($)) {
-    await $.state.set(AUTOPILOT, null)
+    await setAutopilot($, null)
     $.ui.toast('Autopilot off: you committed by hand.', { timeoutMs: 15000 })
   }
 }
@@ -314,7 +333,7 @@ export const register: Register = on => {
     const words = e.args.trim().split(/\s+/).filter(w => w !== '')
     if (words.length === 1 && words[0] === 'off') {
       const was = await autopilot($)
-      await $.state.set(AUTOPILOT, null)
+      await setAutopilot($, null)
 
       return { text: was ? 'Autopilot off: approve each preview by hand.' : 'Autopilot was not on.' }
     }
@@ -341,8 +360,8 @@ export const register: Register = on => {
         return { text: `Autopilot not started: ${why}. Name a step: /autopilot <step>.` }
       }
     }
-    const pilot = { id: current.id, target, max, count: 0 }
-    await $.state.set(AUTOPILOT, pilot)
+    const pilot = { id: current.id, root: current.root, target, max, count: 0, waiting: null }
+    await setAutopilot($, pilot)
     submitAsPerson($, `Autopilot is on (${progress(pilot)}): go on with your next step, ${UNDER_AUTOPILOT} (/session).`)
 
     return { text: `Autopilot on: ${progress(pilot)}` }
@@ -356,7 +375,7 @@ export const register: Register = on => {
     }
     // Another session ID is another session: autopilot was for this one.
     if ((await autopilot($))?.id !== id) {
-      await $.state.set(AUTOPILOT, null)
+      await setAutopilot($, null)
     }
 
     return next(e)
@@ -373,7 +392,7 @@ export const register: Register = on => {
     }
     // The person's own /clear ends autopilot; the one that finishes a restart does not.
     if (!isOwn && !args) {
-      await $.state.set(AUTOPILOT, null)
+      await setAutopilot($, null)
     }
     await $.state.set(PREVIEW, null)
     const ran = await next(e)
@@ -384,11 +403,20 @@ export const register: Register = on => {
     return ran
   })
 
+  // The process ends (/exit, ctrl+c): autopilot ends with it. A /clear is handled above.
+  on('session.end', async ($, e, next) => {
+    if (e.reason !== 'clear') {
+      await setAutopilot($, null)
+    }
+
+    return next(e)
+  })
+
   // /resume leaves this conversation for another one.
   on('command.run', { command: 'resume' }, async ($, e, next) => {
     await $.state.set(SESSION, null)
     await $.state.set(PREVIEW, null)
-    await $.state.set(AUTOPILOT, null)
+    await setAutopilot($, null)
 
     return next(e)
   })
@@ -414,6 +442,11 @@ export const register: Register = on => {
     const isPerson = e.origin.kind === 'composer' || e.origin.kind === 'bridge'
     if (!isPerson) {
       return next(e)
+    }
+    // The operator answered: the session no longer waits for them.
+    const pilot = await autopilot($)
+    if (pilot?.waiting) {
+      await setAutopilot($, { ...pilot, waiting: null })
     }
     const open = await preview($)
     const approve = APPROVE.exec(e.text) ?? (open !== null ? COMMIT.exec(e.text) : null)
@@ -544,8 +577,8 @@ export const register: Register = on => {
         const isReached = await hasReached($, current)
         why = isReached ? `${pilot.id} reached its checkpoint` : isReached === undefined ? 'opsboard --tsv could not be read' : undefined
       }
-      pilot = why ? null : { ...pilot, count }
-      await $.state.set(AUTOPILOT, pilot)
+      pilot = why ? null : { ...pilot, count, waiting: null }
+      await setAutopilot($, pilot)
       if (why) {
         $.ui.toast(`Autopilot off: ${why}.`, { timeoutMs: 15000 })
       }
@@ -556,6 +589,7 @@ export const register: Register = on => {
       // A new preview under autopilot: approve it, or say why it waits for the operator.
       const why = autopilotWaits(e.answer, shown)
       if (why) {
+        await setAutopilot($, { ...pilot, waiting: 'your approve' })
         $.ui.toast(`Autopilot waits for your approve: ${why}.`, { timeoutMs: 15000 })
       } else {
         approved = { note: '', writes: 0, hasFailed: false }
@@ -565,6 +599,10 @@ export const register: Register = on => {
       $.ui.toast('No restart: this conversation was not started with /session <ID>.', { timeoutMs: 15000 })
     } else if (current && turn?.note) {
       $.ui.toast(`No restart, so your note was not passed on: "${turn.note}"`, { timeoutMs: 15000 })
+    }
+    // A turn under autopilot that ends with no preview and no run asks the operator something.
+    if (pilot && current?.id === pilot.id && turn === undefined && shown.length === 0 && e.reason === 'answer') {
+      await setAutopilot($, { ...pilot, waiting: 'an answer' })
     }
 
     return next(e)

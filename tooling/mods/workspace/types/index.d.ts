@@ -18,8 +18,27 @@ export type WorkspaceOpsRow = {
   line: number
 }
 
-// The operator steps pane: open entries and each workspace's checkpoint line.
-export type WorkspaceOps = { rows: WorkspaceOpsRow[]; checkpoints: { workspace: string; text: string }[]; at: number; error: string | null }
+// One session of a workspace, as `opsboard --tsv` joins it: its state (reached, ready,
+// blocked, idle), next step, ready count, what blocks it, checkpoint row and autopilot.
+export type WorkspaceSessionRow = {
+  workspace: string
+  id: string
+  state: string
+  next: string
+  ready: number
+  blockedBy: string
+  checkpoint: string
+  autopilot: string
+}
+
+// The operator steps pane: open entries, each workspace's checkpoint line and sessions.
+export type WorkspaceOps = {
+  rows: WorkspaceOpsRow[]
+  checkpoints: { workspace: string; text: string }[]
+  sessions: WorkspaceSessionRow[]
+  at: number
+  error: string | null
+}
 
 declare module 'claude-code' {
   interface PluginState {

@@ -15,6 +15,8 @@ type World = {
   // What the mod submitted as the person's words.
   prompts: string[]
   state: Map<string, unknown>
+  // The files the mod wrote, by path.
+  written: Map<string, string>
   setBoard: (text: string) => void
   settle: () => Promise<void>
 }
@@ -40,6 +42,7 @@ function world(on: On, options: Options = {}): World {
   const toasts: string[] = []
   const commands: string[] = []
   const prompts: string[] = []
+  const written = new Map<string, string>()
   const state = new Map<string, unknown>(Object.entries(saved))
   const clock = mock.clock(on)
   mock.env(on, { HOME })
@@ -59,9 +62,14 @@ function world(on: On, options: Options = {}): World {
     return { value: undefined }
   })
   on('fs.read', ($, e) => ({ value: files ? (files[e.path] ?? '') : `${ROOT}\n` }))
+  on('fs.write', ($, e) => {
+    written.set(e.path, e.text)
+    return { value: undefined }
+  })
   on('session.cwd', () => ({ value: ROOT }))
   on('prompt.fill', () => ({ isFilled: true }))
   on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('session.end', ($, e) => ({ sessionId: e.sessionId }))
   on('command.run', ($, e) => {
     commands.push(e.args ? `/${e.command} ${e.args}` : `/${e.command}`)
     return { text: '' }
@@ -76,7 +84,7 @@ function world(on: On, options: Options = {}): World {
   })
   on('turn.complete', ($, e) => ({ text: e.answer }))
 
-  return { runs, toasts, commands, prompts, state, setBoard: text => (board = text), settle: () => clock.settle() }
+  return { runs, toasts, commands, prompts, state, written, setBoard: text => (board = text), settle: () => clock.settle() }
 }
 
 const bash = (command: string) => ({ tool: 'Bash', command, description: '' }) as const
@@ -87,6 +95,7 @@ const typed = (command: string, args = '') =>
 // A preview that commits one step, reviewed clean unless told otherwise.
 const stepPreview = (step: string, review = 'Review: code-review, 1 finding, fixed', more: string[] = []) =>
   ['Ready to commit', '', review, '', '```', 'git add src/a.ts', `git commit -m "${step}: a step"`, ...more, '```'].join('\n')
+const PILOT_FILE = `${HOME}/.local/state/super-project/autopilot/_work_acme__S1.tsv`
 const REACHED = `status\t${ROOT}\tcheckpoint\t\`S1\`\treached\n`
 
 describe('session start', () => {
@@ -291,7 +300,8 @@ describe('autopilot', () => {
     await w.settle()
 
     expect(w.commands.at(-1)).toBe('/session S1 under autopilot')
-    expect(w.state.get('autopilot')).toEqual({ id: 'S1', target: 'PAY-1.3', max: 100, count: 1 })
+    expect(w.state.get('autopilot')).toEqual({ id: 'S1', root: ROOT, target: 'PAY-1.3', max: 100, count: 1, waiting: null })
+    expect(w.written.get(PILOT_FILE)).toBe(`${ROOT}\tS1\tPAY-1.3\t1\t100\t\n`)
   })
 
   test('leaves to the operator a preview with an open finding, or one that pushes or amends', async ($, on) => {
@@ -311,7 +321,13 @@ describe('autopilot', () => {
       ...Array(2).fill(expect.stringContaining('more than a plain git add')),
     ])
     expect((await $.tool.call(bash('git add src/a.ts'))).deny).toContain('approved Ready to commit preview')
-    expect(w.state.get('autopilot')).not.toBeNull()
+    expect(w.written.get(PILOT_FILE)).toBe(`${ROOT}\tS1\tPAY-1.3\t0\t100\tyour approve\n`)
+
+    // A question waits for an answer; the operator's reply clears it.
+    await $.turn.complete(turn('Integer cents or decimal strings?'))
+    expect(w.written.get(PILOT_FILE)).toContain('\tan answer\n')
+    await $.prompt.submit({ text: '1', wait: false, origin: COMPOSER })
+    expect(w.written.get(PILOT_FILE)).toBe(`${ROOT}\tS1\tPAY-1.3\t0\t100\t\n`)
   })
 
   test('stops after the commit of its target step', async ($, on) => {
@@ -360,6 +376,16 @@ describe('autopilot', () => {
     expect(w.state.get('autopilot')).toBeNull()
   })
 
+  test('ends with the process, and its state file is emptied', async ($, on) => {
+    const w = world(on)
+    await piloted($, w, 'PAY-1.3')
+    expect(w.written.get(PILOT_FILE)).toBe(`${ROOT}\tS1\tPAY-1.3\t0\t100\t\n`)
+    await $.session.end({ reason: 'prompt_input_exit', sessionId: 's', resume: { id: 's' } })
+
+    expect(w.state.get('autopilot')).toBeNull()
+    expect(w.written.get(PILOT_FILE)).toBe('')
+  })
+
   test('ends when the operator commits by hand', async ($, on) => {
     const w = world(on)
     await piloted($, w, 'PAY-1.3')
@@ -369,6 +395,7 @@ describe('autopilot', () => {
     expect(w.toasts).toEqual([expect.stringContaining('committed by hand')])
     expect(w.commands.at(-1)).toBe('/session S1')
     expect(w.state.get('autopilot')).toBeNull()
+    expect(w.written.get(PILOT_FILE)).toBe('')
   })
 
   test('/autopilot needs a workspace session and a valid target', async ($, on) => {

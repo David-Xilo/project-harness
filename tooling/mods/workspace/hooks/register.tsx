@@ -1,7 +1,7 @@
 import { read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { WorkspaceBand, WorkspaceOps, WorkspaceOpsRow } from '../types'
+import type { WorkspaceBand, WorkspaceOps, WorkspaceOpsRow, WorkspaceSessionRow } from '../types'
 import { commands, program, writtenPaths } from './shell'
 
 // The engine follows $ only into functions of this file, so the docs model and the
@@ -241,6 +241,7 @@ function weight(text: string): number {
 type Board = {
   ops: WorkspaceOpsRow[]
   checkpoints: { workspace: string; text: string }[]
+  sessions: WorkspaceSessionRow[]
   status: { root: string; table: string; who: string; status: string }[]
   handoffs: { root: string; id: string; fromTo: string; status: string }[]
 }
@@ -251,7 +252,7 @@ async function board($: EngineInterface, only?: string): Promise<Board> {
   if (ran.exitCode !== 0) {
     throw new Error(`opsboard --tsv failed: ${ran.stderr.trim() || ran.stdout.trim()}`.slice(0, 200))
   }
-  const out: Board = { ops: [], checkpoints: [], status: [], handoffs: [] }
+  const out: Board = { ops: [], checkpoints: [], sessions: [], status: [], handoffs: [] }
   for (const line of ran.stdout.split('\n')) {
     const [kind, root = '', ...f] = line.split('\t')
     const workspace = root.replace(/^.*\//, '')
@@ -279,6 +280,9 @@ async function board($: EngineInterface, only?: string): Promise<Board> {
       out.status.push({ root, table: f[0] ?? '', who: (f[1] ?? '').replace(/`/g, ''), status: f[2] ?? '' })
     } else if (kind === 'handoff') {
       out.handoffs.push({ root, id: f[0] ?? '', fromTo: f[1] ?? '', status: f[2] ?? '' })
+    } else if (kind === 'session') {
+      const [id = '', state = '', next = '—', ready = '0', blockedBy = '—', checkpoint = '—', autopilot = '—'] = f
+      out.sessions.push({ workspace, id, state, next, ready: Number(ready), blockedBy, checkpoint, autopilot })
     }
   }
 
@@ -712,6 +716,25 @@ async function refreshBand($: EngineInterface) {
   await $.state.set(BAND, band)
 }
 
+// "S1 blocked · COL-1.2 · blocked by STO-1.1 · autopilot 3/100 → COL-1.2", or
+// "S2 ready · STO-1.1 · 2 ready", or "S3 reached".
+function sessionLine(s: WorkspaceSessionRow): string {
+  const parts = [`${s.id} ${s.state}`]
+  if (s.next !== '—') {
+    parts.push(s.next)
+  }
+  if (s.state === 'ready') {
+    parts.push(`${s.ready} ready`)
+  } else if (s.blockedBy !== '—') {
+    parts.push(`blocked by ${s.blockedBy}`)
+  }
+  if (s.autopilot !== '—') {
+    parts.push(`autopilot ${s.autopilot}`)
+  }
+
+  return parts.join(' · ')
+}
+
 function whenRank(when: string): string {
   return when === 'now' ? '0' : /^\d{4}-/.test(when) ? `1${when}` : when === 'standing' ? '2' : '3'
 }
@@ -723,9 +746,9 @@ async function refreshOps($: EngineInterface) {
     const rows = [...b.ops].sort(
       (a, z) => a.workspace.localeCompare(z.workspace) || z.weight - a.weight || whenRank(a.when).localeCompare(whenRank(z.when)),
     )
-    ops = { rows, checkpoints: b.checkpoints, at: await $.clock.now(), error: null }
+    ops = { rows, checkpoints: b.checkpoints, sessions: b.sessions, at: await $.clock.now(), error: null }
   } catch (error) {
-    ops = { rows: [], checkpoints: [], at: await $.clock.now(), error: error instanceof Error ? error.message : String(error) }
+    ops = { rows: [], checkpoints: [], sessions: [], at: await $.clock.now(), error: error instanceof Error ? error.message : String(error) }
   }
   await $.state.set(OPS, ops)
 }
@@ -839,7 +862,7 @@ export const register: Register = on => {
     if (!ops) {
       return <Text dimColor>Loading…</Text>
     }
-    const workspaces = [...new Set(ops.rows.map(r => r.workspace))]
+    const workspaces = [...new Set([...ops.rows.map(r => r.workspace), ...ops.sessions.map(s => s.workspace)])]
     const later = ops.rows.filter(r => r.kind === 'later').length
 
     return (
@@ -856,9 +879,15 @@ export const register: Register = on => {
         {workspaces.map(w => {
           const rows = ops.rows.filter(r => r.workspace === w && (showLater || r.kind === 'you'))
           const cp = ops.checkpoints.find(c => c.workspace === w)
+          const sessions = ops.sessions.filter(s => s.workspace === w)
           return (
             <Box key={`ws-${w}`} flexDirection="column" marginTop={1}>
               <Text bold wrap="wrap">{`${w}${cp ? ` · ${cp.text}` : ''}`}</Text>
+              {sessions.map(s => (
+                <Box key={`${w}-${s.id}`} paddingLeft={2}>
+                  <Text dimColor={s.state === 'idle'} wrap="wrap">{sessionLine(s)}</Text>
+                </Box>
+              ))}
               {rows.length === 0 && (
                 <Box paddingLeft={2}>
                   <Text dimColor>Nothing open.</Text>

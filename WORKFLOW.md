@@ -33,7 +33,7 @@ defaults; `sp-config <KEY>` prints yours.
 | `/operator-steps` | `~/.claude/commands/operator-steps.md` | Read-only table of open `O<n>` tasks in every registered root, sorted by what each unblocks |
 | new project | `/new-project [file]` (`~/.claude/commands/new-project.md`), `sp-new <file>`, `sp-new --modules <root>` | Asks every setup question in one batch and writes one `project.toml`; `sp-new` renders the root documents from it, and the module documents after O1 ([SETUP.md](SETUP.md)) |
 | session sweep | `~/.claude/bin/session-sweep.sh [root …]` | Before opening terminals: for each root, prints one Sonnet line per session ID (next step, runnable or blocked, dirty repositories) |
-| ops board | `opsboard [--md\|--tsv] [root …]` | The one parser of operator.md and of handoffs.md's status tables and H rows. The workspace mod reads its `--tsv` output |
+| ops board | `opsboard [--md\|--tsv] [root …]` | The one parser of operator.md and of handoffs.md's status tables and H rows. It also gives each `S` session's next step, how much is ready, what blocks it, its checkpoint row and its autopilot (from the files session-reset writes under `~/.local/state/super-project/autopilot/`). The workspace mod reads its `--tsv` output and shows the sessions in `/ops` |
 | bootstrap | `sp-claude-init <root> [--skill <name>] [--force]` | Checks the docs contract, copies the project skills, writes `.zed/settings.json`, warns about `submodule.recurse`, and registers the root. Run again, it updates what it placed (section 6) |
 | update | `sp-update [--ref <tag>] [--global] [root …]` | Brings roots, and with `--global` the installed tooling, to a version of this repository; lists the template doc changes to merge by hand |
 | commit-all, push-all | `commit-all <root>`, `push-all <root>` | The operator's own helpers: walk the nested submodules deepest first |
@@ -88,14 +88,14 @@ because the workspace mod fails open.
 | File | Must contain | Read by |
 |---|---|---|
 | `AGENTS.md` | Common working rules (copied verbatim into every module), Session practice, Workspace boundaries | Claude Code (auto-loaded) |
-| `plan.md` | A table whose first header cell is `Session`, with rows starting `` `S1` `` etc. and repository names in backticks or links | workspace mod, `/session` |
-| `plan.md` | A table whose first header cell is `Code`, with `[Module](<repo>/plan.md)` links (code → folder) | workspace mod |
+| `plan.md` | A table whose first header cell is `Session`, with rows starting `` `S1` `` etc., its tracks in the second cell (`T1 Name, T2 Name`) and repository names in backticks or links | workspace mod, ops board, `/session` |
+| `plan.md` | A table `\| Code \| Module \| Owns \| Track \|`, with `[Module](<repo>/plan.md)` links (code → folder) and the track in the fourth cell | workspace mod, ops board |
 | `plan.md` | `### Session IDs` containing a bullet starting `- **Shared files`. Its sentences list the `.md` files every session may edit; a sentence with "never" or starting with `CP` is skipped; `` `S2` also owns x.md `` gives one session a file | workspace mod, `sp-claude-init`, `/session` |
 | `plan.md` | `### Session rules` (Each step, Always, Per session) and `### Milestone checkpoints` | `/session`, skills |
 | `handoffs.md` | `## Checkpoint status` (`\| Session \| Checkpoint \| Status \| Since \|`), `## Publish status` (`\| Repository \| Status \| Since \|`), `## Rows` with `\| H<n> \|` rows | ops board, workspace mod, `/session`, `sp-claude-init` |
 | `operator.md` | `## <section>` / `### O<n> <task>` with `**Session:**`, `**Unblocks:**`, `**When:**` and `**Status:**` fields; `## Later` holds later tasks | ops board, `/operator-steps` |
 | `release.md` | One section per open checkpoint: `\| Repository \| Session \| Commit \| Recorded \|` | `CP<m>`, skills |
-| module `plan.md` | `## Current state` and `## Next` (these win over the root queue when they differ) | `/session`, `balance-sessions` |
+| module `plan.md` | `## Current state` and `## Next` (these win over the root queue when they differ). `## Next` items read `1. **<step>** title. Waits for <steps, H<n>, O<n>>.`, continued on indented lines; "done" right after the ID, or a tick `- [x] **<step>**` under `## Milestone steps`, marks a step finished | `/session`, `balance-sessions`, ops board |
 
 ## 4. Lifecycles
 

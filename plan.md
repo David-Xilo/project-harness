@@ -103,7 +103,7 @@ operator task is O10.
 
 **Open operator tasks:** none.
 
-**Next:** AUTO-2.13.
+**Next:** AUTO-2.14.
 
 **Notes.**
 - The publish skills (`go-public`, `publish`) were checked by reading, not on a fixture
@@ -134,9 +134,8 @@ the same commit. AUTO-2.2 to AUTO-2.10, the earlier design, were dropped by D13.
 
 | Done | Pri | Step | Depends on | Done when |
 |---|---|---|---|---|
-| [ ] | P0 | AUTO-2.13: Sessions on the board. opsboard parses the Session table, each session's queue, which steps are done and what blocks them; `--tsv` gets a `session` row per ID (state, next step, ready count, blocked by, checkpoint). session-reset writes each session's autopilot state (target, count, waiting) under `~/.local/state/super-project/`, and opsboard joins it. `/ops` and `--md` get the Sessions block | — | A fixture's `--tsv` gives the right state for a ready, a blocked, a reached and an autopilot session; seen in the pane |
-| [ ] | P1 | AUTO-2.14: `/balance-sessions` on the workload: ready and blocked work per session, how many sessions to run for the next stretch, decision review; the drift check and cleanup kept as a fallback, each fix reported as a skipped cleanup | AUTO-2.13 | On a fixture it proposes different session counts for two different stretches |
-| [ ] | P0 | AUTO-2.15: End to end: two sessions of a toy two-module workspace on `/autopilot` reach their `CP1` preconditions; the operator only answered questions. One of them runs `/autopilot <step>` first and stops at that step's commit; the band shows the count. Then docs, CHANGELOG and the release | AUTO-2.13, AUTO-2.14 | v0.2.0 tagged |
+| [ ] | P1 | AUTO-2.14: `/balance-sessions` on the workload: ready and blocked work per session, how many sessions to run for the next stretch, decision review; the drift check and cleanup kept as a fallback, each fix reported as a skipped cleanup | — | On a fixture it proposes different session counts for two different stretches |
+| [ ] | P0 | AUTO-2.15: End to end: two sessions of a toy two-module workspace on `/autopilot` reach their `CP1` preconditions; the operator only answered questions. One of them runs `/autopilot <step>` first and stops at that step's commit; the band shows the count, and `/ops` shows both sessions. Then docs, CHANGELOG and the release | AUTO-2.14 | v0.2.0 tagged |
 
 - [ ] **Gate M2:** in a toy workspace, sessions on `/autopilot` reach their `CP1`
   preconditions with every commit reviewed and nothing pushed; the operator only
@@ -186,7 +185,7 @@ disk of which `/session <ID>` each process runs. The old attention files in
 | Done | Pri | Step | Depends on | Done when |
 |---|---|---|---|---|
 | [ ] | P0 | BOARD-4.1: Session registry. session-reset writes `~/.local/state/super-project/sessions/<pid>.json` (`pid`, process start, Claude session, root, ID, time) on `/session` and on each restart. It clears it on a user `/clear` or `/resume`; a SessionEnd hook removes it | M3 | Files match the running sessions |
-| [ ] | P0 | BOARD-4.3: Join process liveness into the `session` rows of AUTO-2.13: working, waiting for approval, waiting for input, idle since, or not running; two processes claiming one ID; checkpoint status and since; dirty repositories; open `O<n>` and handoffs addressed to it. Also list live sessions at a root with no ID. Output in `--tsv`, plain and `--md`. The Claude Code records are internal: one reader function, failing soft | BOARD-4.1, AUTO-2.13 | Matches a manual check of running sessions |
+| [ ] | P0 | BOARD-4.3: Join process liveness into the `session` rows of `opsboard --tsv`: working, waiting for approval, waiting for input, idle since, or not running; two processes claiming one ID; checkpoint status and since; dirty repositories; open `O<n>` and handoffs addressed to it. Also list live sessions at a root with no ID. Output in `--tsv`, plain and `--md`. The Claude Code records are internal: one reader function, failing soft | BOARD-4.1 | Matches a manual check of running sessions |
 | [ ] | P1 | BOARD-4.4: The `/ops` Sessions block shows liveness: idle sessions first ("idle 25m, ready"); the band shows the count of idle sessions | BOARD-4.3 | Seen in the pane |
 | [ ] | P1 | BOARD-4.5: Retire `~/.cache/agents`; docs, CHANGELOG, release | BOARD-4.4 | v0.4.0 tagged |
 

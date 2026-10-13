@@ -11,7 +11,8 @@ work in parallel, run `/autopilot` in several. `/balance-sessions` still says wh
 sessions to run.
 
 **Status:** built for v0.2.0, not yet released ([plan, T4](plan.md#t4-autopilot-m2)).
-The board's Sessions block (section 5) and the end-to-end run are still to come.
+The workload view of `/balance-sessions` (section 5) and the end-to-end run are still to
+come.
 
 ## 1. The command
 
@@ -116,17 +117,22 @@ and cleanup stay as a fallback: with sessions cleaning up after each step they s
 find almost nothing, so every fix is reported as a sign that a session skipped its
 cleanup.
 
-The ops board shows every session of a workspace (`opsboard --md`, and the `/ops` pane):
-its state, its next step, how much is ready, and what blocks it. For a session on
-autopilot it also shows the target, the count, and whether it is waiting for the
-operator:
+The ops board shows every session of a workspace (`opsboard`, `--md`, `--tsv`, and the
+`/ops` pane). A session's work is the "Next" items of its tracks' module plans that are
+not done yet; an item is ready when every step its "Waits for" names is done or gone
+from the plans, every handoff is delivered and every `O<n>` is closed. The board gives its state (`reached` from its
+checkpoint row, else `ready`, `blocked`, `idle`, or `no plan` when none of its tracks
+has a module plan), its next step, how much is ready,
+and what blocks it. For a session on autopilot it also shows the count, the target, and
+whether it waits for the operator:
 
 ```
-shop · CP1: reached S2 · 3 sessions
-  S1  CAT   autopilot 4/100 → CP1 · CAT-1.4 · 2 more ready
-  S2  PAY   reached CP1
-  S3  SHIP  autopilot 1/100 → SHIP-1.3 · waiting for you: a question
-  O7  Amounts as integer cents or decimal strings?   now · unblocks SHIP-1.2, SHIP-1.3
+shop · CP1: working S1, S3 · reached S2
+  S1 ready · CAT-1.4 · 3 ready · autopilot 4/100 → checkpoint
+  S2 reached · PAY-2.1 · 1 ready
+  S3 blocked · SHIP-1.2 · blocked by O7 · autopilot 1/100 → SHIP-1.3, waiting for you: an answer
+  O7 Amounts as integer cents or decimal strings?
+    now · tell S3 · unblocks 2: SHIP-1.2, SHIP-1.3
 ```
 
 ## 6. An example
