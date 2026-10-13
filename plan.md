@@ -23,9 +23,9 @@ module submodules, several Claude Code sessions in parallel, each the only write
 repositories, git only after the operator's approve, and one checkpoint per milestone.
 The docs and the tooling that reads them (mods, hooks, ops board, bootstrap, skill
 templates) live here; `tooling/install` links the tooling into `~/.claude` and `BIN_DIR`,
-so the checkout is the running copy. [T4](#t4-autopilot-m2) adds a second mode,
-autopilot: the same sessions run unattended until the checkpoint, and stop for the
-operator's decisions.
+so the checkout is the running copy. [T4](#t4-autopilot-m2) adds
+`/autopilot`: a session approves its own reviewed commits until a target, and stops
+for the operator's decisions.
 
 **Defaults:**
 - Build only what a live workspace needs.
@@ -74,7 +74,7 @@ section 1).
 |---|---|---|---|
 | DOC | Template docs | README, WORKFLOW, SETUP, `workspace/`, `module/` | T4 |
 | MOD | Mods | session-reset, workspace | T4, then T2, then T3 |
-| BIN | Scripts | opsboard, sp-claude-init, session-sweep, commit-all, push-all, leak-check, publish-check, gh-harden, sp-autopilot | T4, then T3 |
+| BIN | Scripts | opsboard, sp-claude-init, session-sweep, commit-all, push-all, leak-check, publish-check, gh-harden | T4, then T3 |
 | HOOK | Hooks | git-guard, typecheck, the pre-push hook | — |
 | SKL | Skills and commands | skill templates, `/session`, `/operator-steps` | T4, then T2 |
 | PUB | Publishing | `tooling/publish/` (templates, rulesets) | — |
@@ -87,7 +87,7 @@ registered root. The tracks run in the order of the table below (T4 comes before
 
 | Track | Goal | Milestone | Release |
 |---|---|---|---|
-| **T4 Autopilot** | A workspace in autopilot mode runs from its charter to a release with no approve; the operator only answers questions and does operator tasks | M2 | v0.2.0 |
+| **T4 Autopilot** | A session on `/autopilot` commits its reviewed steps alone until a target; the operator only answers questions and does operator tasks | M2 | v0.2.0 |
 | **T2 Commit loop** | Every approve whose commands succeed ends in a session restart | M3 | v0.3.0 |
 | **T3 Session board** | The ops board shows each session ID: live or not, working, waiting or idle, since when | M4 | v0.4.0 |
 
@@ -102,12 +102,13 @@ need. Step IDs are `<CODE>-<milestone>.<n>`, never renumbered or reused; the nex
 operator task is O10.
 
 **Open operator tasks:**
-- **O4:** set the SSH signing agent to approve signing once per run: an approval that
-  lasts until the agent locks, and an auto-lock time longer than a run (a few hours).
-  Unblocks: AUTO-2.12, and every unattended run. When: before AUTO-2.12.
+- **O4:** set the SSH signing agent to approve signing once, not per commit: an
+  approval that lasts until the agent locks, and an auto-lock time of a few hours.
+  Unblocks: AUTO-2.12; without it each autopilot commit waits at the signing prompt.
+  When: before AUTO-2.12.
 
 **Next:** the operator reads [AUTOPILOT.md](AUTOPILOT.md) (AUTO-2.1) and names what to
-change; then AUTO-2.11, and the AUTO-2.12 spike once O4 is done.
+change; then AUTO-2.11, and AUTO-2.12 once O4 is done.
 
 **Notes.**
 - The publish skills (`go-public`, `publish`) were checked by reading, not on a fixture
@@ -124,35 +125,30 @@ change; then AUTO-2.11, and the AUTO-2.12 spike once O4 is done.
 
 ### T4 Autopilot (M2)
 
-Why: in the operated workflow the operator is in every step. They approve each commit,
-open a terminal per session, give a go-ahead for multi-repository steps, approve each
-rebalance and start each checkpoint. The operator wants to own the vision and the
-decisions, and to do only the steps nobody else can. Autopilot runs the same sessions
-unattended until the checkpoint. A decision found while building, or an earlier one that
-no longer holds, still stops that work until the operator answers.
+Why: in the operated workflow the operator approves every commit, so a session waits
+whenever they look away. They want to own the vision and the decisions, and let a
+session run its steps alone until a target, stopping only when it needs them.
 
-The design is [AUTOPILOT.md](AUTOPILOT.md) ([D13](#decisions)): a local driver runs each
-session one step per `claude -p` run, commits the reviewed work itself and never pushes;
-`/balance-sessions auto` plans each stretch's workload and parallelism up to a
-configurable cap; the operator answers `O`s and runs `CP<m>`. The core stays small: no
-new documents, branches or pull requests. A step that changes the design updates that
-file in the same commit. AUTO-2.2 to AUTO-2.10, the earlier design, were dropped by D13.
+The design is [AUTOPILOT.md](AUTOPILOT.md) ([D13](#decisions)): `/autopilot [<step>]
+[--max N]` in a session makes session-reset approve that session's previews itself,
+until the step is committed, the session reaches its checkpoint preconditions, or N
+commits ran (100 by default). It approves only reviewed previews of `git add` and
+`git commit`; anything else, a question or a failure stops it. Nothing runs outside
+Claude Code, and nothing is pushed. A step that changes the design updates that file in
+the same commit. AUTO-2.2 to AUTO-2.10, the earlier design, were dropped by D13.
 
 | Done | Pri | Step | Depends on | Done when |
 |---|---|---|---|---|
-| [ ] | P0 | AUTO-2.1: `AUTOPILOT.md`: the loop, the rules for every step, one step per run, the driver's commit, balance, the board, using it; WORKFLOW.md links to it | M1 | Links resolve; the operator reads it |
-| [ ] | P0 | AUTO-2.11: Both modes. Review before every commit: the preview's `Review:` line in the git rules, Session rules and `/session`; session-reset holds an approve when the preview has none. Cleanup after every step: the session's own Current state, Next, queue, handoff rows and verified `O`s, in the Session rules | AUTO-2.1 | A preview with no `Review:` line is held; the mod tests pass |
-| [ ] | P0 | AUTO-2.12: Spike, in `claude -p`: do the mods and hooks load; does `/session <ID>` set the session so the workspace guard applies; does session-reset deny every git write; can the driver sign with no terminal; do two sessions editing one root file at once lose an edit; what does `--output-format json` give back. **O4** comes first | AUTO-2.1 | Findings in AUTOPILOT.md section 8, each with its command |
-| [ ] | P0 | AUTO-2.13: Sessions on the board. opsboard parses the Session table, each session's queue, which steps are done and what blocks them; `--tsv` gets a `session` row per ID (repositories, state, next step, ready count, blocked by, checkpoint), joined with the driver's live state; `/ops` and `--md` get the Sessions block, the band the counts. No process liveness, which stays BOARD-4.3 | AUTO-2.1 | A fixture's `--tsv` gives the right state for a ready, a waiting, a reached and a parked session; seen in the pane |
-| [ ] | P0 | AUTO-2.14: Step contract. The "In autopilot" Session rules: one step per run, never ask in chat, decisions and stale decisions become `O`s; `/session` in autopilot mode writes `.claude/autopilot/<ID>.json`. `mode` and `autopilot` in `workspace.json`; `sp-claude-init --mode autopilot` | AUTO-2.11, AUTO-2.12 | A fixture step ends with a valid result file, and a planted decision with an `O` |
-| [ ] | P0 | AUTO-2.15: The driver's commit: the review check, paths inside the session's repositories or shared root files, leak-check, one lock per root, a signed commit, then `opsboard --tsv` still parses. The autopilot paragraph of the git rules. Tests on fixture repositories | AUTO-2.13, AUTO-2.14 | Tests pass, including a refused path, a missing review and an open finding |
-| [ ] | P0 | AUTO-2.16: `/balance-sessions auto`: no questions; workload and parallelism up to the cap, `--until` scope, decision review, the stretch file; the drift check and cleanup kept as a fallback, each fix logged | AUTO-2.13 | On a fixture it picks different session counts for two different stretches |
-| [ ] | P0 | AUTO-2.17: `sp-autopilot <root> [--until <step>]`: stretches, retries, the stop conditions, `.claude/autopilot.stop`, the live state and the JSONL log under `~/.local/state/super-project/autopilot/`, one notification and a printed summary | AUTO-2.15, AUTO-2.16 | A fixture blocked on two `O`s stops once, naming both |
-| [ ] | P0 | AUTO-2.18: End to end: a toy two-module project runs from its charter to `CP1` ready, unattended, over at least two stretches with different session counts. Then docs, CHANGELOG and the release | AUTO-2.17 | v0.2.0 tagged |
+| [ ] | P0 | AUTO-2.1: `AUTOPILOT.md`: the command, when it stops, what it approves, the rules for every step, balance and the board, an example; WORKFLOW.md links to it | M1 | Links resolve; the operator reads it |
+| [ ] | P0 | AUTO-2.11: Both modes. Review before every commit: the git rules, the Session rules and `/session` already ask for `code-review` and the preview's `Review:` line; session-reset holds an approve when the line is missing. Cleanup after every step: the session's own Current state, Next, queue, handoff rows and verified `O`s, in the Session rules | AUTO-2.1 | A preview with no `Review:` line is held; the mod tests pass |
+| [ ] | P0 | AUTO-2.12: `/autopilot [<step>] [--max N]` and `/autopilot off` in session-reset: approve a preview that has a clean `Review:` line, only `git add` and `git commit`, within the count; stop at the target step's commit, at the session's `reached` row (from `opsboard --tsv`), at the count, on a failed command, `/clear` or `/resume`; the band shows it. The "under autopilot" go-ahead rule in `/session` and the Session rules. **O4** comes first | AUTO-2.11 | Mod tests for each approve and each stop; a live session runs three steps alone and stops at its target |
+| [ ] | P0 | AUTO-2.13: Sessions on the board. opsboard parses the Session table, each session's queue, which steps are done and what blocks them; `--tsv` gets a `session` row per ID (state, next step, ready count, blocked by, checkpoint). session-reset writes each session's autopilot state (target, count, waiting) under `~/.local/state/super-project/`, and opsboard joins it. `/ops` and `--md` get the Sessions block | AUTO-2.12 | A fixture's `--tsv` gives the right state for a ready, a blocked, a reached and an autopilot session; seen in the pane |
+| [ ] | P1 | AUTO-2.14: `/balance-sessions` on the workload: ready and blocked work per session, how many sessions to run for the next stretch, decision review; the drift check and cleanup kept as a fallback, each fix reported as a skipped cleanup | AUTO-2.13 | On a fixture it proposes different session counts for two different stretches |
+| [ ] | P0 | AUTO-2.15: End to end: two sessions of a toy two-module workspace on `/autopilot` reach their `CP1` preconditions; the operator only answered questions. Then docs, CHANGELOG and the release | AUTO-2.12, AUTO-2.13, AUTO-2.14 | v0.2.0 tagged |
 
-- [ ] **Gate M2:** the toy project reaches `CP1` ready with no approve; the operator only
-  answered `O`s, then ran `CP1` by hand → v0.2.0. Later, a new step: the driver also runs
-  the checkpoint.
+- [ ] **Gate M2:** in a toy workspace, sessions on `/autopilot` reach their `CP1`
+  preconditions with every commit reviewed and nothing pushed; the operator only
+  answered questions, then ran `CP1` by hand → v0.2.0.
 
 ### T2 Commit loop (M3)
 
@@ -233,7 +229,8 @@ disk of which `/session <ID>` each process runs. The old attention files in
   the personal lines of `~/.claude/CLAUDE.md`.
 - **The docs contract moves as one.** A change to a parsed file or heading updates
   WORKFLOW.md section 3 and the parsers in the same commit.
-- **Git** follows the global rules: a preview, then the operator's approve.
+- **Git** follows the global rules: `code-review` on the diff, a preview with its
+  `Review:` line, then the operator's approve.
 
 ## Decisions
 
@@ -242,9 +239,8 @@ disk of which `/session <ID>` each process runs. The old attention files in
 | D1 | Repository layout and local config: install links each file to the path it runs from; one `KEY=value` config file read through `sp-config`; data rules in `.claude/workspace.json`, code rules and private skills in the overlay ([WORKFLOW.md](WORKFLOW.md) section 1) | 2026-10-10 |
 | D2 | The session-reset mod runs the approved preview itself; the model no longer retypes git commands | 2026-10-10 |
 | D4 | The public repository holds the docs and the tooling, under MIT | 2026-10-10 |
-| D5 | Autopilot is a mode, picked per workspace with `mode` in `.claude/workspace.json`; the operated mode stays. Both use the same docs ([T4](#t4-autopilot-m2)) | 2026-10-11 |
 | D8 | T4 Autopilot comes right after T1 as M2 (v0.2.0); T2 becomes M3 and T3 M4. Their steps were renumbered once for it (`LOOP-3.n`, `BOARD-4.n`), the one exception to "never renumbered" | 2026-10-11 |
 | D9 | A new project is set up from one file: the `new-project` skill interviews the operator in one batch and writes `.claude/project.toml` (or the operator edits it), and `sp-new` renders every root and module document from it. Agents no longer fill tokens by hand across the docs | 2026-10-11 |
 | D11 | Develop in the open. A repository goes public under its own name and is developed there: in place when its history is clean, else one audited snapshot in a new repository of that name, with the old one renamed `<repo>-private` and archived. The gates are local (`publish-check`, the pre-push hook) and on GitHub (`gh-harden`); `/go-public <repo>` plans the whole release ([WORKFLOW.md](WORKFLOW.md) section 4). This repository was the first. Replaces D10, the export to a `<repo>-oss` copy | 2026-10-12 |
 | D12 | The repository is `project-harness`: the harness a super project's sessions run in. "Super project" stays the name of what it runs (a root and its module submodules), so the `sp-*` commands and the `super-project` folders keep their names | 2026-10-12 |
-| D13 | Autopilot runs the operated sessions unattended: a local driver runs each session one step per `claude -p` run and commits its reviewed work itself, signed, with no push; the model never runs git there. Unknowns and decisions that no longer hold become `O` entries and stop that work. `/balance-sessions auto` sets each stretch's parallelism up to a cap in `workspace.json`. The operator runs `CP<m>`; the driver running it is later. Every step, in both modes, is reviewed before its commit and cleans up its docs after it. Replaces D6 (worktrees, PRs, merges) and D7 (`policy.md`, `inbox.md`) ([AUTOPILOT.md](AUTOPILOT.md)) | 2026-10-13 |
+| D13 | Autopilot is a command in one session, not a driver: `/autopilot [<step>] [--max N]` makes session-reset approve that session's previews itself until the step's commit, the session's checkpoint preconditions or N commits (100 by default). It approves only reviewed `git add` and `git commit` previews, so nothing is pushed; a question, a failure or anything else waits for the operator. Every step, in both modes, is reviewed before its commit and cleans up its docs after it. Only the setup scripts run outside Claude Code. Replaces D5 (a mode per workspace), D6 (worktrees, PRs, merges) and D7 (`policy.md`, `inbox.md`) ([AUTOPILOT.md](AUTOPILOT.md)) | 2026-10-13 |
