@@ -830,7 +830,6 @@ export const register: Register = on => {
     const { Box, Text, Button } = $.ui.resolve(e)
     const ops = await read($, { plugin: 'workspace', key: 'ops' } as const)
     const showLater = (await read($, { plugin: 'workspace', key: 'showLater' } as const)) ?? false
-    const columns = e.props.bodyColumns
     if (!ops) {
       return <Text dimColor>Loading…</Text>
     }
@@ -847,25 +846,28 @@ export const register: Register = on => {
             onPress={() => update($, SHOW_LATER, v => !(v ?? false))}
           />
         </Box>
-        {ops.error && <Text color="red">{cut(ops.error, columns)}</Text>}
+        {ops.error && <Text color="red" wrap="wrap">{ops.error}</Text>}
         {workspaces.map(w => {
           const rows = ops.rows.filter(r => r.workspace === w && (showLater || r.kind === 'you'))
           const cp = ops.checkpoints.find(c => c.workspace === w)
           return (
             <Box key={`ws-${w}`} flexDirection="column" marginTop={1}>
-              <Text bold>{cut(`${w}${cp ? ` · ${cp.text}` : ''}`, columns)}</Text>
-              {rows.length === 0 && <Text dimColor>  Nothing open.</Text>}
+              <Text bold wrap="wrap">{`${w}${cp ? ` · ${cp.text}` : ''}`}</Text>
+              {rows.length === 0 && (
+                <Box paddingLeft={2}>
+                  <Text dimColor>Nothing open.</Text>
+                </Box>
+              )}
               {rows.map(r => (
-                <Box key={`${w}-${r.line}`} flexDirection="column">
-                  <Text dimColor={r.kind === 'later'} wrap="truncate-end">
-                    {cut(`  ${r.id !== '—' ? `${r.id} ` : ''}${r.title.replace(/^(O\d+|[A-Z]{1,5}-[\w.]+):?\s+/, '')}`, columns)}
+                <Box key={`${w}-${r.line}`} flexDirection="column" paddingLeft={2}>
+                  <Text dimColor={r.kind === 'later'} wrap="wrap">
+                    {`${r.id !== '—' ? `${r.id} ` : ''}${r.title.replace(/^(O\d+|[A-Z]{1,5}-[\w.]+):?\s+/, '')}`}
                   </Text>
-                  <Text dimColor wrap="truncate-end">
-                    {cut(
-                      `    ${r.when}${r.tell !== '—' ? ` · tell ${r.tell}` : r.owner ? ` · ${r.owner}` : ''}${r.weight > 0 ? ` · unblocks ${r.weight}: ${r.unblocks}` : ''}`,
-                      columns,
-                    )}
-                  </Text>
+                  <Box paddingLeft={2}>
+                    <Text dimColor wrap="wrap">
+                      {`${r.when}${r.tell !== '—' ? ` · tell ${r.tell}` : r.owner ? ` · ${r.owner}` : ''}${r.weight > 0 ? ` · unblocks ${r.weight}: ${r.unblocks}` : ''}`}
+                    </Text>
+                  </Box>
                 </Box>
               ))}
             </Box>
