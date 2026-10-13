@@ -272,8 +272,9 @@ BOARD-4.3 touch only `opsboard` and may start during T2.
 Priorities: **P0** critical path, **P1** required but parallel, **P2** only for a named
 need. Step IDs are `<CODE>-<milestone>.<n>`, never renumbered or reused.
 
-**Done:** PUB-1.1 to PUB-1.12, PUB-1.14 to PUB-1.16 and PUB-1.18. What they built is in
-the CHANGELOG, how in git log, and the old notes in this plan's history.
+**Done:** PUB-1.1 to PUB-1.12 and PUB-1.14 to PUB-1.18; PUB-1.17 is v0.1.1, tagged on
+the commit that brings this line. What they built is in the CHANGELOG, how in git log,
+and the old notes in this plan's history.
 
 **Open operator tasks:**
 - **O7:** in `~/.claude/CLAUDE.md`, replace the "Git: show, then run on approve" section
@@ -293,19 +294,15 @@ unless there is a bug or tricky logic.
 **Next (2026-10-12).**
 - The operator did O3 (the GitHub hardening by hand) on 2026-10-12, and confirms **Gate
   M1** from the evidence under it, or names what is missing.
-- PUB-1.17 next, then T4. PUB-1.13 finishes when O9 is done.
+- T4 next, from AUTO-2.1. PUB-1.13 finishes when O9 is done.
 - PUB-1.15 was checked by reading, not on a fixture workspace: the skills name every gate
   and command. The first real `/go-public` is its run.
-- For v0.1.1 (PUB-1.17), found while releasing:
-  - Sign tags: `git tag -s`, or `tag.gpgSign` in the operator's git config.
-  - Done: session-reset's preview parser. An unclosed quote now joins the next lines only
-    when its line is a git or gh command, and both 2026-10-11 bugs have a regression test
-    (11 tests and `tsc` pass). Edits to session-reset get no verdict from auto mode's
-    check; make them outside auto mode.
+- Edits to the session-reset mod get no verdict from auto mode's check; make them outside
+  auto mode.
 - Elsewhere, not in this repository: a workspace planned under the export model (D10:
   `<repo>-oss` names, `PUBLISHED_DIR`, its own copies of the publish skills) moves to D11
-  after `sp-update` brings it the new skills. There, `/go-public <repo>` plans each module again, and
-  the operator decides the names and any module paths that named `-oss`.
+  after `sp-update` brings it v0.1.1. There, `/go-public <repo>` plans each module again,
+  and the operator decides the names and any module paths that named `-oss`.
 
 ### T1 Public (M1)
 
@@ -316,7 +313,6 @@ gates ([publishing in the open](#publishing-in-the-open-d11)).
 | Done | Pri | Step | Depends on | Done when |
 |---|---|---|---|---|
 | [ ] | P0 | PUB-1.13: `tooling/bin/gh-harden <owner/repo> [--apply] [--main <b>] [--dev <b>] [--check-name <name>]`. With no option it reads every GitHub setting of a public repository and prints `ok`, `missing` or `after public`, with the command that sets it. `--apply` sets the missing ones, then reads them again. Rulesets come from `tooling/publish/rulesets/*.json`; a ruleset with an existing name is updated, not added twice. It never changes visibility, and it names the UI-only items. session-reset counts `gh-harden --apply` as a write and `gh-harden` alone as a read | PUB-1.11 | `gh-harden David-Xilo/project-harness` prints only `ok` and the UI-only items |
-| [ ] | P1 | PUB-1.17: v0.1.1. The fixes listed under "Next", the CHANGELOG, then `main` fast-forwarded to the release commit, the signed tag and the Release | PUB-1.16 | v0.1.1 tagged; CI passes on `main` and the tag |
 
 - [ ] **Gate M1:** a clean checkout installs and runs in a live workspace → v0.1.0.
   Evidence: v0.1.0 is released (`c338a16`, CI passed on `main` and the tag); its archive

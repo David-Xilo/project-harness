@@ -3,7 +3,7 @@
 Each release is a milestone or a patch between milestones; its tag notes list what it
 brings.
 
-## Unreleased
+## v0.1.1 (2026-10-12)
 
 - Developed in the open: this repository is now the development home. `development` is
   the working branch, `main` the latest release, and the plan is public.
