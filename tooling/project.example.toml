@@ -30,8 +30,8 @@ defaults = [
 language = "Go"                      # root .gitignore language
 v1_milestone = "M2"                  # first unattended production use: that milestone is v1.0.0
 domain_invariants = "reading times in UTC, the source of every reading"   # in the Common working rules
-private_data = "station locations"   # never exposed in logs, evidence or exports
-never_exported = "station locations and captured readings"   # completes "Credentials, … are never exported"
+private_data = "station locations"   # never exposed in logs, evidence or a public repository
+never_exported = "station locations and captured readings"   # completes "Credentials, … never go into it" (a public module)
 diagram = """
   S[stations] --> C[collector] --> D[(store)] --> V[dashboard]
 """

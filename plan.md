@@ -142,7 +142,6 @@ use the same parsing rules. A missing file means every default applies.
 | Key | Default | Read by |
 |---|---|---|
 | `PROJECTS_DIR` | `~/projects` | session-sweep, `/operator-steps`, SETUP: where a bare workspace name resolves and new roots go |
-| `PUBLISHED_DIR` | `PROJECTS_DIR/published-oss` | the publish and go-public skills of the export model; dropped in PUB-1.16 ([D11](#decisions)) |
 | `ROOTS` | `~/.config/super-project/roots` | opsboard, the mods, sp-claude-init, session-sweep, `/operator-steps` |
 | `PRIVATE_STRINGS` | `~/.config/super-project/private-strings.txt` | leak-check, the publish skill |
 | `BIN_DIR` | `~/.local/bin` | install; the workspace mod finds `opsboard` there |
@@ -273,7 +272,7 @@ BOARD-4.3 touch only `opsboard` and may start during T2.
 Priorities: **P0** critical path, **P1** required but parallel, **P2** only for a named
 need. Step IDs are `<CODE>-<milestone>.<n>`, never renumbered or reused.
 
-**Done:** PUB-1.1 to PUB-1.12, PUB-1.14, PUB-1.15 and PUB-1.18. What they built is in
+**Done:** PUB-1.1 to PUB-1.12, PUB-1.14 to PUB-1.16 and PUB-1.18. What they built is in
 the CHANGELOG, how in git log, and the old notes in this plan's history.
 
 **Open operator tasks:**
@@ -294,10 +293,9 @@ unless there is a bug or tricky logic.
 **Next (2026-10-12).**
 - The operator did O3 (the GitHub hardening by hand) on 2026-10-12, and confirms **Gate
   M1** from the evidence under it, or names what is missing.
-- PUB-1.16 next, then PUB-1.17, then T4. PUB-1.13 finishes when O9 is done.
+- PUB-1.17 next, then T4. PUB-1.13 finishes when O9 is done.
 - PUB-1.15 was checked by reading, not on a fixture workspace: the skills name every gate
-  and command. The first real `/go-public` is its run; until PUB-1.16, WORKFLOW.md and
-  the workspace templates still describe the export model.
+  and command. The first real `/go-public` is its run.
 - For v0.1.1 (PUB-1.17), found while releasing:
   - Sign tags: `git tag -s`, or `tag.gpgSign` in the operator's git config.
   - session-reset: a preview's non-command code block was taken for a command twice. On
@@ -310,7 +308,7 @@ unless there is a bug or tricky logic.
     check gave no verdict on that edit).
 - Elsewhere, not in this repository: a workspace planned under the export model (D10:
   `<repo>-oss` names, `PUBLISHED_DIR`, its own copies of the publish skills) moves to D11
-  after PUB-1.16 and `sp-update`. There, `/go-public <repo>` plans each module again, and
+  after `sp-update` brings it the new skills. There, `/go-public <repo>` plans each module again, and
   the operator decides the names and any module paths that named `-oss`.
 
 ### T1 Public (M1)
@@ -322,7 +320,6 @@ gates ([publishing in the open](#publishing-in-the-open-d11)).
 | Done | Pri | Step | Depends on | Done when |
 |---|---|---|---|---|
 | [ ] | P0 | PUB-1.13: `tooling/bin/gh-harden <owner/repo> [--apply] [--main <b>] [--dev <b>] [--check-name <name>]`. With no option it reads every GitHub setting of a public repository and prints `ok`, `missing` or `after public`, with the command that sets it. `--apply` sets the missing ones, then reads them again. Rulesets come from `tooling/publish/rulesets/*.json`; a ruleset with an existing name is updated, not added twice. It never changes visibility, and it names the UI-only items. session-reset counts `gh-harden --apply` as a write and `gh-harden` alone as a read | PUB-1.11 | `gh-harden David-Xilo/project-harness` prints only `ok` and the UI-only items |
-| [ ] | P0 | PUB-1.16: Templates and docs follow D11: `workspace/plan.md` "Public release" and the `publish-<repo>` session row, `handoffs.md`, `AGENTS.md`, `decisions.md` SD10, WORKFLOW.md (skills, going public, design choices, registering a root), SETUP.md. Drop `PUBLISHED_DIR` (`sp-config`, `config.example`, `sp-new`'s `published_dir`, SETUP's `additionalDirectories` step) and the `-oss` names. CI runs the new tests | PUB-1.15 | `sp-new` tests pass; `PUBLISHED_DIR` and `-oss` appear only in the CHANGELOG and this plan's history; links resolve |
 | [ ] | P1 | PUB-1.17: v0.1.1. The fixes listed under "Next", the CHANGELOG, then `main` fast-forwarded to the release commit, the signed tag and the Release | PUB-1.16 | v0.1.1 tagged; CI passes on `main` and the tag |
 
 - [ ] **Gate M1:** a clean checkout installs and runs in a live workspace → v0.1.0.

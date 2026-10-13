@@ -16,7 +16,7 @@ Set up a new super project from project-harness. Every value lives in one `proje
    - milestones: what each delivers, its goal, gate and acceptance criteria, and which is v1.0.0 (first unattended production use);
    - the first steps of each module per milestone, with their dependencies;
    - a shared runtime only one session may run, if any: which session, its scripts, and the subcommands anyone may run;
-   - the domain invariants, the private data never exposed or exported, the rules every module follows, and any hard rule for every session;
+   - the domain invariants, the private data never exposed or published, the rules every module follows, and any hard rule for every session;
    - the glossary groups.
 
    Ask again only about what an answer left unclear.

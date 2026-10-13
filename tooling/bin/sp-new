@@ -185,11 +185,6 @@ def config(key, default):
     return out.stdout.strip() or os.path.expanduser(default)
 
 
-def tilde(path):
-    home = os.path.expanduser("~")
-    return "~" + path[len(home):] if path == home or path.startswith(home + "/") else path
-
-
 def slug(text):
     return re.sub(r"[^\w\- ]", "", text.strip().lower()).replace(" ", "-")
 
@@ -360,7 +355,6 @@ def build(data, root_override=None):
         "rules": data["rules"],
         "glossary_groups": [{"group_name": g, "group_slug": slug(g)} for g in p["glossary_groups"]],
         "hard_rules": p.get("hard_rules", []),
-        "published_dir": tilde(config("PUBLISHED_DIR", "~/projects/published-oss")),
         "milestone_order": " → ".join(m["id"] for m in ms),
         "later_cps": ("`CP2` (M2)" if len(ms) == 2 else
                       f"`CP2`–`CP{len(ms)}`, one per milestone" if len(ms) > 2 else "none planned"),

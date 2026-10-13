@@ -17,6 +17,9 @@ brings.
 - `/go-public <repo>` plans a public release, in place or as a snapshot: the steps P1–P6
   with their gates, the records and the operator tasks. The `publish` skill works them,
   for a workspace module or a standalone repository.
+- The workspace templates, WORKFLOW.md and SETUP.md follow the new publishing model.
+  `PUBLISHED_DIR` and the `<repo>-oss` names are gone; an old `PUBLISHED_DIR` line in the
+  config is ignored.
 - Renamed `project-harness` (from `project-template`). `sp-claude-init` writes
   `.claude/project-harness.lock` and moves a root's `project-template.lock` on its next
   run; the `sp-*` commands and the `super-project` folders keep their names.

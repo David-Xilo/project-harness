@@ -7,7 +7,7 @@
 set -euo pipefail
 dir="${XDG_CONFIG_HOME:-$HOME/.config}/super-project"
 file="$dir/config"
-keys=(PROJECTS_DIR PUBLISHED_DIR ROOTS PRIVATE_STRINGS BIN_DIR OVERLAY_DIR)
+keys=(PROJECTS_DIR ROOTS PRIVATE_STRINGS BIN_DIR OVERLAY_DIR)
 
 # The last KEY=value line for $1 in the file, if any.
 raw() {
@@ -28,7 +28,6 @@ get() {
   if [ -z "$v" ]; then
     case "$1" in
       PROJECTS_DIR) v="~/projects" ;;
-      PUBLISHED_DIR) v="$(get PROJECTS_DIR)/published-oss" ;;
       ROOTS) v="$dir/roots" ;;
       PRIVATE_STRINGS) v="$dir/private-strings.txt" ;;
       BIN_DIR) v="~/.local/bin" ;;

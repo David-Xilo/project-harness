@@ -33,7 +33,7 @@ defaults; `sp-config <KEY>` prints yours.
 | bootstrap | `sp-claude-init <root> [--skill <name>] [--force]` | Checks the docs contract, copies the project skills, writes `.zed/settings.json`, warns about `submodule.recurse`, and registers the root. Run again, it updates what it placed (section 6) |
 | update | `sp-update [--ref <tag>] [--global] [root …]` | Brings roots, and with `--global` the installed tooling, to a version of this repository; lists the template doc changes to merge by hand |
 | commit-all, push-all | `commit-all <root>`, `push-all <root>` | The operator's own helpers: walk the nested submodules deepest first |
-| config | `sp-config <KEY>`; the file `${XDG_CONFIG_HOME:-~/.config}/super-project/config` | `KEY=value` lines; a missing key takes its default ([tooling/config.example](tooling/config.example)): `PROJECTS_DIR`, `PUBLISHED_DIR`, `ROOTS`, `PRIVATE_STRINGS`, `BIN_DIR`, `OVERLAY_DIR` |
+| config | `sp-config <KEY>`; the file `${XDG_CONFIG_HOME:-~/.config}/super-project/config` | `KEY=value` lines; a missing key takes its default ([tooling/config.example](tooling/config.example)): `PROJECTS_DIR`, `ROOTS`, `PRIVATE_STRINGS`, `BIN_DIR`, `OVERLAY_DIR` |
 | registry | `ROOTS` (`~/.config/super-project/roots`) | One root per line. The mods, the ops board, `/operator-steps` and the session sweep act only on these roots |
 | private strings | `PRIVATE_STRINGS` (`~/.config/super-project/private-strings.txt`) | Strings that must never be published; leak-check and the `publish` skill look for them |
 | leak check | `leak-check [<revisions>… \| --history]`; this repository's `.git/hooks/pre-push`, and another's after `tooling/install --hook <repo>…` | Runs gitleaks and the private strings (in any case) on the tracked files, on a range of commits and their messages, or on the whole history. It prints file names and counts only, never what matched. The pre-push hook runs it on what a push sends, and a hit stops the push |
@@ -50,8 +50,8 @@ and reports the edited ones (`--force` replaces them).
 - `add-objective`: turns an idea into plan changes after iterating with the operator, then rebalances.
 - `balance-sessions`: checks the plan for drift against module plans, handoffs and operator tasks, reorders queues, judges load (merge, split, park, start, move tracks) and says what to run next. `/balance-sessions drift` only reports.
 - `milestone-checkpoints`: converts older checkpoint schemes to one `CP<m>` per milestone. A workspace made from this template already has it.
-- `go-public`: marks a repository for open source (a plan table row, a decision, a `planned` publish row).
-- `publish`: the `publish-<repo>` session (audit, cleanup, public files, CI, allowlist export into `PUBLISHED_DIR/<repo>-oss`).
+- `go-public`: `/go-public <repo>` plans a repository's public release, in place or as a snapshot: the steps `<CODE>-P1`–`P6` with their gates, a plan table row, a decision, a `planned` publish row and the operator tasks.
+- `publish`: the `publish-<repo>` session works those steps (audit, cleanup, public files, CI and the pre-push hook, the gates, GitHub hardening and the first release).
 - A private skill one workspace needs goes in the overlay and is copied with `--skill <name>`.
 
 **Global skills used in every step:** `code-review` on each diff before the commit
@@ -139,12 +139,13 @@ evidence and deletes the entry; a standing task keeps its entry with "last run <
 It runs when a checkpoint opens, after `/add-objective`, or when the operator asks.
 
 **Going public:**
-1. `go-public` adds a plan row, a decision and a `planned` publish row.
+1. `/go-public <repo>` reads the gates (`publish-check`, `gh-harden`) and picks the way: in place when the history is clean, else one audited snapshot in a new repository of the same name, the old one renamed `<repo>-private` and archived. It writes the steps, a plan row, a decision, a `planned` publish row and the operator tasks.
 2. `/session publish-<repo>` sets `running`. The owner stops, and no checkpoint runs.
-3. It audits and exports to `PUBLISHED_DIR/<repo>-oss`, then adds a "Public repository" section to the module's AGENTS.md.
-4. It pushes on approve.
+3. It works the steps: audit, cleanup, the public files and the module's AGENTS.md "Public repository" section, CI and the pre-push hook, until `publish-check` passes and the operator signs off.
+4. From previews: the push (or the snapshot), `gh-harden --apply`, the operator's visibility switch, `gh-harden --apply` again, the first tag and Release.
 
-Changes flow private → public only.
+After that the repository is developed in the open by its own track; there is no export
+and no second copy.
 
 ## 5. Design choices
 
@@ -156,7 +157,7 @@ Changes flow private → public only.
 | Module status | "Current state" and "Next" at the top of each module plan | `/session` reads them; one home per fact, and the module wins over the root queue |
 | Evidence | Module `research.md`, next to the decisions it supports | No separate evidence tree to keep in sync |
 | Session practice | Only in the root AGENTS.md; modules carry the Common working rules, copied verbatim | One copy to change |
-| Public release | A section in the root plan and a `publish-<repo>` session | Going public is a scheduled step, and changes flow private → public only |
+| Public release | A repository goes public under its own name and is developed in the open; `/go-public` plans it, a `publish-<repo>` session works it | One copy of the code; the pre-push hook and CI are the gates on every push. A history that leaks is never rewritten: a snapshot starts a new repository |
 | Future modules | Their steps wait in `future-steps.md` | The tracker lists only modules whose repositories exist |
 | Setup | One `project.toml`, rendered by `sp-new` | Nothing is filled by hand, and the same answers give the same files |
 | Guards | The workspace mod fails open with a toast | A broken doc never blocks work; section 3 is what to keep stable |
@@ -166,13 +167,12 @@ Changes flow private → public only.
 `sp-claude-init <root>` adds the root to the roots file (`sp-config ROOTS`). That is the
 only registration: the mods, the ops board, `/operator-steps` and the session sweep all
 read that file. Run again on a registered root, it updates the skills and Zed settings it
-placed; `sp-update` does that for every root at a chosen version. Two optional extras:
-- `.claude/settings.local.json` with `additionalDirectories` for `PUBLISHED_DIR`, once a module will be published.
-- `.claude/workspace.json`, when a runtime script may only be run by one session. `sp-new`
-  writes it from the `[runtime]` section of `project.toml`:
-  `{"runtime": {"scripts": [...], "runners": "<session ID regex>", "free": [...],
-  "dockerFree": [...], "cite": "<plan section>", "commitFirst": {"<subcommand>":
-  [<repositories>]}}}`. Only sessions matching `runners` run the scripts, except their
-  `free` subcommands and the `dockerFree` docker subcommands; a `commitFirst` subcommand
-  waits until the listed repositories are committed. A file that does not parse turns the
-  guard off with a toast.
+placed; `sp-update` does that for every root at a chosen version. One optional extra:
+`.claude/workspace.json`, when a runtime script may only be run by one session. `sp-new`
+writes it from the `[runtime]` section of `project.toml`:
+`{"runtime": {"scripts": [...], "runners": "<session ID regex>", "free": [...],
+"dockerFree": [...], "cite": "<plan section>", "commitFirst": {"<subcommand>":
+[<repositories>]}}}`. Only sessions matching `runners` run the scripts, except their
+`free` subcommands and the `dockerFree` docker subcommands; a `commitFirst` subcommand
+waits until the listed repositories are committed. A file that does not parse turns the
+guard off with a toast.

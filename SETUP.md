@@ -50,10 +50,6 @@ roots file (`sp-config ROOTS`). Registration turns on the session-reset and work
 mods, the ops board, `/operator-steps` and `session-sweep.sh` for this root. Commit
 `.claude/skills` with the root.
 
-Only when something will be published, create `.claude/settings.local.json` with
-`{"permissions":{"additionalDirectories":["<sp-config PUBLISHED_DIR>"]}}`. It is
-git-ignored globally.
-
 ## 4. Check, then the first commit
 
 From the new root:

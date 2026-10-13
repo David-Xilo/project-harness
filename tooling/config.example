@@ -5,10 +5,6 @@
 # Where a bare workspace name resolves, and where new workspace roots go.
 PROJECTS_DIR=~/projects
 
-# Where the publish skill exports a public repository (<repo>-oss).
-# Default: PROJECTS_DIR/published-oss
-#PUBLISHED_DIR=~/projects/published-oss
-
 # The registered workspace roots, one absolute path per line.
 ROOTS=~/.config/super-project/roots
 

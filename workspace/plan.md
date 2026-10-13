@@ -95,7 +95,7 @@ beside the track sessions (SD10). `/session <ID>` starts each one from this plan
 | `{{id}}` **{{session_name}}** | {{tracks_text}} | {{repos_text}} |
 {{/sessions}}
 | `CP<m>` **Checkpoint** (`CP1`–`CP{{last_m}}`) | CP | the root repository, during its milestone's checkpoint run ([rules](#milestone-checkpoints)) |
-| `publish-<repo>` **Release** | one module that its plan or the [public release](#public-release) section marks public | the private `<repo>` and `{{published_dir}}/<repo>-oss`, while its publish status reads `running`. None planned |
+| `publish-<repo>` **Release** | one module the [public release](#public-release) section marks public | `<repo>`, while its publish status reads `running`. None planned |
 
 | Track | Queue now (details in the module plans' "Next") | Then, after its inputs |
 |---|---|---|
@@ -363,19 +363,24 @@ SD9, agreed {{date}}:
 
 No module is planned public today.
 
-- **Marking a module public.** The operator asks in a plain session at the root; the
-  `go-public` skill adds the module to the table below, a decision, and a `planned` row to
-  the [publish status](handoffs.md#publish-status).
-- **The publish session.** `publish-<repo>` (the `publish` skill) does the whole release:
-  security audit, cleanup, public files, CI, an allowlist and export script, and the local
-  commit in `{{published_dir}}/<repo>-oss` (the first one an orphan
-  commit). It pushes after the operator approves its preview. It writes the private
-  `<repo>` too, so while its row reads `running` the session that owns `<repo>` does no
-  work there, and no checkpoint runs.
-- **Before the first commit in `<repo>-oss`** it adds a "Public repository" section to
-  `<repo>/AGENTS.md`: from then on every allowlisted file is public at the next export.
-- **Later releases** are new runs: changes flow private → public only. Credentials,
-  {{never_exported}} are never exported.
+A module goes public under its own name and is developed in the open from then on; there
+is no export and no second copy (SD10).
+- **Marking a module public.** The operator runs `/go-public <repo>` in a plain session
+  at the root. The `go-public` skill reads the module's gates (`publish-check`,
+  `gh-harden`) and picks the way: **in place** when its history is clean, or a
+  **snapshot**, one audited commit of its tree in a new repository of the same name, with
+  the old one renamed `<repo>-private` and archived. It writes the steps `<CODE>-P1`–`P6`
+  into the module plan, a row in the table below, a decision, a `planned` row in the
+  [publish status](handoffs.md#publish-status) and the operator tasks.
+- **The publish session.** `publish-<repo>` (the `publish` skill) works those steps:
+  security audit, cleanup, the public files, CI and the pre-push hook, the gates, then
+  GitHub hardening, the operator's visibility switch and the first release. While its row
+  reads `running` the session that owns `<repo>` does no work there, and no checkpoint
+  runs.
+- **After the first release** the module is ordinary: its track develops it in the open,
+  and its checkpoints tag it. Its AGENTS.md "Public repository" section holds: every push
+  is public at once, and the pre-push hook and CI run leak-check and gitleaks. Credentials,
+  {{never_exported}} never go into it.
 
 | Module | Public name | Waits on | Decided |
 |---|---|---|---|
