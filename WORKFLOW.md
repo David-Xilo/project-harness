@@ -52,7 +52,7 @@ copies them into `<root>/.claude/skills/`, recording each file's hash in
 once and moved). Run again, or through `sp-update`, it updates the copies nobody edited
 and reports the edited ones (`--force` replaces them).
 - `add-objective`: turns an idea into plan changes after iterating with the operator, then rebalances.
-- `balance-sessions`: checks the plan for drift against module plans, handoffs and operator tasks, reorders queues, judges load (merge, split, park, start, move tracks) and says what to run next. `/balance-sessions drift` only reports.
+- `balance-sessions`: sizes the sessions to the workload: ready and blocked work per session from the ops board, how many sessions to run for the next stretch and which on `/autopilot`, a review of the decisions, the load (merge, split, park, start, move tracks), and the drift check as a fallback. `/balance-sessions drift` only reports.
 - `milestone-checkpoints`: converts older checkpoint schemes to one `CP<m>` per milestone. A workspace made from this template already has it.
 - `go-public`: `/go-public <repo>` plans a repository's public release, in place or as a snapshot: the steps `<CODE>-P1`–`P6` with their gates, a plan table row, a decision, a `planned` publish row and the operator tasks.
 - `publish`: the `publish-<repo>` session works those steps (audit, cleanup, public files, CI and the pre-push hook, the gates, GitHub hardening and the first release).
@@ -135,10 +135,10 @@ evidence and deletes the entry; a standing task keeps its entry with "last run <
 - A fix after recording goes on `release/<tag>`, never by rewriting `development`.
 
 **Rebalancing** (`/balance-sessions`):
-1. Drift: the root queues and scopes against module "Current state" and "Next", the handoffs and operator tasks.
-2. Sync the plan.
-3. Reprioritise the queues (P0 critical path, P1 parallel, P2 named need, M maintenance).
-4. Judge each session's load: ready against blocked steps. Then merge, split, park, start or move tracks, within the session cap.
+1. Measure: each session's ready and blocked work from `opsboard --tsv`, checked against the module plans.
+2. Drift and decisions: the root queues and scopes against module "Current state" and "Next", the handoffs and operator tasks, each fix named as a session's skipped cleanup, or as setup; the decisions the open steps rest on, against what the work has shown.
+3. Sync the plan and reprioritise the queues (P0 critical path, P1 parallel, P2 named need, M maintenance).
+4. Judge the load: how many sessions the next stretch needs, then merge, split, park, start or move tracks, within the session cap, and which sessions run on `/autopilot`.
 5. Propose, then apply on approval, with a decision row.
 
 It runs when a checkpoint opens, after `/add-objective`, or when the operator asks.

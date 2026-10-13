@@ -73,7 +73,8 @@ edits only its tracks' repositories. It asks other sessions through rows in
 [handoffs.md](handoffs.md) and the operator through entries under its tracks in
 [operator.md](operator.md), one ID `O<n>` per task (SD4). With its repositories' rows in
 [release.md](release.md), these are the only root files it may edit (it may also append
-a glossary entry). Root files otherwise change only in a checkpoint session `CP<m>`.
+a glossary entry and keep its tracks' queue cells in the plan current). Root files
+otherwise change only in a checkpoint session `CP<m>`.
 Each milestone has one [checkpoint](plan.md#milestone-checkpoints), always one open:
 every session works up to its scope, records its release commits in release.md and marks
 `reached` in handoffs.md's checkpoint status, then may work ahead; `CP<m>` runs only when

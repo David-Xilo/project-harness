@@ -11,8 +11,7 @@ work in parallel, run `/autopilot` in several. `/balance-sessions` still says wh
 sessions to run.
 
 **Status:** built for v0.2.0, not yet released ([plan, T4](plan.md#t4-autopilot-m2)).
-The workload view of `/balance-sessions` (section 5) and the end-to-end run are still to
-come.
+The end-to-end run is still to come.
 
 ## 1. The command
 
@@ -110,7 +109,10 @@ a decision or a live operation.
 - how many sessions should run in parallel for the next stretch of work: a milestone may
   start with 2, widen to many once the modules are independent, and narrow to 3 near the
   checkpoint;
-- which sessions to start, park, split or merge to match.
+- which sessions to start, park, split or merge to match, and which to run on
+  `/autopilot`, with a target step where their part of the stretch ends.
+
+It takes the counts from the ops board's `session` rows below.
 
 It also re-reads the recorded decisions against what the work has shown. Its drift check
 and cleanup stay as a fallback: with sessions cleaning up after each step they should

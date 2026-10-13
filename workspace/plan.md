@@ -127,7 +127,8 @@ one section per track plus General, with the steps for each.
   checks the result, records the evidence in its own plan and deletes the entry.
 - **Root files** (`plan.md` and its reference files `acceptance.md`, `decisions.md`,
   `future-steps.md`{{#runtime}}, `operations.md`{{/runtime}}, `capabilities.md`, `README.md`,
-  submodule pins, tags) change only in a `CP<m>` session, or when the operator asks.
+  submodule pins, tags) change only in a `CP<m>` session, or when the operator asks; a
+  session keeps only its own tracks' queue cells current.
 {{#runtime}}
 - **The shared runtime** ({{runtime_name}}) is run only by `{{runtime_session}}`, and by
   `CP<m>` during its run while `{{runtime_session}}` is stopped. Other sessions ask
@@ -153,7 +154,8 @@ operator task IDs `O<n>` are different namespaces.
 - **Shared files:** its rows in [handoffs.md](handoffs.md) (handoff rows and its row in the
   [checkpoint status](handoffs.md#checkpoint-status)), its repositories' rows in
   [release.md](release.md), its tracks' entries in [operator.md](operator.md), and a new
-  [glossary](glossary.md) entry. `CP<m>` also edits the root files during its run.
+  [glossary](glossary.md) entry, and its tracks' queue cells in this plan. `CP<m>` also
+  edits the root files during its run.
 - **Checkpoint first:** while the checkpoint session's row reads `running`, `S1`–`S{{n}}`
   start no work, except a fix the `CP<m>` session asks for on a release branch. One
   checkpoint is always open, the current milestone's ([milestone

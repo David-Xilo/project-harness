@@ -103,7 +103,7 @@ operator task is O10.
 
 **Open operator tasks:** none.
 
-**Next:** AUTO-2.14.
+**Next:** AUTO-2.15.
 
 **Notes.**
 - The publish skills (`go-public`, `publish`) were checked by reading, not on a fixture
@@ -134,8 +134,7 @@ the same commit. AUTO-2.2 to AUTO-2.10, the earlier design, were dropped by D13.
 
 | Done | Pri | Step | Depends on | Done when |
 |---|---|---|---|---|
-| [ ] | P1 | AUTO-2.14: `/balance-sessions` on the workload: ready and blocked work per session, how many sessions to run for the next stretch, decision review; the drift check and cleanup kept as a fallback, each fix reported as a skipped cleanup | — | On a fixture it proposes different session counts for two different stretches |
-| [ ] | P0 | AUTO-2.15: End to end: two sessions of a toy two-module workspace on `/autopilot` reach their `CP1` preconditions; the operator only answered questions. One of them runs `/autopilot <step>` first and stops at that step's commit; the band shows the count, and `/ops` shows both sessions. Then docs, CHANGELOG and the release | AUTO-2.14 | v0.2.0 tagged |
+| [ ] | P0 | AUTO-2.15: End to end: two sessions of a toy two-module workspace on `/autopilot` reach their `CP1` preconditions; the operator only answered questions. One of them runs `/autopilot <step>` first and stops at that step's commit; the band shows the count, and `/ops` shows both sessions. Then docs, CHANGELOG and the release | — | v0.2.0 tagged |
 
 - [ ] **Gate M2:** in a toy workspace, sessions on `/autopilot` reach their `CP1`
   preconditions with every commit reviewed and nothing pushed; the operator only
