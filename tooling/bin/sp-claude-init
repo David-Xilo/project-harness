@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # usage: sp-claude-init <root> [--skill <name>]... [--force]
-# Sets up a root, and brings it up to this copy of project-template when run again: the
+# Sets up a root, and brings it up to this copy of project-harness when run again: the
 # project skills and .zed/settings.json it places are listed with their hashes in
-# .claude/project-template.lock. A placed file nobody edited is updated (or removed when
+# .claude/project-harness.lock. A placed file nobody edited is updated (or removed when
 # this version no longer ships it); an edited one is kept and reported, unless --force.
 #   --skill copies a private skill from the overlay (`sp-config OVERLAY_DIR`/skills/<name>);
 #           the lock remembers it, so later runs update it too
@@ -45,16 +45,20 @@ else
   version=$(git -C "$here" describe --tags --always --dirty 2>/dev/null || echo unknown)
 fi
 
-# What the last run placed: path -> hash, and the overlay skills it was given.
-lock=.claude/project-template.lock
+# What the last run placed: path -> hash, and the overlay skills it was given. A lock from
+# before the rename (project-template.lock) is read when it is the newer one, then removed.
+lock=.claude/project-harness.lock
+old_lock=.claude/project-template.lock
+last=$lock
+[ -f "$old_lock" ] && { [ ! -f "$lock" ] || [ "$old_lock" -nt "$lock" ]; } && last=$old_lock
 declare -A was=() now=()
-if [ -f "$lock" ]; then
+if [ -f "$last" ]; then
   while read -r kind a b; do
     case "$kind" in
       file) was[$b]=$a ;;
       overlay) [[ " ${extra[*]} " == *" $a "* ]] || extra+=("$a") ;;
     esac
-  done < "$lock"
+  done < "$last"
 fi
 kept=()
 hash() { sha256sum < "$1" | cut -d' ' -f1; }
@@ -104,14 +108,15 @@ for path in "${!was[@]}"; do
 done
 
 {
-  echo "# Written by sp-claude-init: what project-template placed here. Commit it with .claude/skills."
+  echo "# Written by sp-claude-init: what project-harness placed here. Commit it with .claude/skills."
   echo "version $version"
   echo "commit $commit"
   for name in "${extra[@]}"; do echo "overlay $name"; done
   for path in "${!now[@]}"; do echo "file ${now[$path]} $path"; done | sort -k3
 } > "$lock"
+[ -f "$old_lock" ] && rm "$old_lock" && echo "moved $old_lock to $lock: commit the removal too"
 for path in "${kept[@]}"; do echo "!! kept $path: edited here (--force replaces it)"; done
-echo "at project-template $version"
+echo "at project-harness $version"
 
 ex=$(git rev-parse --git-path info/exclude)
 grep -qxF '.zed/' "$ex" 2>/dev/null || echo '.zed/' >> "$ex"

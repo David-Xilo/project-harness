@@ -1,13 +1,13 @@
-# project-template plan
+# project-harness plan
 
 Updated 2026-10-12. This plan owns this repository's goals, components, tracks, the order
-of work and releases. It is the plan of project-template itself: setup copies only
+of work and releases. It is the plan of project-harness itself: setup copies only
 `workspace/` and `module/` into a new workspace, never this file. History: git log and
 the [decisions](#decisions) below.
 
 ## Contents
 
-1. [What project-template is](#what-project-template-is)
+1. [What project-harness is](#what-project-harness-is)
 2. [How it fits together](#how-it-fits-together)
 3. [Components and ownership](#components-and-ownership)
 4. [Design for public and personal use](#design-for-public-and-personal-use)
@@ -18,7 +18,7 @@ the [decisions](#decisions) below.
 9. [Public release](#public-release)
 10. [Decisions](#decisions)
 
-## What project-template is
+## What project-harness is
 
 A template and its tooling for running a coordinated super project: a root repository with
 module submodules, several Claude Code sessions in parallel, each the only writer of its
@@ -87,7 +87,7 @@ takes five small pieces, not a framework:
    `~/.claude` and `~/bin`, so an edit here is the tool that runs. There are no copies to
    drift. Project skills are still copied per root by `sp-claude-init`.
    - **Updating a root.** `sp-claude-init` can run again on a root: it records what it
-     placed in `.claude/project-template.lock`, updates each file nobody edited, and keeps
+     placed in `.claude/project-harness.lock`, updates each file nobody edited, and keeps
      (and reports) the edited ones. `sp-update [--ref <tag>] [--global] [root …]` unpacks a
      version (default: the newest `main`) under `~/.local/share/super-project/versions/`,
      runs that version's `sp-claude-init` on each root, and lists the template doc changes
@@ -266,198 +266,48 @@ BOARD-4.3 touch only `opsboard` and may start during T2.
 | **T2 Commit loop** | Every approve whose commands succeed ends in a session restart | M3 | v0.3.0 |
 | **T3 Session board** | The ops board shows each session ID: live or not, working, waiting or idle, since when | M4 | v0.4.0 |
 
-**Waiting on the operator:** the `O<n>` tasks are listed inside the step that needs them.
+**Waiting on the operator:** the `O<n>` tasks, under "Open operator tasks" in the tracker.
 
 ## Tracker: open steps
 
 Priorities: **P0** critical path, **P1** required but parallel, **P2** only for a named
 need. Step IDs are `<CODE>-<milestone>.<n>`, never renumbered or reused.
 
-**Done:** PUB-1.1 (2026-10-10, [D1](#layout-and-config-d1)), PUB-1.2 (2026-10-10), PUB-1.3
-(2026-10-10). In PUB-1.3:
-- `sp-config` and `config.example`. session-sweep, opsboard, sp-claude-init (skills next to
-  itself, `--skill` from the overlay instead of `--finance`), `/operator-steps` and the
-  publish and go-public skills read config. Both mods read `ROOTS` (and the workspace mod
-  `BIN_DIR`) from the same file.
-- The workspace mod reads its runtime rule from `<root>/.claude/workspace.json`
-  (`runtime`: scripts, runners, free, dockerFree, cite, and `commitFirst`: subcommands
-  whose listed repositories must be committed first). With no file, there is no rule; a
-  file that does not parse turns the guard off with a toast. The check of built images
-  against HEAD moved to a private overlay mod, and the live workspace's rule to a draft
-  `workspace.json` in the overlay. Both wait for PUB-1.4.
-- Skill templates and tests use neutral names. Tests: session-reset 9 pass, workspace 8
-  pass; both pass `tsc`.
+**Done:** PUB-1.1 to PUB-1.12 and PUB-1.18. What they built is in the CHANGELOG, how in
+git log, and the old notes in this plan's history.
 
-Done 2026-10-11: PUB-1.4, the installer:
-1. Done 2026-10-10: `tooling/install [--check]`. It links every file in `tooling/bin`,
-   `hooks` and `commands` and each mod folder, moves what it replaces to
-   `~/.local/state/super-project/backup/<time>/`, and prints the `settings.json` lines that
-   are missing (hooks, plugin dirs, the overlay's mods). A second run changes nothing.
-   Tested in a scratch home. The operator's config holds today's locations.
-2. Done 2026-10-10: updating a root. `sp-claude-init` runs again safely, with
-   `.claude/project-template.lock` (version, commit, the overlay skills it was given, a
-   hash per placed file) and `--force`. `sp-update` brings roots to a ref, `--global` to
-   the global tools too. Tested in a scratch home: new, updated, removed and edited files,
-   a root from before the lock, the doc diff, and a full run of `2f00600` with `--global`
-   and back to the checkout.
-3. Switch the operator's machine. Done 2026-10-10: `tooling/install` linked every file
-   (the old ones are in the backup folder); opsboard prints the same `--tsv` as before; the
-   draft `workspace.json` is in its workspace's `.claude/`. Done 2026-10-11 by the
-   operator: the overlay mod is in `CLAUDE_CODE_PLUGIN_DIRS`, `workspace.json` is committed
-   in its workspace, `main` is pushed, `tooling/install` linked `leak-check` and the
-   pre-push hook, and in a live workspace `/session S1`, `/ops`, `opsboard --md` and a
-   commit restart work.
-
-Done 2026-10-11: PUB-1.10, setup from one file.
-- The templates in `workspace/` and `module/` use a small mustache subset instead of
-  `{{TOKEN}}`s.
-- `sp-new` renders them from one `project.toml`: rows per module, session and milestone;
-  queues, scopes, versions and the cross-track order derived from the steps. A runtime's
-  scripts become `.claude/workspace.json`. `--modules` fills only new repositories, so it
-  runs again for a future module once it is moved to `[[modules]]`.
-- `/new-project` asks the questions in one batch and writes the file.
-- SETUP.md shrank to the new flow.
-- `tooling/install` linked `sp-new` and `/new-project`.
-
-Done 2026-10-11: PUB-1.5, docs for strangers.
-- README: what it is, requirements, install, quick start, updating.
-- WORKFLOW.md: no workspace names; installed paths and config keys instead of personal
-  paths; the comparison of two workspaces became "Design choices" with reasons; the
-  runtime rule is `.claude/workspace.json`.
-- The git rules ship as `tooling/claude/git-rules.md`; install linked it to
-  `~/.claude/git-rules.md`. Templates, skills and commands point there.
-- `workspace/decisions.md` lost the private decision IDs.
+**Open operator tasks:**
+- **O3:** harden `project-harness` from
+  [tooling/publish/hardening.md](tooling/publish/hardening.md), in its order, starting
+  with the signing key: GitHub shows `c338a16` as unverified (`unknown_key`) until it is
+  on the account. Unblocks: the rulesets, PUB-1.13 and Gate M1.
 - **O7:** in `~/.claude/CLAUDE.md`, replace the "Git: show, then run on approve" section
   with the line `@~/.claude/git-rules.md`. Unblocks: one copy of the rules. When: any
   time; until then both copies say the same.
-
-Done 2026-10-11: the session-reset preview fix.
-- Bug: `previewCommands` took any code-block line that names git for a command. A commit
-  message in its own code block ("PUB-1.5: … the shipped git rules") became the
-  preview's first command, and the approved `git add` was refused.
-- Fix: `judge(command, depth, isPreview)` in `tooling/mods/session-reset/hooks/git.ts`.
-  In a preview, git counts only as the command itself (after env assignments, keywords,
-  a wrapper such as `timeout 60`, `bash -c` or an alias); unknown programs and opaque
-  parts never count. The Bash guard is unchanged. The 9 mod tests and `tsc` pass; a
-  probe gave the right commands for the failing preview.
-- Deferred by the operator: a regression test at the end of `describe('approve gate', …)`
-  in `tooling/mods/session-reset/tests/register.test.ts`. Its preview has a status
-  block, a message block `PUB-1.5: docs and the shipped git rules`, and a command block
-  (`git add docs/plan.md`, `git commit -m "PUB-1.5: docs and the shipped git rules"`).
-  After a plain approve, both commands run, and `timeout 60 git push` is then refused
-  ("every command of the approved preview has run"). Auto mode's check gave no verdict
-  on this edit four times; write it outside auto mode.
-
-Done 2026-10-11: PUB-1.7, the leak guard.
-- `tooling/bin/leak-check` runs gitleaks and the private strings (any case; blank and `#`
-  lines skipped) on the tracked files, on a range of commits (each one's changed files
-  and its message), or with `--history` on every commit. It prints file names and counts
-  of matching lines, never what matched; exit 1 on a hit, 2 when it cannot check.
-- `tooling/git-hooks/pre-push` runs it on what each pushed ref sends (a new ref: what no
-  ref of the remote has). `tooling/install` links it into this checkout's `.git/hooks/`.
-- `tooling/tests/leak-check/run.sh`: 20 checks pass in scratch repositories with a bare
-  remote. On the private repository, `--history` still found the strings that PUB-1.5
-  removed, which is why v0.1.0 is a single new commit.
-
-Done 2026-10-11: PUB-1.6, public files and CI.
-- LICENSE (MIT, the operator's name), SECURITY.md (GitHub private reporting, what is in
-  scope), CONTRIBUTING.md (the checks CI runs, the repository rules), CHANGELOG.md, a
-  `.gitignore` for this repository.
-- `.github/workflows/ci.yml` on every push and pull request, `contents: read`, checkout
-  pinned by SHA without kept credentials. It installs gitleaks 8.30.1 (checked by
-  SHA-256) and Claude Code 2.1.296, then runs shellcheck (`-S warning`; `sp-config` skips
-  SC2088 for its literal `~` defaults), both test scripts, the two mods' tests and
-  `leak-check` over the tree and the history. Claude Code is pinned to the version the
-  mods are written for: 2.1.283, the newest one two weeks old, fails to load the
-  workspace mod. `.github/dependabot.yml` updates the actions weekly, after 7 days.
-- zizmor 1.16.0 (`--persona=pedantic`, offline) and shellcheck 0.11.0 find nothing.
-- CI run 38152748183 on a branch passed every step. `gh run view` and `gh run watch` read
-  a run; session-reset counts `gh api` and `git fetch` as writes.
-
-Done 2026-10-11: PUB-1.8, the audit of the first public tree.
-- The tree was every tracked file of the private repository but this plan and the export
-  script and its list (the export model, D10, since replaced by D11): 70 files.
-- Checked: the denylist 0 files with hits; gitleaks 0 findings; the operator's email and
-  handle in 0 files, the name only in LICENSE; home paths only `/home/op` and
-  `$tmp/home` in tests; leak-check and sp-new tests pass, mod tests 9 and 8 pass;
-  shellcheck clean; 15 docs, 0 broken links. The operator read every file and signed off.
-
-Done 2026-10-11: PUB-1.9, public at v0.1.0.
-- `c338a16` (signed), 70 files; `leak-check` 0 hits in the files and the history. `main`
-  and the annotated tag `v0.1.0` (`e90a598`, not signed: the git config signs commits
-  only) are pushed, and the GitHub Release is published from the tag. CI passed on `main`
-  (38172289774) and on the tag (38172313054); Dependabot's first check passed.
-- Gate M1 evidence: the `v0.1.0` archive from GitHub installs into a scratch home
-  (`tooling/install` links the 9 scripts, 2 hooks, 2 mods, 3 commands and the git rules;
-  a second run links nothing), and the operator's live workspaces run the same files
-  from this checkout (PUB-1.4).
-- Learned: `gh release create --notes-from-tag` refuses `-R`; run it inside the checkout.
-  session-reset counts `git tag -v` as a write.
-
-Done 2026-10-12: PUB-1.11, developed in the open ([D11](#decisions)).
-- The operator renamed the repositories: the public one is `project-template`, the
-  private one `project-template-private`, with its last commit `ee4436a` pushed, and
-  archived it (O8). This
-  checkout is a fresh clone of the public one, on `development`, at the same path, so the
-  live workspaces' links still resolve.
-- This plan joined the public tree. README shrank to what stays true between releases;
-  CONTRIBUTING takes pull requests into `development`; the CHANGELOG dates v0.1.0.
-- `tooling/publish/hardening.md`: every GitHub setting, its settings page and its API
-  call, checked against the GitHub REST reference on 2026-10-12.
-- GitHub shows `c338a16` as unverified (`unknown_key`): the signing key is not on the
-  account yet (O3, first item).
-
-Done 2026-10-12: PUB-1.12, `tooling/bin/publish-check [--snapshot] [<repo>]`.
-- The eight [local gates](#publishing-in-the-open-d11), one line each (`ok`, `FAIL` or
-  `warn`), with the files or counts under a `FAIL`; exit 1 on a `FAIL`, 2 when a gate
-  cannot be checked (leak-check or zizmor fails, or the path is not a repository).
-- Choices: `LICENSE` may also be `LICENSE.md`, `LICENSE.txt` or `COPYING`, and
-  SECURITY.md and CONTRIBUTING.md may sit in `.github/` or `docs/`, as GitHub reads them.
-  zizmor runs `--offline` with its default persona over `.github/`. A missing denylist
-  is a `warn` on leaks: gitleaks alone ran. A repository with no commits skips
-  `--history`.
-- `tooling/tests/publish-check/run.sh`: 35 checks pass, a repository that passes and a
-  copy that fails each gate, with a stub zizmor. CI runs it; shellcheck 0.11.0 is clean.
-- On this repository, before the commit, every gate but clean passed, and ci passed
-  with zizmor 1.16.0 (run through `uvx`); without zizmor, ci is a `warn`.
-
-Built 2026-10-12: PUB-1.13, `tooling/bin/gh-harden`.
-- It reads the 17 items of `hardening.md` through `gh api` (one GET per path):
-  account items (the signing key, from the verification of the default branch's newest
-  commit; vigilant mode and two-factor are `ui`), the 9 before the switch, the 2 after
-  it, and the 3 rulesets from `tooling/publish/rulesets/*.json`. A ruleset with required
-  signatures waits for the signing key; `main` waits for its branch and for the CI check
-  to pass on it. `--apply` writes only `missing` items, never visibility or the account
-  items, then reads again.
-- session-reset counts `gh-harden --apply` as a write and `gh-harden` alone as a read;
-  its 9 tests (with two new lines) and `tsc` pass.
-- Tests skipped at the operator's request; shellcheck 0.11.0 is clean. The stub-`gh`
-  test is deferred to a later step.
-- A `missing` ruleset names what differs: enforcement, target, bypass actors, the refs it
-  applies to, a missing rule or its parameters.
-- First read of `David-Xilo/project-harness`: 14 items `ok` or `ui`. Missing: features
-  (wiki and projects on), the `main` ruleset's `required_status_checks` rule, and
-  `release-tags`; the operator's tag ruleset has another name.
 - **O9:** rename the tag ruleset to `release-tags` (Settings → Rules → Rulesets), so
-  `--apply` updates it instead of adding a second one. Then
-  `gh-harden David-Xilo/project-harness --apply` runs from a preview, and PUB-1.13 is
-  done when it prints only `ok` and `ui`.
+  `gh-harden --apply` updates it instead of adding a second one.
+
+**PUB-1.13, built 2026-10-12.** `tooling/bin/gh-harden` reads the 17 items of
+`hardening.md` and `--apply` writes the `missing` ones. Its first read of
+`David-Xilo/project-harness` gave 14 items `ok` or `ui`; missing were the features (wiki
+and projects on), the `main` ruleset's `required_status_checks` rule and `release-tags`.
+Left: O9, then `gh-harden David-Xilo/project-harness --apply` from a preview, then the
+stub-`gh` test the step asks for. It is done when `gh-harden` prints only `ok` and `ui`.
 
 **Next (2026-10-12).**
-- **O3:** harden `project-template` by hand from
-  [tooling/publish/hardening.md](tooling/publish/hardening.md), in its order, starting
-  with the signing key. Once PUB-1.13 lands, `gh-harden David-Xilo/project-template`
-  confirms it. Unblocks: the rulesets, and Gate M1.
-- The operator confirms **Gate M1** from the evidence above, or names what is missing.
-- Finish PUB-1.13 (O9, then `--apply`), then PUB-1.18, then PUB-1.14 to PUB-1.17 in order,
-  then T4.
+- The operator does O9 and O3, and confirms **Gate M1** from the evidence under it, or
+  names what is missing.
+- Finish PUB-1.13, then PUB-1.14 to PUB-1.17 in order, then T4.
 - For v0.1.1 (PUB-1.17), found while releasing:
   - Sign tags: `git tag -s`, or `tag.gpgSign` in the operator's git config.
-  - session-reset: a preview's non-command code block whose line has an apostrophe
-    ("the operator's approve") was taken for a command, and the approved push was
-    refused. Like the 2026-10-11 fix, a line counts only when git or gh is its command;
-    an unclosed quote must not join the lines after it. Add a regression test for both
-    bugs (the deferred one above and this one), outside auto mode.
+  - session-reset: a preview's non-command code block was taken for a command twice. On
+    2026-10-11 a commit message in its own block that named git (fixed in
+    `judge(command, depth, isPreview)`); later a line with an apostrophe ("the
+    operator's approve"), which refused the approved push. A line counts only when git or
+    gh is its command, and an unclosed quote must not join the lines after it. Add a
+    regression test for both at the end of `describe('approve gate', …)` in
+    `tooling/mods/session-reset/tests/register.test.ts`, outside auto mode (auto mode's
+    check gave no verdict on that edit).
 - Elsewhere, not in this repository: a workspace planned under the export model (D10:
   `<repo>-oss` names, `PUBLISHED_DIR`, its own copies of the publish skills) moves to D11
   after PUB-1.16 and `sp-update`. There, `/go-public <repo>` plans each module again, and
@@ -471,27 +321,17 @@ gates ([publishing in the open](#publishing-in-the-open-d11)).
 
 | Done | Pri | Step | Depends on | Done when |
 |---|---|---|---|---|
-| [x] | P0 | PUB-1.1: Layout and config contract: `tooling/{bin,hooks,mods,commands,skills}` next to `workspace/` and `module/`; the local config keys; the list of what stays private (roots registry, denylist, finance skill, signing) | — | Decision D1 recorded: [layout and config](#layout-and-config-d1) |
-| [x] | P0 | PUB-1.2: Import the tooling into `tooling/`; `.gitignore` excludes generated plugin types and `node_modules`; keep the mod tests | PUB-1.1 | Done 2026-10-10: copies identical to the live files; `claude plugin test tooling/mods/session-reset`: 6 pass, 0 fail. The workspace mod has no tests yet |
-| [x] | P0 | PUB-1.3: Generalise. Personal paths in session-sweep, sp-claude-init, `/operator-steps` and the publish and go-public skills become config. The workspace mod's hardcoded runtime-script table becomes `.claude/workspace.json`, and its workspace-specific build check becomes an overlay mod (D1). Skill templates lose private examples. The finance skill moves to the overlay and `--finance` becomes `--skill`. Drop `attn.sh` (T3 replaces it) and the unrelated agent-guard row | PUB-1.2 | Done 2026-10-10: the denylist and the workspace names find nothing in `tooling/` (leak-check itself comes in PUB-1.7) |
-| [x] | P0 | PUB-1.4: `tooling/install [--check]`: idempotent, backs up what it replaces, prints the `settings.json` snippet (hooks, plugin dirs) instead of editing it. First write the operator's config with today's locations (`ROOTS`, `PRIVATE_STRINGS`, `BIN_DIR`): without it the defaults find no roots. Place the overlay's draft `workspace.json` in its workspace's `.claude/` (an operator task there), and add the overlay mods to the plugin dirs. Then switch the operator's machine to the symlinks | PUB-1.3 | In a live workspace, `/session S1`, `/ops`, `opsboard --md` and a commit restart still work. Done 2026-10-11 (the operator's check) |
-| [x] | P0 | PUB-1.10: Setup from one file. Every value a new project needs lives in one `project.toml` (name, folder, owner, vision and defaults, modules, tracks and sessions, milestones with M1's gate and acceptance, runtime, invariants, private data, optional parts), documented in a commented `tooling/project.example.toml`. `tooling/bin/sp-new <project.toml>` (Python 3 standard library, `tomllib`) renders `workspace/` into a new root, and with `--modules` renders `module/` into each repository after O1. It repeats the rows per module, session and milestone. It refuses to overwrite a root, and fails on a missing key, a leftover `{{` or a template note. The `/new-project` command asks every question in one batch with recommended answers, writes the file to the state folder, checks it and shows it, then runs `sp-new`, which keeps it in `<root>/.claude/project.toml`, and continues with SETUP.md. The operator may skip the interview and edit the file. After setup the docs win, and the file stays as the record of the setup. SETUP.md shrinks to these steps and loses its token table ([D9](#decisions)) | PUB-1.3 | A fixture with two modules, two sessions, two milestones and a runtime renders a root that passes SETUP's checks (no token, the contract headings, `opsboard` shows only O1, links resolve); rendering it twice gives the same files. Done 2026-10-11: `tooling/tests/sp-new/run.sh`, 44 checks pass (the example, a minimal file, a simulated O1, a future module filled later and bad files) |
-| [x] | P0 | PUB-1.5: Docs for strangers. README: what it is, install, quick start. WORKFLOW.md without private names; its comparison section becomes generic design choices. SETUP.md uses config placeholders and neutral examples. The git rules ship as `tooling/claude/git-rules.md`. `workspace/decisions.md` without private IDs | PUB-1.3, PUB-1.10 | leak-check finds nothing in the docs. Done 2026-10-11: the denylist, the registered root names and the operator's names and paths find nothing in the tree (leak-check itself is PUB-1.7); links resolve; `tooling/tests/sp-new/run.sh` passes |
-| [x] | P1 | PUB-1.6: Public files: LICENSE (MIT), SECURITY.md, a short CONTRIBUTING.md, CHANGELOG.md, a `.gitignore` for this repository (today's is a Go template). CI with `permissions: contents: read`, actions pinned by SHA, zizmor clean; Dependabot for actions | PUB-1.2 | CI passes on a branch. Done 2026-10-11: run 38152748183 passed every step |
-| [x] | P0 | PUB-1.7: `tooling/bin/leak-check` and the pre-push hook | PUB-1.2 | 0 hits on the tree. Done 2026-10-11: `leak-check` finds 0 hits in the tracked files; `tooling/tests/leak-check/run.sh`, 20 checks pass |
-| [x] | P0 | PUB-1.8: Audit the first public tree: gitleaks and the denylist over the files, the tests, shellcheck and the links; the operator reads every file | PUB-1.4–1.7, PUB-1.10 | Operator signs off. Done 2026-10-11: every check clean, signed off |
-| [x] | P0 | PUB-1.9: Go public | PUB-1.8 | The public repository has v0.1.0: the commit, the tag and the GitHub Release; its CI passes. Done 2026-10-11 |
-| [x] | P0 | PUB-1.11: Develop in the open ([D11](#decisions)). The public repository is renamed `project-template` and becomes the development home; the private one is renamed `project-template-private` and archived (O8, done). This plan joins the public tree; README shrinks to what stays true between releases; CONTRIBUTING takes pull requests into `development`; `tooling/publish/hardening.md` lists every GitHub setting | PUB-1.9 | Done 2026-10-12: committed on `development`; O3 open |
-| [x] | P0 | PUB-1.12: `tooling/bin/publish-check [--snapshot] [<repo>]`: the [local gates](#publishing-in-the-open-d11) in one command. One line per gate, `ok`, `FAIL` or `warn`, with counts and file names only; exit 1 on a `FAIL`, 2 when it cannot check. `tooling/tests/publish-check/run.sh` builds scratch repositories that pass and that fail each gate | PUB-1.11 | Tests pass; every gate passes on this repository. Done 2026-10-12: 35 checks pass |
-| [ ] | P0 | PUB-1.13: `tooling/bin/gh-harden <owner/repo> [--apply] [--main <b>] [--dev <b>] [--check-name <name>]`. With no option it reads every item of `hardening.md` and prints `ok`, `missing` or `after public`, with the command that sets it. `--apply` sets the missing ones, then reads them again. Rulesets come from `tooling/publish/rulesets/*.json`; a ruleset with an existing name is updated, not added twice. It never changes visibility, and it names the UI-only items. session-reset counts `gh-harden --apply` as a write and `gh-harden` alone as a read. Tests run it against a stub `gh` on `PATH` | PUB-1.11 | Tests pass; after O3, `gh-harden David-Xilo/project-template` prints only `ok` and the UI-only items |
+| [ ] | P0 | PUB-1.13: `tooling/bin/gh-harden <owner/repo> [--apply] [--main <b>] [--dev <b>] [--check-name <name>]`. With no option it reads every item of `hardening.md` and prints `ok`, `missing` or `after public`, with the command that sets it. `--apply` sets the missing ones, then reads them again. Rulesets come from `tooling/publish/rulesets/*.json`; a ruleset with an existing name is updated, not added twice. It never changes visibility, and it names the UI-only items. session-reset counts `gh-harden --apply` as a write and `gh-harden` alone as a read. Tests run it against a stub `gh` on `PATH` | PUB-1.11 | Tests pass; after O3, `gh-harden David-Xilo/project-harness` prints only `ok` and the UI-only items |
 | [ ] | P1 | PUB-1.14: Templates and the hook for any repository. `tooling/publish/`: SECURITY.md, CONTRIBUTING.md and CHANGELOG.md skeletons; a `leaks.yml` workflow (checkout and gitleaks pinned, `contents: read`, gitleaks over the tree and the history); `dependabot.yml` for actions. `tooling/install --hook <repo>…` links the pre-push hook into other repositories | PUB-1.12 | A scratch repository with only the templates and a README passes `publish-check` |
 | [ ] | P0 | PUB-1.15: The publish action ([publishing in the open](#publishing-in-the-open-d11)). `go-public` becomes the operator's entry point, `/go-public <repo>`: it records the intent and writes the whole plan, its gates, commands and operator tasks. `publish` runs the plan in `publish-<repo>`, P1 to P6, in place or as a snapshot. Both skills work for a workspace module and for a standalone repository | PUB-1.12, PUB-1.13, PUB-1.14 | On a fixture workspace, `/go-public` writes the steps, the decision, the status row and the operator tasks, and every gate and command is named in them |
 | [ ] | P0 | PUB-1.16: Templates and docs follow D11: `workspace/plan.md` "Public release" and the `publish-<repo>` session row, `handoffs.md`, `AGENTS.md`, `decisions.md` SD10, WORKFLOW.md (skills, going public, design choices, registering a root), SETUP.md. Drop `PUBLISHED_DIR` (`sp-config`, `config.example`, `sp-new`'s `published_dir`, SETUP's `additionalDirectories` step) and the `-oss` names. CI runs the new tests | PUB-1.15 | `sp-new` tests pass; `PUBLISHED_DIR` and `-oss` appear only in the CHANGELOG and this plan's history; links resolve |
 | [ ] | P1 | PUB-1.17: v0.1.1. The fixes listed under "Next", the CHANGELOG, then `main` fast-forwarded to the release commit, the signed tag and the Release | PUB-1.16 | v0.1.1 tagged; CI passes on `main` and the tag |
-| [ ] | P0 | PUB-1.18: The name `project-harness` ([D12](#decisions)). The operator renamed the GitHub repository on 2026-10-12. README, SETUP, WORKFLOW, `config.example`, `/new-project`, `sp-claude-init` and `sp-update` say `project-harness`; the per-root lock becomes `.claude/project-harness.lock`, and `sp-claude-init` and `sp-update` read the old `project-template.lock` once and move it. This plan's title and steps follow. The remote URL is updated from a preview. "Super project" stays the name of what it runs, so `sp-*`, `~/.config/super-project/` and the state folders keep their names | PUB-1.11 | The old name appears only in the CHANGELOG, this plan's history and the lock migration; `sp-new` tests pass |
 
 - [ ] **Gate M1:** a clean checkout installs and runs in a live workspace → v0.1.0.
-  v0.1.0 is released; the evidence is in the PUB-1.9 note above, and the operator confirms.
+  Evidence: v0.1.0 is released (`c338a16`, CI passed on `main` and the tag); its archive
+  from GitHub installs into a scratch home, and a second install links nothing; the
+  operator's live workspaces run the same files from this checkout. The operator
+  confirms.
 
 ### T4 Autopilot (M2)
 
@@ -629,7 +469,7 @@ disk of which `/session <ID>` each process runs. The old attention files in
 
 - Milestone M*m* is `v0.<m>.0`: an annotated, signed tag whose notes list the
   capabilities, and a GitHub Release (`gh release create <tag> --verify-tag
-  --notes-from-tag`, run inside the checkout). A patch version `v0.<m>.<p>` carries fixes
+  --notes-from-tag`, run inside the checkout: it refuses `-R`). A patch version `v0.<m>.<p>` carries fixes
   and small tooling between milestones.
 - Work lands on `development`, the default branch. A release fast-forwards `main` to the
   release commit once CI has passed on it, and the tag goes on that commit. `main` is
@@ -637,6 +477,10 @@ disk of which `/session <ID>` each process runs. The old attention files in
 - Pull requests target `development`. Merge commits or squash; never a rebase merge,
   which drops the signature.
 - Nobody force-pushes or rewrites `main` or `development`.
+- session-reset counts `git tag -v`, `git fetch` and `gh api` as writes, so they run from
+  a preview; `gh run view` and `gh run watch` are reads.
+- CI pins Claude Code to the version the mods are written for (2.1.296; 2.1.283 fails to
+  load the workspace mod).
 
 ## Rules for this repository
 

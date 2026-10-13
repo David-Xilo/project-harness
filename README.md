@@ -1,4 +1,4 @@
-# project-template
+# project-harness
 
 A workflow for building one system with several Claude Code sessions in parallel. The
 operator owns the decisions; Claude does the rest, and runs git only after the operator
@@ -19,8 +19,8 @@ Needs Linux, [Claude Code](https://docs.claude.com/en/docs/claude-code), git, `g
 Python 3.11+ and [gitleaks](https://github.com/gitleaks/gitleaks).
 
 ```sh
-git clone --branch main https://github.com/David-Xilo/project-template.git
-cd project-template
+git clone --branch main https://github.com/David-Xilo/project-harness.git
+cd project-harness
 tooling/install
 ```
 

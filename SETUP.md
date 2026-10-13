@@ -1,6 +1,6 @@
 # Create a super project from this template
 
-The steps for "create a new super project from `project-template`". The result is a
+The steps for "create a new super project from `project-harness`". The result is a
 coordinated workspace: a root repository, module submodules, tracks and sessions, one
 checkpoint per milestone. [WORKFLOW.md](WORKFLOW.md) explains every file and the tooling
 that reads it.
@@ -71,7 +71,7 @@ now. Append GitHub's `.gitignore` template for the root's language to `.gitignor
 Then show the Ready to commit preview for the root: `git add` with the explicit paths
 (the docs, `.gitignore`, `.claude/project.toml`, `.claude/workspace.json` if written,
 `.claude/skills`), the message
-`docs: workspace created from project-template`, then
+`docs: workspace created from project-harness`, then
 `git switch -c development # approved`. Tell the operator that O1 is next. The operator
 adds and commits the submodules, because sessions never stage submodule pointers outside
 a checkpoint.
@@ -89,7 +89,7 @@ verbatim), plan.md, research.md and README.md, dated the day it runs. It fills o
 repository that holds just the README `gh repo create --add-readme` made, and leaves any
 other alone. It fails when a module's repository does not exist yet. Then run the checks
 below and show each module's first commit (`<CODE>-0.1: plan, research and agent rules
-from project-template`), one preview per repository.
+from project-harness`), one preview per repository.
 
 A future module gets its repository from an O task in a later milestone. Then move it
 from `[[future_modules]]` to `[[modules]]` in `<root>/.claude/project.toml`, add the keys

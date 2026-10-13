@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # usage: sp-update [--ref <tag|branch|commit>] [--global] [--force] [--no-fetch] [root ...]
-# Brings roots up to a version of project-template: --ref, or else the newest main
+# Brings roots up to a version of project-harness: --ref, or else the newest main
 # (origin/main after a fetch, when there is a remote). The version is unpacked once into
 # ${XDG_DATA_HOME:-~/.local/share}/super-project/versions/<commit>/, and its sp-claude-init
 # runs on each root (no roots: every one in `sp-config ROOTS`), updating the skills and Zed
@@ -31,7 +31,7 @@ if [ -f "$here/../../.source" ]; then
 else
   repo=$(git -C "$here" rev-parse --show-toplevel)
 fi
-git -C "$repo" rev-parse --git-dir >/dev/null 2>&1 || { echo "no project-template checkout at $repo"; exit 1; }
+git -C "$repo" rev-parse --git-dir >/dev/null 2>&1 || { echo "no project-harness checkout at $repo"; exit 1; }
 remote=0
 git -C "$repo" remote get-url origin >/dev/null 2>&1 && remote=1
 if [ $remote = 1 ] && [ $fetch = 1 ]; then
@@ -51,7 +51,7 @@ if [ ! -d "$snap" ]; then
   mv "$tmp" "$snap"
 fi
 [ -x "$snap/tooling/bin/sp-claude-init" ] || { echo "$version has no tooling/bin/sp-claude-init: too old for sp-update"; exit 1; }
-echo "project-template $version ($snap)"
+echo "project-harness $version ($snap)"
 
 if [ $global = 1 ]; then
   echo "== global tools"
@@ -69,7 +69,12 @@ fi
 [ ${#roots[@]} -gt 0 ] || { echo "No roots: pass them or register them with sp-claude-init."; exit 1; }
 
 for root in "${roots[@]}"; do
-  old=$(awk '$1 == "commit" { print $2 }' "$root/.claude/project-template.lock" 2>/dev/null || true)
+  # The newer lock: project-harness.lock, or project-template.lock from before the rename
+  # (or written since by an older version's sp-claude-init).
+  lock="$root/.claude/project-harness.lock"
+  [ -f "$root/.claude/project-template.lock" ] && { [ ! -f "$lock" ] || [ "$root/.claude/project-template.lock" -nt "$lock" ]; } \
+    && lock="$root/.claude/project-template.lock"
+  old=$(awk '$1 == "commit" { print $2 }' "$lock" 2>/dev/null || true)
   "$snap/tooling/bin/sp-claude-init" "$root" "${force[@]}"
   # The template docs were filled in by hand, so their changes are merged by hand.
   if [ -n "$old" ] && [ "$old" != unknown ] && [ "$old" != "$commit" ]; then

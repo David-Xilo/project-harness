@@ -4,7 +4,7 @@ argument-hint: "[path/to/project.toml]"
 ---
 Arguments: $ARGUMENTS
 
-Set up a new super project from project-template. Every value lives in one `project.toml`; `sp-new` renders every document from it, so nothing is filled by hand. The setup steps after the file are in the template's `SETUP.md`.
+Set up a new super project from project-harness. Every value lives in one `project.toml`; `sp-new` renders every document from it, so nothing is filled by hand. The setup steps after the file are in the template's `SETUP.md`.
 
 1. Find the template: `tpl=$(realpath "$(dirname "$(readlink -f "$(command -v sp-new)")")/../..")`. Read `$tpl/tooling/project.example.toml`: it names every key and what it means. Read `$tpl/SETUP.md`.
 2. If the argument names a `project.toml`, use it and go to step 4.

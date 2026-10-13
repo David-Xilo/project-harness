@@ -52,6 +52,9 @@ jobs:
       - name: publish-check tests
         run: tooling/tests/publish-check/run.sh
 
+      - name: sp-claude-init tests
+        run: tooling/tests/sp-claude-init/run.sh
+
       - name: Mod tests
         run: |
           claude plugin test tooling/mods/session-reset

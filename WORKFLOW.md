@@ -43,8 +43,9 @@ defaults; `sp-config <KEY>` prints yours.
 
 **Project skills.** They live in [tooling/skills/](tooling/skills), and `sp-claude-init`
 copies them into `<root>/.claude/skills/`, recording each file's hash in
-`.claude/project-template.lock`. Run again, or through `sp-update`, it updates the copies
-nobody edited and reports the edited ones (`--force` replaces them).
+`.claude/project-harness.lock` (a `project-template.lock` from before the rename is read
+once and moved). Run again, or through `sp-update`, it updates the copies nobody edited
+and reports the edited ones (`--force` replaces them).
 - `add-objective`: turns an idea into plan changes after iterating with the operator, then rebalances.
 - `balance-sessions`: checks the plan for drift against module plans, handoffs and operator tasks, reorders queues, judges load (merge, split, park, start, move tracks) and says what to run next. `/balance-sessions drift` only reports.
 - `milestone-checkpoints`: converts older checkpoint schemes to one `CP<m>` per milestone. A workspace made from this template already has it.
