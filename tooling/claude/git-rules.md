@@ -22,7 +22,8 @@ commands.
    that order, and nothing else. A change to the list needs a new preview. An "approve"
    that carries a question or a condition ("approve, but is it just that one?", "approve
    but don't push") is not an approval: answer it, show the preview again if needed, and
-   wait. **"request changes: …"** means make the changes and show a new preview. An
+   wait. Nor is an "approve" of a preview with no `Review:` line: review, then show it
+   again. **"request changes: …"** means make the changes and show a new preview. An
    approval covers only the preview it answers; it is never standing. A command that
    moves HEAD (`switch`, `checkout`, `stash`, `worktree add`) runs with a trailing
    `# approved`, which the git-guard hook requires.

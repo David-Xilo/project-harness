@@ -102,13 +102,12 @@ need. Step IDs are `<CODE>-<milestone>.<n>`, never renumbered or reused; the nex
 operator task is O10.
 
 **Open operator tasks:**
-- **O4:** set the SSH signing agent to approve signing once, not per commit: an
-  approval that lasts until the agent locks, and an auto-lock time of a few hours.
-  Unblocks: AUTO-2.12; without it each autopilot commit waits at the signing prompt.
-  When: before AUTO-2.12.
+- **O4:** raise the signing agent's auto-lock time from 15 minutes to a few hours. It
+  already keeps an approval until it locks, but it locks after 15 idle minutes, and then
+  the next autopilot commit waits at the unlock prompt. Unblocks: AUTO-2.12. When:
+  before AUTO-2.12.
 
-**Next:** the operator reads [AUTOPILOT.md](AUTOPILOT.md) (AUTO-2.1) and names what to
-change; then AUTO-2.11, and AUTO-2.12 once O4 is done.
+**Next:** AUTO-2.12; its live run waits for O4.
 
 **Notes.**
 - The publish skills (`go-public`, `publish`) were checked by reading, not on a fixture
@@ -139,9 +138,7 @@ the same commit. AUTO-2.2 to AUTO-2.10, the earlier design, were dropped by D13.
 
 | Done | Pri | Step | Depends on | Done when |
 |---|---|---|---|---|
-| [ ] | P0 | AUTO-2.1: `AUTOPILOT.md`: the command, when it stops, what it approves, the rules for every step, balance and the board, an example; WORKFLOW.md links to it | M1 | Links resolve; the operator reads it |
-| [ ] | P0 | AUTO-2.11: Both modes. Review before every commit: the git rules, the Session rules and `/session` already ask for `code-review` and the preview's `Review:` line; session-reset holds an approve when the line is missing. Cleanup after every step: the session's own Current state, Next, queue, handoff rows and verified `O`s, in the Session rules | AUTO-2.1 | A preview with no `Review:` line is held; the mod tests pass |
-| [ ] | P0 | AUTO-2.12: `/autopilot [<step>] [--max N]` and `/autopilot off` in session-reset: approve a preview that has a clean `Review:` line, only `git add` and `git commit`, within the count; stop at the target step's commit, at the session's `reached` row (from `opsboard --tsv`), at the count, on a failed command, `/clear` or `/resume`; the band shows it. The "under autopilot" go-ahead rule in `/session` and the Session rules. **O4** comes first | AUTO-2.11 | Mod tests for each approve and each stop; a live session runs three steps alone and stops at its target |
+| [ ] | P0 | AUTO-2.12: `/autopilot [<step>] [--max N]` and `/autopilot off` in session-reset: approve a preview that has a clean `Review:` line, only `git add` and `git commit`, within the count; stop at the target step's commit, at the session's `reached` row (from `opsboard --tsv`), at the count, on a failed command, `/clear` or `/resume`; the band shows it. The "under autopilot" go-ahead rule in `/session` and the Session rules. **O4** comes first | O4 | Mod tests for each approve and each stop; a live session runs three steps alone and stops at its target |
 | [ ] | P0 | AUTO-2.13: Sessions on the board. opsboard parses the Session table, each session's queue, which steps are done and what blocks them; `--tsv` gets a `session` row per ID (state, next step, ready count, blocked by, checkpoint). session-reset writes each session's autopilot state (target, count, waiting) under `~/.local/state/super-project/`, and opsboard joins it. `/ops` and `--md` get the Sessions block | AUTO-2.12 | A fixture's `--tsv` gives the right state for a ready, a blocked, a reached and an autopilot session; seen in the pane |
 | [ ] | P1 | AUTO-2.14: `/balance-sessions` on the workload: ready and blocked work per session, how many sessions to run for the next stretch, decision review; the drift check and cleanup kept as a fallback, each fix reported as a skipped cleanup | AUTO-2.13 | On a fixture it proposes different session counts for two different stretches |
 | [ ] | P0 | AUTO-2.15: End to end: two sessions of a toy two-module workspace on `/autopilot` reach their `CP1` preconditions; the operator only answered questions. Then docs, CHANGELOG and the release | AUTO-2.12, AUTO-2.13, AUTO-2.14 | v0.2.0 tagged |

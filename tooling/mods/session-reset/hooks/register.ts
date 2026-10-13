@@ -36,12 +36,22 @@ const COMMIT = /^\s*commit(?:\s+it)?\b[\s,.;:!-]*(?:(?:then|next|and)\b[\s,:]*)?
 // The words of the "Ready to commit" preview in the model's last answer.
 const READY = /\bready to commit\b/i
 
+// The preview's review line (~/.claude/CLAUDE.md): "Review: code-review, 1 finding, fixed",
+// also as a list item or in bold ("- **Review:** docs only, reread"); a bare label is none.
+const REVIEWED = /^[\s>*_-]*Review[*_]*:[*_]*[ \t]*[^\s*_]/im
+
 // What the model reads beside an "approve" that holds a question or a condition.
 const HELD =
   'session-reset: this answer to the Ready to commit preview holds a question or a condition, ' +
   'so it is not an approval (~/.claude/CLAUDE.md). Answer it, and if the work should still be ' +
   'committed, show the preview again and wait for a plain "approve". git and gh writes are ' +
   'blocked for this turn.'
+// What the model reads beside an "approve" of a preview with no Review: line.
+const UNREVIEWED =
+  'session-reset: the Ready to commit preview has no Review: line, so this approve is held ' +
+  '(~/.claude/git-rules.md). Run code-review on the diff and fix what it finds, then show the ' +
+  'preview again with its Review: line and wait for "approve". git and gh writes are blocked ' +
+  'for this turn.'
 // What a failed git, gh or signing step prints, even when a pipe hides its exit code.
 const FAILED_OUTPUT =
   /^(?:fatal|error):|\[rejected\]|failed to push|gpg failed|signing failed|nothing to commit|^\s*CONFLICT\b/im
@@ -119,6 +129,16 @@ function restart($: EngineInterface, id: string, note: string) {
   })
 }
 
+// Why an answer to the open preview is not an approval: a question or a condition in its
+// note, or a preview with no Review: line (one saved before the mod read it counts as none).
+function holdReason(note: string, open: SessionResetPreview | null): string | undefined {
+  if (DOUBT.test(note)) {
+    return HELD
+  }
+
+  return open !== null && open.isReviewed !== true ? UNREVIEWED : undefined
+}
+
 // Submit the answer of "/approve" or "/commit" as the person's words. The mod's own hooks
 // do not see this prompt, so the command hook sets the turn's state first.
 function submitAsPerson($: EngineInterface, text: string) {
@@ -143,8 +163,9 @@ function matches(command: string, open: SessionResetPreview): number {
 export const register: Register = on => {
   // The turn that runs an approved preview: its note, and how its commands went.
   let approved: { note: string; writes: number; hasFailed: boolean } | undefined
-  // The turn that answers a preview with a question or a condition: no git write runs.
-  let isHeld = false
+  // The turn that answers a preview with a question or a condition, or approves one with
+  // no Review: line: no git write runs, and the model reads why.
+  let held: string | undefined
 
   on('session.start', async ($, e, next) => {
     const commands = [
@@ -172,16 +193,22 @@ export const register: Register = on => {
     return next(e)
   })
 
-  on('command.run', { command: ['approve', 'commit'] }, ($, e) => {
+  on('command.run', { command: ['approve', 'commit'] }, async ($, e) => {
     const note = e.args.trim()
-    if (DOUBT.test(note)) {
+    held = holdReason(note, await preview($))
+    if (held === HELD) {
       approved = undefined
-      isHeld = true
       submitAsPerson($, `approve, ${note}`)
 
       return { text: 'Not an approval: a question or a condition. git writes are blocked for this turn.' }
     }
-    isHeld = false
+    if (held === UNREVIEWED) {
+      approved = undefined
+      // This prompt gets no context from the mod's own hooks, so it says why itself.
+      submitAsPerson($, `approve. ${UNREVIEWED}`)
+
+      return { text: 'Held: the preview has no Review: line. git writes are blocked for this turn.' }
+    }
     approved = { note, writes: 0, hasFailed: false }
     submitAsPerson($, 'approve')
 
@@ -240,18 +267,18 @@ export const register: Register = on => {
       return next(e)
     }
     approved = undefined
-    isHeld = false
+    held = undefined
     const isPerson = e.origin.kind === 'composer' || e.origin.kind === 'bridge'
     if (!isPerson) {
       return next(e)
     }
-    // In every session: "approve" with a question or a condition is not an approval.
-    const hasPreview = (await preview($)) !== null
-    const approve = APPROVE.exec(e.text) ?? (hasPreview ? COMMIT.exec(e.text) : null)
-    if (approve && DOUBT.test(approve[1] ?? '')) {
-      isHeld = true
-
-      return next({ ...e, context: [...(e.context ?? []), HELD] })
+    const open = await preview($)
+    const approve = APPROVE.exec(e.text) ?? (open !== null ? COMMIT.exec(e.text) : null)
+    // In every session: an approve with a question or a condition, or of a preview with
+    // no Review: line, is not an approval.
+    held = approve ? holdReason(approve[1] ?? '', open) : undefined
+    if (held !== undefined) {
+      return next({ ...e, context: [...(e.context ?? []), held] })
     }
     const current = await session($)
     const committed = current ? COMMITTED.exec(e.text) : null
@@ -285,8 +312,8 @@ export const register: Register = on => {
     if (e.agentId !== undefined) {
       return { deny: 'session-reset: a subagent never runs git or gh writes; the main session runs them after approve.' }
     }
-    if (isHeld) {
-      return { deny: HELD }
+    if (held !== undefined) {
+      return { deny: held }
     }
     const open = await preview($)
     if (!approved || !open) {
@@ -344,14 +371,14 @@ export const register: Register = on => {
     }
     const turn = approved
     approved = undefined
-    isHeld = false
+    held = undefined
     const open = await preview($)
     const hasRunAll = open !== null && open.next >= open.commands.length
     const isDone = turn !== undefined && e.reason === 'answer' && turn.writes > 0 && !turn.hasFailed && hasRunAll
     // A preview stays open until all its commands ran or a new preview replaces it.
     const shown = READY.test(e.answer) ? previewCommands(e.answer) : []
     if (shown.length > 0) {
-      await $.state.set(PREVIEW, { commands: shown, next: 0, at: await $.clock.now() })
+      await $.state.set(PREVIEW, { commands: shown, next: 0, at: await $.clock.now(), isReviewed: REVIEWED.test(e.answer) })
     } else if (hasRunAll && turn !== undefined && turn.writes > 0) {
       await $.state.set(PREVIEW, null)
     }

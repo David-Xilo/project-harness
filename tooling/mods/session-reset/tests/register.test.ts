@@ -6,7 +6,7 @@ const HOME = '/home/op'
 const ROOT = '/work/acme'
 const COMPOSER = { kind: 'composer' } as const
 
-const PREVIEW_ANSWER = ['Ready to commit', '', '```', 'git add docs/plan.md', 'git commit -m "docs: plan"', '```'].join('\n')
+const PREVIEW_ANSWER = ['Ready to commit', '', 'Review: docs only, reread', '', '```', 'git add docs/plan.md', 'git commit -m "docs: plan"', '```'].join('\n')
 
 type World = {
   runs: (readonly string[])[]
@@ -15,13 +15,18 @@ type World = {
   settle: () => Promise<void>
 }
 
-// The world beneath the mod: state, the alias lookup, the files it reads (by default every
-// read answers the roots file), and the bottom of the command, prompt, tool and turn chains.
-function world(on: On, alias = { exitCode: 0, stdout: "alias gp='git push'\n" }, files?: Record<string, string>): World {
+// The world beneath the mod: state (empty, or as saved), the alias lookup, the files it reads
+// (by default every read answers the roots file), and the bottom of the command, prompt, tool and turn chains.
+function world(
+  on: On,
+  alias = { exitCode: 0, stdout: "alias gp='git push'\n" },
+  files?: Record<string, string>,
+  saved: Record<string, unknown> = {},
+): World {
   const runs: (readonly string[])[] = []
   const toasts: string[] = []
   const commands: string[] = []
-  const state = new Map<string, unknown>()
+  const state = new Map<string, unknown>(Object.entries(saved))
   const clock = mock.clock(on)
   mock.env(on, { HOME })
   on('state.get', ($, e) => ({ value: { value: state.get(e.key), version: 0 } }))
@@ -99,6 +104,29 @@ describe('approve gate', () => {
     expect((await $.tool.call(bash('git add docs/plan.md'))).deny).toContain('not an approval')
   })
 
+  test('an approve of a preview with no Review: line is held, typed or by /approve', async ($, on) => {
+    world(on)
+    await $.session.start(start)
+    await $.turn.complete(turn(PREVIEW_ANSWER.replace('Review: docs only, reread', 'Reviewed by hand.')))
+
+    const typed = await $.prompt.submit({ text: 'approve', wait: false, origin: COMPOSER })
+    expect(typed.context?.join('\n')).toContain('no Review: line')
+    expect((await $.tool.call(bash('git add docs/plan.md'))).deny).toContain('no Review: line')
+
+    const ran = await $.command.run({ command: 'approve', args: '', origin: COMPOSER, presentation: { isFullscreen: false, columns: 80 } })
+    expect(ran.text).toContain('Held')
+    expect((await $.tool.call(bash('git add docs/plan.md'))).deny).toContain('no Review: line')
+
+    // A bold label with nothing after it is no review.
+    await $.turn.complete(turn(PREVIEW_ANSWER.replace('Review: docs only, reread', '- **Review:**')))
+    await $.prompt.submit({ text: 'approve', wait: false, origin: COMPOSER })
+    expect((await $.tool.call(bash('git add docs/plan.md'))).deny).toContain('no Review: line')
+
+    await $.turn.complete(turn(PREVIEW_ANSWER))
+    await $.prompt.submit({ text: 'approve', wait: false, origin: COMPOSER })
+    expect((await $.tool.call(bash('git add docs/plan.md'))).deny).toBeUndefined()
+  })
+
   test('runs the approved preview in order, then restarts the workspace session with the note', async ($, on) => {
     const w = world(on)
     await $.session.start(start)
@@ -122,7 +150,7 @@ describe('approve gate', () => {
     world(on)
     await $.session.start(start)
     const answer = [
-      'Ready to commit', '', '```', ' M docs/plan.md', '```', '', '```', 'PUB-1.5: docs and the shipped git rules', '```', '',
+      'Ready to commit', '', '```', ' M docs/plan.md', '```', '', '- **Review:** docs only, reread', '', '', '```', 'PUB-1.5: docs and the shipped git rules', '```', '',
       '```', 'git add docs/plan.md', 'git commit -m "PUB-1.5: docs and the shipped git rules"', '```',
     ].join('\n')
     await $.turn.complete(turn(answer))
@@ -140,13 +168,21 @@ describe('approve gate', () => {
     world(on)
     await $.session.start(start)
     const answer = [
-      'Ready to commit', '', '```', "Runs after the operator's approve.", 'git add docs/plan.md', 'git push origin development', '```',
+      'Ready to commit', 'Review: code-review, no findings', '', '```', "Runs after the operator's approve.", 'git add docs/plan.md', 'git push origin development', '```',
     ].join('\n')
     await $.turn.complete(turn(answer))
     await $.prompt.submit({ text: 'approve', wait: false, origin: COMPOSER })
 
     expect((await $.tool.call(bash('git add docs/plan.md'))).deny).toBeUndefined()
     expect((await $.tool.call(bash('git push origin development'))).deny).toBeUndefined()
+  })
+
+  test('a preview saved before the Review: check is held', async ($, on) => {
+    world(on, undefined, undefined, { preview: { commands: ['git add docs/plan.md'], next: 0, at: 0 } })
+    await $.session.start(start)
+
+    await $.prompt.submit({ text: 'approve', wait: false, origin: COMPOSER })
+    expect((await $.tool.call(bash('git add docs/plan.md'))).deny).toContain('no Review: line')
   })
 })
 

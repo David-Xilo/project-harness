@@ -27,7 +27,7 @@ defaults; `sp-config <KEY>` prints yours.
 | Git rules | `~/.claude/git-rules.md`, imported by `~/.claude/CLAUDE.md` | "Ready to commit" preview (status, diff stat, message, exact commands per repository); runs only on a plain "approve"; commits as the operator, signed as the git config says, no trailers; `# approved` after any command that moves HEAD; never force-push, rebase a published branch, `reset --hard`, `clean` or `restore` |
 | git-guard hook | `~/.claude/hooks/git-guard.sh` (PreToolUse Bash) | Always blocks `clean`, `reset --hard`, `rebase` and `restore`; blocks `stash`, `checkout`, `switch` and `worktree add` unless the command ends in `# approved` |
 | typecheck hook | `~/.claude/hooks/typecheck.sh` (`track` after Edit/Write, `gate` on Stop) | Remembers the TypeScript projects and Go packages edited. At the end of the turn it runs `tsc -b`/`npm run typecheck` and `go vet`; a failure sends Claude back to fix it (up to 3 tries) |
-| session-reset mod | `~/.claude/mods/session-reset` (listed in `CLAUDE_CODE_PLUGIN_DIRS`) | Enforces the git rules: a git or gh write must be the next command of the last preview, after a plain approve. An approve with a question or a condition is held. It blocks `--no-verify`, `--author`, `add -A`, force-push, trailers and identity overrides, and subagents may not write with git. After an approved run succeeds, or when the operator says "committed" or `/committed`, it runs `/clear` and then `/session <ID> [note]`. Session IDs it accepts: `S<n>`, `CP<m>`, `W`, `publish-<repo>` |
+| session-reset mod | `~/.claude/mods/session-reset` (listed in `CLAUDE_CODE_PLUGIN_DIRS`) | Enforces the git rules: a git or gh write must be the next command of the last preview, after a plain approve. An approve with a question or a condition, or of a preview with no `Review:` line, is held. It blocks `--no-verify`, `--author`, `add -A`, force-push, trailers and identity overrides, and subagents may not write with git. After an approved run succeeds, or when the operator says "committed" or `/committed`, it runs `/clear` and then `/session <ID> [note]`. Session IDs it accepts: `S<n>`, `CP<m>`, `W`, `publish-<repo>` |
 | workspace mod | `~/.claude/mods/workspace` | Write guard: inside `/session <ID>` it denies edits and Bash writes outside the session's repositories and shared files, as read from the plan (section 3). It blocks `S` sessions while the checkpoint row reads `running`, and everyone but `publish-<repo>` while a publish row does. A root's `.claude/workspace.json` adds its runtime rule (section 6). A band shows the ID, tracks, checkpoint, operator steps, handoffs and dirty repositories. `/ops` opens the operator-steps pane; `/guard` tests a command. It is fail-open: if the docs do not parse, a toast says so and the guard is off |
 | `/session <ID> [note]` | `~/.claude/commands/session.md` | Reads plan.md by heading (session table, Session IDs, Session rules, checkpoint rules, its tracker rows) and handoffs.md (status tables, its rows). Replies in five lines: ID, tracks, repositories, shared files, next step. It needs a plan and a go-ahead first for a multi-repository step, a checkpoint, an objective or an operator decision |
 | `/operator-steps` | `~/.claude/commands/operator-steps.md` | Read-only table of open `O<n>` tasks in every registered root, sorted by what each unblocks |
@@ -105,10 +105,11 @@ because the workspace mod fails open.
 3. Build the smallest slice.
 4. Run the repository's checks.
 5. Run `code-review` (and `simplify`).
-6. Tick the step with evidence and update "Current state" and research.md.
-7. Update the handoff rows.
-8. Record the next step in the docs.
-9. Show the Ready to commit preview, run it on "approve", and the mod restarts the session.
+6. Tick the step with evidence and record what it learned in research.md.
+7. Clean up its own docs: "Current state", "Next" and its queue, its handoff rows, the
+   `O<n>` entries it verified, and anything stale it wrote.
+8. Show the Ready to commit preview with its `Review:` line, run it on "approve", and the
+   mod restarts the session. The mod holds an approve of a preview with no `Review:` line.
 
 "approve, then <note>" passes a note to the restarted session.
 

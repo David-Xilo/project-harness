@@ -183,13 +183,19 @@ keeps them and the queues in step with the work.
 3. Run the checks in each changed repository's AGENTS.md.
 4. Run the `code-review` skill on the diff and fix what it finds; run `simplify` when the
    slice grew.
-5. Tick the step in the owning plan with evidence, and update "Current state" and
+5. Tick the step in the owning plan with evidence, and record what it learned in
    research.md.
-6. Open, acknowledge, deliver or close handoff rows.
-7. Record the result and the next step in the docs, then show the Ready to commit
-   preview, with its `Review:` line from step 4, and run it on "approve". Once it succeeds the session is cleared and restarted
-   with `/session <ID>` (the session-reset mod); "approve, then <note>" hands a note to
-   the restarted session. On "continue", take the next item.
+6. Clean up its own docs, so they are true when the step is committed:
+   - its module plans' "Current state" and "Next", and its tracks' queue above;
+   - its handoff rows: open or acknowledge what it needs, mark what it delivered, close
+     what was delivered to it;
+   - the `O<n>` entries it verified, which it deletes ([operator.md](operator.md));
+   - nothing stale that it wrote earlier.
+7. Show the Ready to commit preview, with its `Review:` line from step 4, and run it on
+   "approve"; session-reset holds an approve of a preview with no `Review:` line. Once it
+   succeeds the session is cleared and restarted with `/session <ID>` (the session-reset
+   mod); "approve, then <note>" hands a note to the restarted session. On "continue",
+   take the next item.
 
 **Always:**
 - A step only the operator can do becomes an `O<n>` entry ([track
