@@ -13,6 +13,9 @@ brings.
   goes public, one line each.
 - `gh-harden <owner/repo> [--apply]`: reads, and sets, the GitHub settings of
   `tooling/publish/hardening.md`; the rulesets ship in `tooling/publish/rulesets/`.
+- `tooling/publish/templates/`: the public files, a gitleaks workflow and Dependabot for
+  any repository going public; `tooling/install --hook <repo>…` links the pre-push hook
+  into it.
 - Renamed `project-harness` (from `project-template`). `sp-claude-init` writes
   `.claude/project-harness.lock` and moves a root's `project-template.lock` on its next
   run; the `sp-*` commands and the `super-project` folders keep their names.

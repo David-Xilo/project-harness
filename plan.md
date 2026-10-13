@@ -127,7 +127,7 @@ found through its own symlink.
 | `tooling/skills/` | `add-objective`, `balance-sessions`, `go-public`, `milestone-checkpoints`, `publish`, `zed-settings.json` | copied per root by `sp-claude-init` |
 | `tooling/claude/git-rules.md` | The git rules, without personal lines | `~/.claude/git-rules.md`, imported by `~/.claude/CLAUDE.md` |
 | `tooling/git-hooks/pre-push` | Runs leak-check on what a push sends | this checkout's `.git/hooks/` |
-| `tooling/publish/` | The GitHub hardening reference, its rulesets (PUB-1.13) and templates (PUB-1.14) | — |
+| `tooling/publish/` | The GitHub hardening reference, its rulesets (PUB-1.13) and `templates/` for any repository going public (PUB-1.14) | — |
 | `tooling/config.example` | Every config key with its default | — |
 | `tooling/install` | Links, backs up, `--check` | — |
 
@@ -273,8 +273,8 @@ BOARD-4.3 touch only `opsboard` and may start during T2.
 Priorities: **P0** critical path, **P1** required but parallel, **P2** only for a named
 need. Step IDs are `<CODE>-<milestone>.<n>`, never renumbered or reused.
 
-**Done:** PUB-1.1 to PUB-1.12 and PUB-1.18. What they built is in the CHANGELOG, how in
-git log, and the old notes in this plan's history.
+**Done:** PUB-1.1 to PUB-1.12, PUB-1.14 and PUB-1.18. What they built is in the
+CHANGELOG, how in git log, and the old notes in this plan's history.
 
 **Open operator tasks:**
 - **O3:** harden `project-harness` from
@@ -291,13 +291,15 @@ git log, and the old notes in this plan's history.
 `hardening.md` and `--apply` writes the `missing` ones. Its first read of
 `David-Xilo/project-harness` gave 14 items `ok` or `ui`; missing were the features (wiki
 and projects on), the `main` ruleset's `required_status_checks` rule and `release-tags`.
-Left: O9, then `gh-harden David-Xilo/project-harness --apply` from a preview, then the
-stub-`gh` test the step asks for. It is done when `gh-harden` prints only `ok` and `ui`.
+Left: O9, then `gh-harden David-Xilo/project-harness --apply` from a preview. It is done
+when `gh-harden` prints only `ok` and `ui`. No stub-`gh` test: the operator skips tests
+unless there is a bug or tricky logic.
 
 **Next (2026-10-12).**
 - The operator does O9 and O3, and confirms **Gate M1** from the evidence under it, or
   names what is missing.
-- Finish PUB-1.13, then PUB-1.14 to PUB-1.17 in order, then T4.
+- PUB-1.15 next (it needs PUB-1.13 only for `gh-harden`, which is built), then PUB-1.16
+  and PUB-1.17, then T4. PUB-1.13 finishes when O9 is done.
 - For v0.1.1 (PUB-1.17), found while releasing:
   - Sign tags: `git tag -s`, or `tag.gpgSign` in the operator's git config.
   - session-reset: a preview's non-command code block was taken for a command twice. On
@@ -321,8 +323,7 @@ gates ([publishing in the open](#publishing-in-the-open-d11)).
 
 | Done | Pri | Step | Depends on | Done when |
 |---|---|---|---|---|
-| [ ] | P0 | PUB-1.13: `tooling/bin/gh-harden <owner/repo> [--apply] [--main <b>] [--dev <b>] [--check-name <name>]`. With no option it reads every item of `hardening.md` and prints `ok`, `missing` or `after public`, with the command that sets it. `--apply` sets the missing ones, then reads them again. Rulesets come from `tooling/publish/rulesets/*.json`; a ruleset with an existing name is updated, not added twice. It never changes visibility, and it names the UI-only items. session-reset counts `gh-harden --apply` as a write and `gh-harden` alone as a read. Tests run it against a stub `gh` on `PATH` | PUB-1.11 | Tests pass; after O3, `gh-harden David-Xilo/project-harness` prints only `ok` and the UI-only items |
-| [ ] | P1 | PUB-1.14: Templates and the hook for any repository. `tooling/publish/`: SECURITY.md, CONTRIBUTING.md and CHANGELOG.md skeletons; a `leaks.yml` workflow (checkout and gitleaks pinned, `contents: read`, gitleaks over the tree and the history); `dependabot.yml` for actions. `tooling/install --hook <repo>…` links the pre-push hook into other repositories | PUB-1.12 | A scratch repository with only the templates and a README passes `publish-check` |
+| [ ] | P0 | PUB-1.13: `tooling/bin/gh-harden <owner/repo> [--apply] [--main <b>] [--dev <b>] [--check-name <name>]`. With no option it reads every item of `hardening.md` and prints `ok`, `missing` or `after public`, with the command that sets it. `--apply` sets the missing ones, then reads them again. Rulesets come from `tooling/publish/rulesets/*.json`; a ruleset with an existing name is updated, not added twice. It never changes visibility, and it names the UI-only items. session-reset counts `gh-harden --apply` as a write and `gh-harden` alone as a read | PUB-1.11 | After O3, `gh-harden David-Xilo/project-harness` prints only `ok` and the UI-only items |
 | [ ] | P0 | PUB-1.15: The publish action ([publishing in the open](#publishing-in-the-open-d11)). `go-public` becomes the operator's entry point, `/go-public <repo>`: it records the intent and writes the whole plan, its gates, commands and operator tasks. `publish` runs the plan in `publish-<repo>`, P1 to P6, in place or as a snapshot. Both skills work for a workspace module and for a standalone repository | PUB-1.12, PUB-1.13, PUB-1.14 | On a fixture workspace, `/go-public` writes the steps, the decision, the status row and the operator tasks, and every gate and command is named in them |
 | [ ] | P0 | PUB-1.16: Templates and docs follow D11: `workspace/plan.md` "Public release" and the `publish-<repo>` session row, `handoffs.md`, `AGENTS.md`, `decisions.md` SD10, WORKFLOW.md (skills, going public, design choices, registering a root), SETUP.md. Drop `PUBLISHED_DIR` (`sp-config`, `config.example`, `sp-new`'s `published_dir`, SETUP's `additionalDirectories` step) and the `-oss` names. CI runs the new tests | PUB-1.15 | `sp-new` tests pass; `PUBLISHED_DIR` and `-oss` appear only in the CHANGELOG and this plan's history; links resolve |
 | [ ] | P1 | PUB-1.17: v0.1.1. The fixes listed under "Next", the CHANGELOG, then `main` fast-forwarded to the release commit, the signed tag and the Release | PUB-1.16 | v0.1.1 tagged; CI passes on `main` and the tag |

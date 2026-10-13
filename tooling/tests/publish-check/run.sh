@@ -202,6 +202,24 @@ git rm -q AGENTS.md && save
 run
 check "no AGENTS.md passes" "code 0 && says 'no AGENTS.md'"
 
+# A repository made of only tooling/publish/templates and a README, with the hook and
+# signing, passes.
+tpl="$repo/tooling/publish/templates"
+git init -q "$tmp/tpl" && cd "$tmp/tpl" || exit 1
+mkdir -p .github/workflows
+cp "$tpl"/{LICENSE,SECURITY.md,CONTRIBUTING.md,CHANGELOG.md} .
+cp "$tpl/gitignore" .gitignore
+cp "$tpl/leaks.yml" .github/workflows/
+cp "$tpl/dependabot.yml" .github/
+echo "# tpl" >README.md
+save "from the templates"
+ln -s "$repo/tooling/git-hooks/pre-push" .git/hooks/pre-push
+git config commit.gpgsign true
+git config user.signingkey "test-key"
+zz '[]'
+run
+check "a repository from the templates passes every gate" "code 0 && says 'every gate passes'"
+
 echo
 [ $fails = 0 ] && echo "All checks pass." || echo "$fails failed."
 exit $((fails > 0))
