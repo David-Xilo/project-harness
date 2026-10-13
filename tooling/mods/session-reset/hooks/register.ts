@@ -1,11 +1,12 @@
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { SessionResetPreview, SessionResetSession } from '../types'
+import type { SessionResetAutopilot, SessionResetPreview, SessionResetSession } from '../types'
 import { judge, normalize, parseAliases, previewCommands, setAliases } from './git'
 
 // The workspace session and the open preview, kept by the host so a hot reload keeps them.
 const SESSION = { plugin: 'session-reset', key: 'session' } as const
 const PREVIEW = { plugin: 'session-reset', key: 'preview' } as const
+const AUTOPILOT = { plugin: 'session-reset', key: 'autopilot' } as const
 
 // The session IDs the workspace plans define: S1, CP5, CP, W, publish-<repo>.
 const SESSION_ID = /^(?:S\d+|CP\d*|W|publish-[\w./-]+)$/
@@ -38,7 +39,22 @@ const READY = /\bready to commit\b/i
 
 // The preview's review line (~/.claude/CLAUDE.md): "Review: code-review, 1 finding, fixed",
 // also as a list item or in bold ("- **Review:** docs only, reread"); a bare label is none.
-const REVIEWED = /^[\s>*_-]*Review[*_]*:[*_]*[ \t]*[^\s*_]/im
+const REVIEWED = /^[\s>*_-]*Review[*_]*:[*_]*[ \t]*([^\s*_].*)$/im
+// A review line that leaves a finding to the operator: "1 stays", "2 left open", "skipped".
+const OPEN_FINDING = /\?|\b(?:open|stays?|left|remain\w*|unfixed|not|skip\w*|defer\w*|later|ignored?|kept|todo|recorded)\b/i
+// A review line that found nothing: "no findings", "docs only, reread".
+const NOTHING_FOUND = /\b(?:no|0)\s+findings?\b|\bdocs only\b/i
+
+// Autopilot (AUTOPILOT.md): `/autopilot [<step>] [--max N]` or `/autopilot off`.
+const AUTOPILOT_USAGE = '/autopilot [<step>] [--max N], or /autopilot off'
+const MAX_COMMITS = 100
+const STEP_ID = /^[A-Z][A-Z0-9]*-\d+(?:\.\d+)*$/
+// The only commands autopilot approves: a git add or a git commit, each on its own.
+const ADD_OR_COMMIT = /^git\s+(?:-C\s+\S+\s+)?(add|commit)\s/
+// A commit that rewrites one: --amend, --fixup, --squash (git takes these prefixes).
+const REWRITES = /\s--(?:am|fix|squ)/
+// What the restarted session reads in its note (/session).
+const UNDER_AUTOPILOT = 'under autopilot'
 
 // What the model reads beside an "approve" that holds a question or a condition.
 const HELD =
@@ -68,10 +84,14 @@ async function preview($: EngineInterface): Promise<SessionResetPreview | null> 
   return (await $.state.get(PREVIEW)).value ?? null
 }
 
+async function autopilot($: EngineInterface): Promise<SessionResetAutopilot | null> {
+  return (await $.state.get(AUTOPILOT)).value ?? null
+}
+
 // A value from the tooling config, by the rules of `sp-config`: KEY=value lines in
 // ${XDG_CONFIG_HOME:-~/.config}/super-project/config, # comments, the last line wins, a
 // leading ~ expands, and a missing file or key gives the default.
-async function config($: EngineInterface, key: 'ROOTS'): Promise<string> {
+async function config($: EngineInterface, key: 'ROOTS' | 'BIN_DIR'): Promise<string> {
   const home = (await $.env.get('HOME')) ?? ''
   const dir = `${(await $.env.get('XDG_CONFIG_HOME')) || `${home}/.config`}/super-project`
   const text = await $.fs.read(`${dir}/config`).catch(() => '')
@@ -82,7 +102,7 @@ async function config($: EngineInterface, key: 'ROOTS'): Promise<string> {
       value = line.slice(at + 1).trim()
     }
   }
-  const defaults = { ROOTS: `${dir}/roots` }
+  const defaults = { ROOTS: `${dir}/roots`, BIN_DIR: '~/.local/bin' }
 
   return (value || defaults[key]).replace(/^~(?=\/|$)/, home)
 }
@@ -97,6 +117,14 @@ async function workspaceRoot($: EngineInterface, cwd: string): Promise<string | 
     .filter(line => line !== '' && !line.startsWith('#'))
 
   return roots.find(root => cwd === root || cwd.startsWith(`${root}/`))
+}
+
+// The operator committed by hand: they took over, so autopilot ends.
+async function takeOver($: EngineInterface) {
+  if (await autopilot($)) {
+    await $.state.set(AUTOPILOT, null)
+    $.ui.toast('Autopilot off: you committed by hand.', { timeoutMs: 15000 })
+  }
 }
 
 function restart($: EngineInterface, id: string, note: string) {
@@ -127,6 +155,68 @@ function restart($: EngineInterface, id: string, note: string) {
       isRestarting = false
     }
   })
+}
+
+// Whether the session's checkpoint row reads `reached` (`opsboard --tsv`), or undefined when
+// the board cannot be read.
+async function hasReached($: EngineInterface, current: SessionResetSession): Promise<boolean | undefined> {
+  const bin = await config($, 'BIN_DIR')
+  const ran = await $.process.run([`${bin}/opsboard`, '--tsv', current.root], { timeoutMs: 20000 }).catch(() => undefined)
+  if (ran?.exitCode !== 0) {
+    return undefined
+  }
+
+  return ran.stdout.split('\n').some(line => {
+    const [kind, , table, who = '', status = ''] = line.split('\t')
+    return kind === 'status' && table === 'checkpoint' && who.replace(/`/g, '').split(/\s/)[0] === current.id && /^reached\b/.test(status)
+  })
+}
+
+// Whether a review line leaves nothing open: "no findings", "docs only, reread", "1 finding,
+// fixed", "2 findings, both fixed", "3 findings, all fixed" or "3 findings, 3 fixed".
+function isCleanReview(review: string): boolean {
+  if (OPEN_FINDING.test(review)) {
+    return false
+  }
+  if (NOTHING_FOUND.test(review)) {
+    return true
+  }
+  const found = /(\d+)\s+findings?\b/i.exec(review)?.[1]
+  const fixed = /\b(\d+|all|both)\s+fixed\b/i.exec(review)?.[1]
+  if (found === '1') {
+    return /\bfixed\b/i.test(review)
+  }
+
+  return found !== undefined && fixed !== undefined && (fixed === found || /^(?:all|both)$/i.test(fixed))
+}
+
+// Why autopilot leaves a preview to the operator, or undefined when it approves it: every
+// Review: line in the answer leaves nothing open, and every command is a plain git add or
+// git commit that the gate allows.
+function autopilotWaits(answer: string, commands: string[]): string | undefined {
+  const reviews = [...answer.matchAll(new RegExp(REVIEWED.source, 'gim'))].map(m => m[1] as string)
+  if (reviews.length === 0 || !reviews.every(isCleanReview)) {
+    return 'its Review: line is missing or leaves a finding open'
+  }
+  const isPlain = (c: string) => {
+    const judged = judge(c)
+    return ADD_OR_COMMIT.test(c) && !REWRITES.test(c) && judged.writes === 1 && judged.forbidden === undefined
+  }
+  if (!commands.every(isPlain)) {
+    return 'it runs more than a plain git add and git commit'
+  }
+
+  return undefined
+}
+
+// Whether the preview commits step `target`: a git commit whose message starts with its ID.
+function commitsStep(commands: string[], target: string): boolean {
+  const subject = new RegExp(`(?:^|[\\s"'])${target.replace(/\./g, '\\.')}:`)
+  return commands.some(c => ADD_OR_COMMIT.exec(c)?.[1] === 'commit' && subject.test(c))
+}
+
+function progress(pilot: SessionResetAutopilot): string {
+  return `${pilot.count}/${pilot.max} → ${pilot.target ?? 'checkpoint'}`
 }
 
 // Why an answer to the open preview is not an approval: a question or a condition in its
@@ -172,10 +262,15 @@ export const register: Register = on => {
       { name: 'committed', description: 'I committed: clear this workspace session and restart it with /session <ID> [note]' },
       { name: 'approve', description: 'Approve the Ready to commit preview; the note goes to the restarted session' },
       { name: 'commit', description: 'Approve the Ready to commit preview (same as /approve)' },
+      {
+        name: 'autopilot',
+        description: 'Approve this workspace session\'s clean commit previews until a step, its checkpoint or N commits',
+        argumentHint: '[<step>] [--max N] | off',
+      },
     ]
     for (const command of commands) {
       try {
-        await $.command.register({ ...command, argumentHint: '[note]' })
+        await $.command.register({ argumentHint: '[note]', ...command })
       } catch {
         // A built-in of the same name keeps its own; the typed answer still works.
       }
@@ -215,11 +310,53 @@ export const register: Register = on => {
     return { text: note ? `Approved; the note goes to the restarted session: ${note}` : 'Approved.' }
   })
 
+  on('command.run', { command: 'autopilot' }, async ($, e) => {
+    const words = e.args.trim().split(/\s+/).filter(w => w !== '')
+    if (words.length === 1 && words[0] === 'off') {
+      const was = await autopilot($)
+      await $.state.set(AUTOPILOT, null)
+
+      return { text: was ? 'Autopilot off: approve each preview by hand.' : 'Autopilot was not on.' }
+    }
+    const current = await session($)
+    if (!current) {
+      return { text: 'Autopilot runs in a workspace session: start it with /session <ID> first.' }
+    }
+    let target: string | null = null
+    let max = MAX_COMMITS
+    for (let i = 0; i < words.length; i++) {
+      const w = words[i] as string
+      if (w === '--max' && /^[1-9]\d*$/.test(words[i + 1] ?? '')) {
+        max = Number(words[++i])
+      } else if (target === null && STEP_ID.test(w)) {
+        target = w
+      } else {
+        return { text: `Usage: ${AUTOPILOT_USAGE}` }
+      }
+    }
+    if (target === null) {
+      const isReached = await hasReached($, current)
+      if (isReached !== false) {
+        const why = isReached ? `${current.id} has already reached its checkpoint` : 'opsboard --tsv could not be read'
+        return { text: `Autopilot not started: ${why}. Name a step: /autopilot <step>.` }
+      }
+    }
+    const pilot = { id: current.id, target, max, count: 0 }
+    await $.state.set(AUTOPILOT, pilot)
+    submitAsPerson($, `Autopilot is on (${progress(pilot)}): go on with your next step, ${UNDER_AUTOPILOT} (/session).`)
+
+    return { text: `Autopilot on: ${progress(pilot)}` }
+  })
+
   on('command.run', { command: 'session' }, async ($, e, next) => {
     const id = e.args.trim().split(/\s+/)[0] ?? ''
     const root = SESSION_ID.test(id) ? await workspaceRoot($, await $.session.cwd()) : undefined
     if (root) {
       await $.state.set(SESSION, { id, root })
+    }
+    // Another session ID is another session: autopilot was for this one.
+    if ((await autopilot($))?.id !== id) {
+      await $.state.set(AUTOPILOT, null)
     }
 
     return next(e)
@@ -234,6 +371,10 @@ export const register: Register = on => {
     if (!isOwn) {
       await $.state.set(SESSION, null)
     }
+    // The person's own /clear ends autopilot; the one that finishes a restart does not.
+    if (!isOwn && !args) {
+      await $.state.set(AUTOPILOT, null)
+    }
     await $.state.set(PREVIEW, null)
     const ran = await next(e)
     if (args) {
@@ -247,6 +388,7 @@ export const register: Register = on => {
   on('command.run', { command: 'resume' }, async ($, e, next) => {
     await $.state.set(SESSION, null)
     await $.state.set(PREVIEW, null)
+    await $.state.set(AUTOPILOT, null)
 
     return next(e)
   })
@@ -256,6 +398,7 @@ export const register: Register = on => {
     if (!current) {
       return { text: 'No /session ID in this session, so there is nothing to restart.' }
     }
+    await takeOver($)
     restart($, current.id, e.args.trim())
 
     return { text: `Committed: clearing, then /session ${current.id}` }
@@ -283,6 +426,7 @@ export const register: Register = on => {
     const current = await session($)
     const committed = current ? COMMITTED.exec(e.text) : null
     if (current && committed && !DOUBT.test(e.text)) {
+      await takeOver($)
       restart($, current.id, (committed[1] ?? '').trim())
 
       return { drop: `Committed: clearing, then /session ${current.id}` }
@@ -383,8 +527,40 @@ export const register: Register = on => {
       await $.state.set(PREVIEW, null)
     }
     const current = await session($)
+    let pilot = await autopilot($)
+    // After a run, autopilot counts the commit and stops at a failure, its target, its
+    // count or the checkpoint.
+    if (pilot && turn !== undefined && (turn.writes > 0 || turn.hasFailed)) {
+      const target = pilot.target
+      const count = turn.hasFailed ? pilot.count : pilot.count + 1
+      let why = turn.hasFailed
+        ? 'a command of the preview failed'
+        : target !== null && commitsStep(open?.commands ?? [], target)
+          ? `${target} is committed`
+          : count >= pilot.max
+            ? `${count} of ${pilot.max} commits ran`
+            : undefined
+      if (why === undefined && target === null && current) {
+        const isReached = await hasReached($, current)
+        why = isReached ? `${pilot.id} reached its checkpoint` : isReached === undefined ? 'opsboard --tsv could not be read' : undefined
+      }
+      pilot = why ? null : { ...pilot, count }
+      await $.state.set(AUTOPILOT, pilot)
+      if (why) {
+        $.ui.toast(`Autopilot off: ${why}.`, { timeoutMs: 15000 })
+      }
+    }
     if (current && isDone) {
-      restart($, current.id, turn.note)
+      restart($, current.id, pilot ? [turn.note, UNDER_AUTOPILOT].filter(n => n !== '').join('; ') : turn.note)
+    } else if (pilot && current?.id === pilot.id && shown.length > 0 && e.reason === 'answer') {
+      // A new preview under autopilot: approve it, or say why it waits for the operator.
+      const why = autopilotWaits(e.answer, shown)
+      if (why) {
+        $.ui.toast(`Autopilot waits for your approve: ${why}.`, { timeoutMs: 15000 })
+      } else {
+        approved = { note: '', writes: 0, hasFailed: false }
+        submitAsPerson($, 'approve')
+      }
     } else if (isDone && (await workspaceRoot($, await $.session.cwd()))) {
       $.ui.toast('No restart: this conversation was not started with /session <ID>.', { timeoutMs: 15000 })
     } else if (current && turn?.note) {

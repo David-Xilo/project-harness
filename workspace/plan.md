@@ -202,6 +202,10 @@ keeps them and the queues in step with the work.
   rules](#track-rules)); then continue with unblocked work, or stop and name what the
   session waits for.
 - Never run sudo: give the operator the commands as an `O<n>` entry.
+- Under `/autopilot`, session-reset approves each clean commit preview itself: a step
+  that spans repositories or changes a handoff shows its plan and goes on. A decision, an
+  unclear "done", a checkpoint, a new objective or a live operation still waits for the
+  operator, and a finding left open waits for a typed "approve".
 {{#hard_rules}}
 - {{.}}
 {{/hard_rules}}

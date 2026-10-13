@@ -10,8 +10,8 @@ Nothing runs outside Claude Code. Each session is still a terminal the operator 
 work in parallel, run `/autopilot` in several. `/balance-sessions` still says which
 sessions to run.
 
-**Status:** planned for v0.2.0 ([plan, T4](plan.md#t4-autopilot-m2)). Only the rules
-for every step (section 4) hold so far; the command does not run yet.
+**Status:** built for v0.2.0, not yet released ([plan, T4](plan.md#t4-autopilot-m2)).
+The board's Sessions block (section 5) and the end-to-end run are still to come.
 
 ## 1. The command
 
@@ -24,7 +24,11 @@ for every step (section 4) hold so far; the command does not run yet.
 
 Run it in a session started with `/session <ID>`. It turns autopilot on for that session,
 and the session goes on with its next step. The band shows it:
-`S2 · autopilot 3/100 → PAY-1.3`.
+`S2 · autopilot 3/100 → PAY-1.3`. With no step, it does not start when the session's
+checkpoint row already reads `reached`; name a step to work ahead.
+
+Each restart passes the note "under autopilot" to `/session`, so the restarted session
+knows to go on (section 4).
 
 ## 2. When it stops
 
@@ -35,9 +39,9 @@ Autopilot stops, and the session waits for the operator as it does today, when:
 | The target is reached: the commit of the named step, or the session's checkpoint row reads `reached` | The restarted session shows its next step and waits |
 | The maximum number of commits ran (100 by default) | The same |
 | The session needs the operator: a decision, a step whose "done" is unclear, a checkpoint, a new objective, a live operation | The session asks, as today. Autopilot stays on: once answered, the session goes on |
-| A preview fails the checks in section 3 | The preview, waiting for a typed "approve" |
+| A preview fails the checks in section 3 | The preview, waiting for a typed "approve", and a toast that says why |
 | A command of the preview fails | The failure. Autopilot turns off |
-| The operator runs `/autopilot off`, `/clear` or `/resume` | Autopilot is off |
+| The operator runs `/autopilot off`, `/clear`, `/resume` or `/session` with another ID, or commits by hand and says "committed" | Autopilot is off |
 
 An answer the operator types never turns autopilot off, so answering a question lets the
 session go on alone. To take over, run `/autopilot off`.
@@ -47,12 +51,18 @@ session go on alone. To take over, run `/autopilot off`.
 The mod approves a preview itself only when all of these hold. Otherwise it waits for a
 typed "approve", as today.
 
-- **Reviewed.** The preview has a `Review:` line, and it reports no open finding. Every
+- **Reviewed.** The preview has a `Review:` line, and it leaves no finding open: "no
+  findings", "docs only, reread", "1 finding, fixed", "2 findings, both fixed", "3
+  findings, 3 fixed". Anything else waits for the operator: numbers that differ ("3
+  findings, 2 fixed"), a finding that stays, is left, skipped or recorded, or a line
+  that says no review ran ("none"). Every `Review:` line in the answer counts. Every
   preview needs that line, autopilot or not (section 4).
-- **Only commits.** Its commands are `git add <paths>` and `git commit`, in the session's
-  repositories. A push, tag, switch, merge or `gh` command is the operator's, so nothing
-  leaves the machine under autopilot. The commits stay local until the operator pushes,
-  usually at the checkpoint.
+- **Only commits.** Each command is one `git add <paths>` or `git commit` (with `git -C
+  <repo>` allowed) that the gate allows; an `--amend`, `--fixup` or `--squash` commit
+  waits. A push, tag, switch, merge or `gh` command is the operator's, so
+  nothing leaves the machine under autopilot. The commits stay local until the operator
+  pushes, usually at the checkpoint. The workspace mod's write guard keeps the session's
+  edits in its own repositories.
 - **Within the count.** It is not past the maximum.
 
 All the rules that hold today still hold. session-reset runs the commands one by one as

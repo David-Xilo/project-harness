@@ -592,9 +592,11 @@ async function judgeBash($: EngineInterface, ctx: Context, command: string, home
 const BAND = { plugin: 'workspace', key: 'band' } as const
 const OPS = { plugin: 'workspace', key: 'ops' } as const
 const SHOW_LATER = { plugin: 'workspace', key: 'showLater' } as const
-// session-reset's: the /session this conversation runs, and the open Ready to commit preview.
+// session-reset's: the /session this conversation runs, the open Ready to commit preview, and
+// autopilot.
 const SESSION = { plugin: 'session-reset', key: 'session' } as const
 const PREVIEW = { plugin: 'session-reset', key: 'preview' } as const
+const AUTOPILOT = { plugin: 'session-reset', key: 'autopilot' } as const
 
 const PANE = 'workspace-ops'
 const REFRESH_MS = 60_000
@@ -671,6 +673,10 @@ async function refreshBand($: EngineInterface) {
     const me = sessionOf(d, session.id)
     const tracks = me?.tracks ?? [session.id]
     parts.push([session.id, ...tracks.slice(1, 3)].join(' '))
+    const pilot = (await $.state.get(AUTOPILOT)).value
+    if (pilot?.id === session.id) {
+      parts.push(`autopilot ${pilot.count}/${pilot.max} → ${pilot.target ?? 'checkpoint'}`)
+    }
     if (d.checkpoint) {
       parts.push(d.checkpoint)
     }
@@ -802,8 +808,8 @@ export const register: Register = on => {
     return next(e)
   })
 
-  // A /session or /clear changes the session the band shows.
-  on('command.run', { command: ['session', 'clear', 'resume'] }, async ($, e, next) => {
+  // A /session, /clear or /autopilot changes what the band shows.
+  on('command.run', { command: ['session', 'clear', 'resume', 'autopilot'] }, async ($, e, next) => {
     const ran = await next(e)
     $.clock.after(0, () => void refreshBand($))
 

@@ -101,13 +101,9 @@ Priorities: **P0** critical path, **P1** required but parallel, **P2** only for 
 need. Step IDs are `<CODE>-<milestone>.<n>`, never renumbered or reused; the next
 operator task is O10.
 
-**Open operator tasks:**
-- **O4:** raise the signing agent's auto-lock time from 15 minutes to a few hours. It
-  already keeps an approval until it locks, but it locks after 15 idle minutes, and then
-  the next autopilot commit waits at the unlock prompt. Unblocks: AUTO-2.12. When:
-  before AUTO-2.12.
+**Open operator tasks:** none.
 
-**Next:** AUTO-2.12; its live run waits for O4.
+**Next:** AUTO-2.13.
 
 **Notes.**
 - The publish skills (`go-public`, `publish`) were checked by reading, not on a fixture
@@ -138,10 +134,9 @@ the same commit. AUTO-2.2 to AUTO-2.10, the earlier design, were dropped by D13.
 
 | Done | Pri | Step | Depends on | Done when |
 |---|---|---|---|---|
-| [ ] | P0 | AUTO-2.12: `/autopilot [<step>] [--max N]` and `/autopilot off` in session-reset: approve a preview that has a clean `Review:` line, only `git add` and `git commit`, within the count; stop at the target step's commit, at the session's `reached` row (from `opsboard --tsv`), at the count, on a failed command, `/clear` or `/resume`; the band shows it. The "under autopilot" go-ahead rule in `/session` and the Session rules. **O4** comes first | O4 | Mod tests for each approve and each stop; a live session runs three steps alone and stops at its target |
-| [ ] | P0 | AUTO-2.13: Sessions on the board. opsboard parses the Session table, each session's queue, which steps are done and what blocks them; `--tsv` gets a `session` row per ID (state, next step, ready count, blocked by, checkpoint). session-reset writes each session's autopilot state (target, count, waiting) under `~/.local/state/super-project/`, and opsboard joins it. `/ops` and `--md` get the Sessions block | AUTO-2.12 | A fixture's `--tsv` gives the right state for a ready, a blocked, a reached and an autopilot session; seen in the pane |
+| [ ] | P0 | AUTO-2.13: Sessions on the board. opsboard parses the Session table, each session's queue, which steps are done and what blocks them; `--tsv` gets a `session` row per ID (state, next step, ready count, blocked by, checkpoint). session-reset writes each session's autopilot state (target, count, waiting) under `~/.local/state/super-project/`, and opsboard joins it. `/ops` and `--md` get the Sessions block | — | A fixture's `--tsv` gives the right state for a ready, a blocked, a reached and an autopilot session; seen in the pane |
 | [ ] | P1 | AUTO-2.14: `/balance-sessions` on the workload: ready and blocked work per session, how many sessions to run for the next stretch, decision review; the drift check and cleanup kept as a fallback, each fix reported as a skipped cleanup | AUTO-2.13 | On a fixture it proposes different session counts for two different stretches |
-| [ ] | P0 | AUTO-2.15: End to end: two sessions of a toy two-module workspace on `/autopilot` reach their `CP1` preconditions; the operator only answered questions. Then docs, CHANGELOG and the release | AUTO-2.12, AUTO-2.13, AUTO-2.14 | v0.2.0 tagged |
+| [ ] | P0 | AUTO-2.15: End to end: two sessions of a toy two-module workspace on `/autopilot` reach their `CP1` preconditions; the operator only answered questions. One of them runs `/autopilot <step>` first and stops at that step's commit; the band shows the count. Then docs, CHANGELOG and the release | AUTO-2.13, AUTO-2.14 | v0.2.0 tagged |
 
 - [ ] **Gate M2:** in a toy workspace, sessions on `/autopilot` reach their `CP1`
   preconditions with every commit reviewed and nothing pushed; the operator only
