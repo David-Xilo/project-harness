@@ -11,7 +11,7 @@ work in parallel, run `/autopilot` in several. `/balance-sessions` still says wh
 sessions to run.
 
 **Status:** built for v0.2.0, not yet released ([plan, T4](plan.md#t4-autopilot-m2)).
-The end-to-end run is still to come.
+The end-to-end run on a real workspace is still to come.
 
 ## 1. The command
 

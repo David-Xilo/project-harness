@@ -3,6 +3,23 @@
 Each release is a milestone or a patch between milestones; its tag notes list what it
 brings.
 
+## v0.2.0 (unreleased)
+
+- `/autopilot [<step>] [--max N]` in a session: the session-reset mod approves its
+  reviewed `git add` and `git commit` previews itself, until the step's commit, the
+  session's `reached` checkpoint row or N commits (100 by default). A question, any other
+  command or a failure stops it for the operator; nothing is pushed. `/autopilot off`
+  ends it, and the band shows the count and the target.
+- Every commit is reviewed first: a preview carries a `Review:` line, and session-reset
+  holds an approve of a preview without one. Each step ends with a cleanup of the
+  session's own docs, including its tracks' queue cells in the root plan.
+- The ops board shows each session: its state (reached, ready, blocked, idle), next step,
+  how much is ready, what blocks it, its checkpoint row and its autopilot, in `opsboard`,
+  `--md`, `--tsv` and the `/ops` pane.
+- `/balance-sessions` sizes the sessions to the workload: how many to run for the next
+  stretch and which on `/autopilot`, with a review of the decisions. Its drift check
+  stays as a fallback and names the session that skipped its cleanup.
+
 ## v0.1.1 (2026-10-12)
 
 - Developed in the open: this repository is now the development home. `development` is

@@ -134,9 +134,9 @@ the same commit. AUTO-2.2 to AUTO-2.10, the earlier design, were dropped by D13.
 
 | Done | Pri | Step | Depends on | Done when |
 |---|---|---|---|---|
-| [ ] | P0 | AUTO-2.15: End to end: two sessions of a toy two-module workspace on `/autopilot` reach their `CP1` preconditions; the operator only answered questions. One of them runs `/autopilot <step>` first and stops at that step's commit; the band shows the count, and `/ops` shows both sessions. Then docs, CHANGELOG and the release | — | v0.2.0 tagged |
+| [ ] | P0 | AUTO-2.15: End to end on a real workspace: the operator runs sessions there on `/autopilot` and reports what broke; fix it. Then the CHANGELOG date, "coming in v0.2.0" out of WORKFLOW.md and AUTOPILOT.md, and the release | — | The operator's run passes the M2 gate; v0.2.0 tagged |
 
-- [ ] **Gate M2:** in a toy workspace, sessions on `/autopilot` reach their `CP1`
+- [ ] **Gate M2:** in a real workspace, sessions on `/autopilot` reach their `CP1`
   preconditions with every commit reviewed and nothing pushed; the operator only
   answered questions, then ran `CP1` by hand → v0.2.0.
 

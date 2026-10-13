@@ -32,10 +32,13 @@ tooling/install
 
 Run `/new-project` in Claude Code. It asks the setup questions in one message and builds
 the project's documents. Then open one terminal per session and run `/session S1`,
-`/session S2`, and so on; `/ops` lists what waits on you.
+`/session S2`, and so on; `/ops` lists what waits on you. `/autopilot` lets a session
+approve its own reviewed commits up to a step, and `/balance-sessions` says how many
+sessions to run.
 
 ## More
 
 - [WORKFLOW.md](WORKFLOW.md): how it all works.
+- [AUTOPILOT.md](AUTOPILOT.md): sessions that commit on their own until a target.
 - [SETUP.md](SETUP.md): setting up a project, step by step.
 - [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), [LICENSE](LICENSE) (MIT).
