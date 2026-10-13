@@ -11,6 +11,10 @@ operator approves. Two layers make this work:
 This repository ships both: the docs as templates (`workspace/`, `module/`) and the
 tooling under `tooling/`, which `tooling/install` links into place.
 
+This file describes the operated workflow, where the operator approves every commit.
+[AUTOPILOT.md](AUTOPILOT.md) describes the second mode, planned for v0.2.0: the same
+sessions run unattended until the checkpoint, and stop for the operator's decisions.
+
 ## 1. Global tooling
 
 `tooling/install` links each piece to the path below, so the checkout is the running
