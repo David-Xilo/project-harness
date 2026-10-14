@@ -1,6 +1,6 @@
 # project-harness plan
 
-Updated 2026-10-13. This plan holds the work left on project-harness itself: tracks, open
+Updated 2026-10-14. This plan holds the work left on project-harness itself: tracks, open
 steps, releases and the decisions they rest on. Setup copies only `workspace/` and
 `module/` into a new workspace, never this file. What is built is described in
 [WORKFLOW.md](WORKFLOW.md) and the [CHANGELOG](CHANGELOG.md); how, in git log.
@@ -72,11 +72,11 @@ section 1).
 
 | Code | Component | Owns | Tracks left |
 |---|---|---|---|
-| DOC | Template docs | README, WORKFLOW, SETUP, `workspace/`, `module/` | T4 |
+| DOC | Template docs | README, WORKFLOW, SETUP, `workspace/`, `module/` | T4, then T5 |
 | MOD | Mods | session-reset, workspace | T4, then T2, then T3 |
 | BIN | Scripts | opsboard, sp-claude-init, session-sweep, commit-all, push-all, leak-check, publish-check, gh-harden | T4, then T3 |
 | HOOK | Hooks | git-guard, typecheck, the pre-push hook | — |
-| SKL | Skills and commands | skill templates, `/session`, `/operator-steps` | T4, then T2 |
+| SKL | Skills and commands | skill templates, `/session`, `/operator-steps` | T4, then T2, then T5 |
 | PUB | Publishing | `tooling/publish/` (templates, rulesets) | — |
 
 ## Tracks and order
@@ -90,6 +90,7 @@ registered root. The tracks run in the order of the table below (T4 comes before
 | **T4 Autopilot** | A session on `/autopilot` commits its reviewed steps alone until a target; the operator only answers questions and does operator tasks | M2 | v0.2.0 |
 | **T2 Commit loop** | Every approve whose commands succeed ends in a session restart | M3 | v0.3.0 |
 | **T3 Session board** | The ops board shows each session ID: live or not, working, waiting or idle, since when | M4 | v0.4.0 |
+| **T5 Code cleanup** | `/code-cleanup` runs a full maintenance pass on a repository: fewer, truer comments, simpler code, only the tests that matter, and a verdict on its design | M5 | v0.5.0 |
 
 T1 Public (M1) is done: v0.1.0 and v0.1.1.
 
@@ -189,6 +190,40 @@ disk of which `/session <ID>` each process runs. The old attention files in
 | [ ] | P1 | BOARD-4.5: Retire `~/.cache/agents`; docs, CHANGELOG, release | BOARD-4.4 | v0.4.0 tagged |
 
 - [ ] **Gate M4:** the board matches the running sessions for a week → v0.4.0.
+
+### T5 Code cleanup (M5)
+
+Why: sessions add code step by step, and nothing ever takes a step back. Comments go
+stale, tests pile up on obvious code, helpers duplicate each other and the abstractions
+drift from what the code does now. `/code-cleanup [<repo or path>]` is the maintenance
+pass that takes that step back, inside Claude Code like the other commands.
+
+What the pass does, in this order:
+- **Comments:** keep only those that say why (a workaround, a constraint, a non-obvious
+  choice); remove those that restate the code, narrate history or no longer hold.
+- **Clutter and staleness:** dead code, unused options and files, leftovers of dropped
+  designs, docs that describe what no longer exists.
+- **Duplication:** merge copies only when they must change together; two identical pieces
+  that will evolve apart stay apart.
+- **Simplify and refactor:** shorter paths, fewer layers, plain names; behaviour stays the
+  same.
+- **Tests:** keep the end-to-end tests and those for tricky logic; remove tests of obvious
+  code and simplify the rest.
+- **Design:** evaluate the abstractions, architecture and design. Small fixes go into the
+  pass; anything that changes the design is a proposal for the operator, written as new
+  plan steps, never applied on its own.
+
+Each area is its own reviewed commit (`code-review`, then a preview), so `/autopilot` can
+run the pass and stops at the design proposals.
+
+| Done | Pri | Step | Depends on | Done when |
+|---|---|---|---|---|
+| [ ] | P0 | CLEAN-5.1: The `code-cleanup` skill (`tooling/skills/code-cleanup/SKILL.md`): the passes above, the scope argument, the rule that behaviour stays the same, one commit per area, design changes only as proposals. List it in WORKFLOW.md, README and SETUP | M4 | The skill is installed by `sp-claude-init` |
+| [ ] | P0 | CLEAN-5.2: First run on this repository, then on a real workspace module; fix the skill from what it got wrong | CLEAN-5.1 | Both runs end with the tests passing and the operator agrees with what was removed |
+| [ ] | P1 | CLEAN-5.3: CHANGELOG, release | CLEAN-5.2 | v0.5.0 tagged |
+
+- [ ] **Gate M5:** `/code-cleanup` runs on a real workspace module, its commits pass review
+  and the operator keeps them → v0.5.0.
 
 ## Releases and versions
 
