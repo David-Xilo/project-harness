@@ -52,11 +52,13 @@ The mod approves a preview itself only when all of these hold. Otherwise it wait
 typed "approve", as today.
 
 - **Reviewed.** The preview has a `Review:` line, and it leaves no finding open: "no
-  findings", "docs only, reread", "1 finding, fixed", "2 findings, both fixed", "3
-  findings, 3 fixed". Anything else waits for the operator: numbers that differ ("3
-  findings, 2 fixed"), a finding that stays, is left, skipped or recorded, or a line
-  that says no review ran ("none"). Every `Review:` line in the answer counts. Every
-  preview needs that line, autopilot or not (section 4).
+  findings", "docs only, reread", "1 finding, fixed", "2 findings, both fixed", "9
+  findings, 5 fixed, 4 kept". A kept (or moot) finding is the session's call, with its
+  reason in the preview. Anything else waits for the operator: numbers that don't add up
+  ("3 findings, 2 fixed"), a finding left open, skipped, deferred or recorded, or a line
+  that says no review ran ("none"). A finding that needs the operator's call is not
+  kept: the session asks about it (section 4). Every `Review:` line in the answer
+  counts. Every preview needs that line, autopilot or not (section 4).
 - **Only commits.** Each command is one `git add <paths>` or `git commit` (with `git -C
   <repo>` allowed) that the gate allows; an `--amend`, `--fixup` or `--squash` commit
   waits. A push, tag, switch, merge or `gh` command is the operator's, so

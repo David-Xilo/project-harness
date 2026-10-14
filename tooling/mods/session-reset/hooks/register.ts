@@ -43,8 +43,11 @@ const PREVIEWED = /^[\s#>*_-]*(?:ready to commit|preview)\b/im
 // The preview's review line (~/.claude/CLAUDE.md): "Review: code-review, 1 finding, fixed",
 // also as a list item or in bold ("- **Review:** docs only, reread"); a bare label is none.
 const REVIEWED = /^[\s>*_-]*Review[*_]*:[*_]*[ \t]*([^\s*_].*)$/im
-// A review line that leaves a finding to the operator: "1 stays", "2 left open", "skipped".
-const OPEN_FINDING = /\?|\b(?:open|stays?|left|remain\w*|unfixed|not|skip\w*|defer\w*|later|ignored?|kept|todo|recorded)\b/i
+// A review line that leaves a finding to the operator: "2 left open", "skipped", "wasn't fixed".
+const OPEN_FINDING = /\?|n['’]t\b|\b(?:open|left|remain\w*|unfixed|not|skip\w*|defer\w*|later|ignored?|todo|recorded)\b/i
+// How the session settled its findings: fixed, or kept with a reason ("4 kept as documented
+// limits", "1 stays", "2 moot").
+const SETTLED = /\b(\d+)\s+(?:fixed|kept|stay(?:s|ed)?|moot)\b/gi
 // A review line that found nothing: "no findings", "docs only, reread".
 const NOTHING_FOUND = /\b(?:no|0)\s+findings?\b|\bdocs only\b/i
 
@@ -195,8 +198,11 @@ async function hasReached($: EngineInterface, current: SessionResetSession): Pro
 }
 
 // Whether a review line leaves nothing open: "no findings", "docs only, reread", "1 finding,
-// fixed", "2 findings, both fixed", "3 findings, all fixed" or "3 findings, 3 fixed".
-function isCleanReview(review: string): boolean {
+// fixed", "2 findings, both fixed", "9 findings, 5 fixed, 4 kept": every finding is fixed,
+// kept with its reason (git rule 1) or moot, and none is left to the operator. Only the tally
+// counts: a reason in parentheses may say "not" or "left", or hold counts of its own.
+function isCleanReview(line: string): boolean {
+  const review = line.replace(/\([^)]*\)/g, '')
   if (OPEN_FINDING.test(review)) {
     return false
   }
@@ -204,12 +210,17 @@ function isCleanReview(review: string): boolean {
     return true
   }
   const found = /(\d+)\s+findings?\b/i.exec(review)?.[1]
-  const fixed = /\b(\d+|all|both)\s+fixed\b/i.exec(review)?.[1]
-  if (found === '1') {
-    return /\bfixed\b/i.test(review)
+  if (found === undefined) {
+    return false
+  }
+  if (/\b(?:all|both)\s+fixed\b/i.test(review)) {
+    return true
+  }
+  if (found === '1' && /[,:;]\s*(?:fixed|kept|stay(?:s|ed)?|moot)\b/i.test(review)) {
+    return true
   }
 
-  return found !== undefined && fixed !== undefined && (fixed === found || /^(?:all|both)$/i.test(fixed))
+  return [...review.matchAll(SETTLED)].reduce((sum, m) => sum + Number(m[1]), 0) === Number(found)
 }
 
 // Why autopilot leaves a preview to the operator, or undefined when it approves it: every

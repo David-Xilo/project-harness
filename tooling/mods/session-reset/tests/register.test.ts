@@ -400,9 +400,13 @@ describe('autopilot', () => {
     expect(w.state.get('autopilot')).toEqual({ id: 'S1', root: ROOT, target: 'PAY-1.3', max: 100, count: 1, waiting: null })
     expect(w.written.get(PILOT_FILE)).toBe(`${ROOT}\tS1\tPAY-1.3\t1\t100\t\n`)
 
-    // Autopilot's approve runs only the preview's commands, in order.
-    await $.turn.complete(turn(stepPreview('PAY-1.2')))
+    // Findings kept with their reason are settled too; autopilot's approve runs only the
+    // preview's commands, in order.
+    const prompts = w.prompts.length
+    const review = 'Review: code-review, 20 findings: 14 fixed, 2 moot (not reachable), 4 kept as documented limits (2 fixed upstream)'
+    await $.turn.complete(turn(stepPreview('PAY-1.2', review)))
     await w.settle()
+    expect(w.prompts.slice(prompts)).toEqual(['approve'])
     expect((await $.tool.call(bash('git push'))).deny).toContain('next: git add src/a.ts')
   })
 
@@ -410,7 +414,12 @@ describe('autopilot', () => {
     const w = world(on)
     await piloted($, w, 'PAY-1.3')
 
-    for (const review of ['Review: code-review, 2 findings, 1 fixed', 'Review: 3 findings, fixed 2', 'Review: none']) {
+    const open = [
+      'Review: code-review, 2 findings, 1 fixed', 'Review: 3 findings, fixed 2', 'Review: none',
+      'Review: 9 findings, 5 fixed, 3 kept', 'Review: 2 findings, 1 fixed, 1 left open',
+      'Review: 1 finding, 0 fixed', "Review: 1 finding, wasn't fixed", 'Review: 3 findings, all kept',
+    ]
+    for (const review of open) {
       await $.turn.complete(turn(stepPreview('PAY-1.1', review)))
     }
     await $.turn.complete(turn(stepPreview('PAY-1.1', 'Review: no findings', ['git push'])))
@@ -419,7 +428,7 @@ describe('autopilot', () => {
 
     expect(w.prompts).toHaveLength(1)
     expect(w.toasts).toEqual([
-      ...Array(3).fill(expect.stringContaining('leaves a finding open')),
+      ...Array(open.length).fill(expect.stringContaining('leaves a finding open')),
       ...Array(2).fill(expect.stringContaining('more than a plain git add')),
     ])
     expect((await $.tool.call(bash('git add src/a.ts'))).deny).toContain('operator approves a preview')
