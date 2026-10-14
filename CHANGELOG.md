@@ -3,7 +3,7 @@
 Each release is a milestone or a patch between milestones; its tag notes list what it
 brings.
 
-## v0.2.0 (unreleased)
+## v0.2.0 (2026-10-14)
 
 - `/autopilot [<step>] [--max N]` in a session: the session-reset mod approves its
   reviewed `git add` and `git commit` previews itself (every finding fixed, or kept with

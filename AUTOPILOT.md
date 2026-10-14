@@ -10,8 +10,7 @@ Nothing runs outside Claude Code. Each session is still a terminal the operator 
 work in parallel, run `/autopilot` in several. `/balance-sessions` still says which
 sessions to run.
 
-**Status:** built for v0.2.0, not yet released ([plan, T4](plan.md#t4-autopilot-m2)).
-The end-to-end run on a real workspace is still to come.
+**Status:** released in v0.2.0, after an end-to-end run on a real workspace.
 
 ## 1. The command
 

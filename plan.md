@@ -23,9 +23,9 @@ module submodules, several Claude Code sessions in parallel, each the only write
 repositories, git only after the operator's approve, and one checkpoint per milestone.
 The docs and the tooling that reads them (mods, hooks, ops board, bootstrap, skill
 templates) live here; `tooling/install` links the tooling into `~/.claude` and `BIN_DIR`,
-so the checkout is the running copy. [T4](#t4-autopilot-m2) adds
-`/autopilot`: a session approves its own reviewed commits until a target, and stops
-for the operator's decisions.
+so the checkout is the running copy. `/autopilot` ([AUTOPILOT.md](AUTOPILOT.md)) lets a
+session approve its own reviewed commits until a target, and stop for the operator's
+decisions.
 
 **Defaults:**
 - Build only what a live workspace needs.
@@ -72,27 +72,26 @@ section 1).
 
 | Code | Component | Owns | Tracks left |
 |---|---|---|---|
-| DOC | Template docs | README, WORKFLOW, SETUP, `workspace/`, `module/` | T4, then T5 |
-| MOD | Mods | session-reset, workspace | T4, then T2, then T3 |
-| BIN | Scripts | opsboard, sp-claude-init, session-sweep, commit-all, push-all, leak-check, publish-check, gh-harden | T4, then T3 |
+| DOC | Template docs | README, WORKFLOW, SETUP, `workspace/`, `module/` | T5 |
+| MOD | Mods | session-reset, workspace | T2, then T3 |
+| BIN | Scripts | opsboard, sp-claude-init, session-sweep, commit-all, push-all, leak-check, publish-check, gh-harden | T3 |
 | HOOK | Hooks | git-guard, typecheck, the pre-push hook | — |
-| SKL | Skills and commands | skill templates, `/session`, `/operator-steps` | T4, then T2, then T5 |
+| SKL | Skills and commands | skill templates, `/session`, `/operator-steps` | T2, then T5 |
 | PUB | Publishing | `tooling/publish/` (templates, rulesets) | — |
 
 ## Tracks and order
 
 One session at a time works here, from a plain session in this repository; it is not a
-registered root. The tracks run in the order of the table below (T4 comes before T2,
-[D8](#decisions)), so each finishes before the next starts.
+registered root. The tracks run in the order of the table below, so each finishes
+before the next starts.
 
 | Track | Goal | Milestone | Release |
 |---|---|---|---|
-| **T4 Autopilot** | A session on `/autopilot` commits its reviewed steps alone until a target; the operator only answers questions and does operator tasks | M2 | v0.2.0 |
 | **T2 Commit loop** | Every approve whose commands succeed ends in a session restart | M3 | v0.3.0 |
 | **T3 Session board** | The ops board shows each session ID: live or not, working, waiting or idle, since when | M4 | v0.4.0 |
 | **T5 Code cleanup** | `/code-cleanup` runs a full maintenance pass on a repository: fewer, truer comments, simpler code, only the tests that matter, and a verdict on its design | M5 | v0.5.0 |
 
-T1 Public (M1) is done: v0.1.0 and v0.1.1.
+T1 Public (M1) is done: v0.1.0 and v0.1.1. T4 Autopilot (M2) is done: v0.2.0.
 
 **Waiting on the operator:** the `O<n>` tasks, under "Open operator tasks" in the tracker.
 
@@ -104,7 +103,7 @@ operator task is O10.
 
 **Open operator tasks:** none.
 
-**Next:** AUTO-2.15.
+**Next:** LOOP-3.1.
 
 **Notes.**
 - The publish skills (`go-public`, `publish`) were checked by reading, not on a fixture
@@ -118,28 +117,6 @@ operator task is O10.
   (`<repo>-oss` names, `PUBLISHED_DIR`, its own copies of the publish skills) moves to D11
   after `sp-update` brings it v0.1.1. There, `/go-public <repo>` plans each module again,
   and the operator decides the names and any module paths that named `-oss`.
-
-### T4 Autopilot (M2)
-
-Why: in the operated workflow the operator approves every commit, so a session waits
-whenever they look away. They want to own the vision and the decisions, and let a
-session run its steps alone until a target, stopping only when it needs them.
-
-The design is [AUTOPILOT.md](AUTOPILOT.md) ([D13](#decisions)): `/autopilot [<step>]
-[--max N]` in a session makes session-reset approve that session's previews itself,
-until the step is committed, the session reaches its checkpoint preconditions, or N
-commits ran (100 by default). It approves only reviewed previews of `git add` and
-`git commit`; anything else, a question or a failure stops it. Nothing runs outside
-Claude Code, and nothing is pushed. A step that changes the design updates that file in
-the same commit. AUTO-2.2 to AUTO-2.10, the earlier design, were dropped by D13.
-
-| Done | Pri | Step | Depends on | Done when |
-|---|---|---|---|---|
-| [ ] | P0 | AUTO-2.15: End to end on a real workspace: the operator runs sessions there on `/autopilot` and reports what broke; fix it. Then the CHANGELOG date, "coming in v0.2.0" out of WORKFLOW.md and AUTOPILOT.md, and the release | — | The operator's run passes the M2 gate; v0.2.0 tagged |
-
-- [ ] **Gate M2:** in a real workspace, sessions on `/autopilot` reach their `CP1`
-  preconditions with every commit reviewed and nothing pushed; the operator only
-  answered questions, then ran `CP1` by hand → v0.2.0.
 
 ### T2 Commit loop (M3)
 
