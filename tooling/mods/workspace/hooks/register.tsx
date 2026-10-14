@@ -88,18 +88,18 @@ function cells(line: string): string[] {
   return line.split('|').slice(1, -1).map(cell => cell.trim())
 }
 
-// The table that starts at a header line whose first cell is `first`.
-function table(lines: string[], first: string): string[][] {
+// The table that starts at a header line whose first cell is `first`: its header and rows.
+function table(lines: string[], first: string): { head: string[]; rows: string[][] } {
   const start = lines.findIndex(line => line.startsWith('|') && cells(line)[0] === first)
   if (start < 0) {
-    return []
+    return { head: [], rows: [] }
   }
   const rows: string[][] = []
   for (let i = start + 2; i < lines.length && (lines[i] as string).startsWith('|'); i++) {
     rows.push(cells(lines[i] as string))
   }
 
-  return rows
+  return { head: cells(lines[start] as string), rows }
 }
 
 // Candidate folder names in a cell: backticked words, link targets' first segment, and
@@ -122,10 +122,11 @@ function candidates(cell: string): string[] {
   return out.map(c => c.replace(/\/+$/, '').replace(/^\.\//, '')).filter(c => /^[\w.-]+$/.test(c) && c !== '.' && c !== '..')
 }
 
-// Track IDs, codes and names a session row carries.
-function trackNames(row: string[]): string[] {
+// Track IDs, codes and names in a session row's ID cell ("`S1` **API**") and its track and
+// code cells; the work cell's bold labels ("**CP3:**", "**Then:**") are not tracks.
+function trackNames(idCell: string, trackCells: string[]): string[] {
   const out = new Set<string>()
-  const text = row.join(' | ')
+  const text = [idCell, ...trackCells].join(' | ')
   for (const m of text.matchAll(/\bT\d+\b/g)) {
     out.add(m[0])
   }
@@ -138,14 +139,10 @@ function trackNames(row: string[]): string[] {
       }
     }
   }
-  for (const m of text.matchAll(/\(([A-Z]{2,5}(?:,\s*[A-Z]{2,5})*)[;)]/g)) {
-    for (const code of (m[1] as string).split(',')) {
-      out.add(code.trim())
-    }
-  }
-  for (const cell of row.slice(1, 3)) {
-    if (/^[A-Z]{1,5}$/.test(cell)) {
-      out.add(cell)
+  // Codes outside bold names: "API", "API, WEB", "(AGT, ADP)".
+  for (const word of text.replace(/\*\*[^*]+\*\*/g, ' ').split(/[\s,;()|]+/)) {
+    if (/^[A-Z]{2,5}$/.test(word)) {
+      out.add(word)
     }
   }
 
@@ -162,14 +159,18 @@ async function readPlan($: EngineInterface, root: string): Promise<Pick<Docs, 's
   const lines = (await $.fs.read(`${root}/plan.md`)).split('\n')
   // Module codes (for example "| API | [Public API](acme-api/plan.md) |").
   const codes = new Map<string, string>()
-  for (const row of table(lines, 'Code')) {
+  for (const row of table(lines, 'Code').rows) {
     const dir = /\]\(([\w.-]+)\//.exec(row[1] ?? '')?.[1]
     if (row[0] && dir) {
       codes.set(row[0], dir)
     }
   }
+  // The "Track" and "Code" columns ("Tracks", "Track(s)", "Codes"), else the one after the ID.
+  const { head, rows } = table(lines, 'Session')
+  const named = head.flatMap((cell, i) => (i > 0 && /^(?:tracks?|codes?)\b/i.test(cell.replace(/[*_]/g, '')) ? [i] : []))
+  const trackCols = named.length > 0 ? named : [1]
   const sessions: SessionRow[] = []
-  for (const row of table(lines, 'Session')) {
+  for (const row of rows) {
     const id = /^`([^`]+)`/.exec(row[0] ?? '')?.[1]
     if (!id || id.includes('<') || !SESSION_ID.test(id)) {
       continue
@@ -189,7 +190,7 @@ async function readPlan($: EngineInterface, root: string): Promise<Pick<Docs, 's
       }
     }
     const isRootScope = row.slice(1).some(cell => /^root$|\bthe root\b/i.test(cell))
-    sessions.push({ id, tracks: [id, ...trackNames(row)], repos: [...repos], isRootScope, files: [] })
+    sessions.push({ id, tracks: [id, ...trackNames(row[0] ?? '', trackCols.map(i => row[i] ?? ''))], repos: [...repos], isRootScope, files: [] })
   }
   if (sessions.length === 0) {
     throw new Error('plan.md has no session table (a table whose first column is "Session")')

@@ -105,6 +105,8 @@ const typed = (command: string, args = '') =>
 const stepPreview = (step: string, review = 'Review: code-review, 1 finding, fixed', more: string[] = []) =>
   ['Ready to commit', '', review, '', '```', 'git add src/a.ts', `git commit -m "${step}: a step"`, ...more, '```'].join('\n')
 const PILOT_FILE = `${HOME}/.local/state/super-project/autopilot/_work_acme__S1.tsv`
+// The restart note under autopilot with a target.
+const piloting = (step: string) => `under autopilot until ${step} is done (the preview that finishes it says "Step done: ${step}")`
 const REACHED = `status\t${ROOT}\tcheckpoint\t\`S1\`\treached\n`
 
 describe('session start', () => {
@@ -406,7 +408,7 @@ describe('autopilot', () => {
     await w.settle()
 
     // The session and autopilot outlive the /clear, which starts a new host session.
-    expect(w.commands.at(-1)).toBe('/session S1 under autopilot')
+    expect(w.commands.at(-1)).toBe(`/session S1 ${piloting('PAY-1.3')}`)
     expect(w.state.get('session')).toEqual({ id: 'S1', root: ROOT })
     expect(w.state.get('autopilot')).toEqual({ id: 'S1', root: ROOT, target: 'PAY-1.3', max: 100, count: 1, waiting: null })
     expect(w.written.get(PILOT_FILE)).toBe(`${ROOT}\tS1\tPAY-1.3\t1\t100\t\n`)
@@ -466,15 +468,21 @@ describe('autopilot', () => {
     expect(w.toasts).toEqual([expect.stringContaining('no Ready to commit preview')])
   })
 
-  test('stops after the commit of its target step', async ($, on) => {
+  test('stops after the commit that finishes its target step', async ($, on) => {
     const w = world(on)
     await piloted($, w, 'PAY-1.1')
+    // A slice of the step: autopilot goes on.
     await $.turn.complete(turn(stepPreview('PAY-1.1')))
     await w.settle()
     await commitStep($, w, 'PAY-1.1')
+    expect(w.commands.at(-1)).toBe(`/session S1 ${piloting('PAY-1.1')}`)
 
-    expect(w.toasts).toEqual([expect.stringContaining('PAY-1.1 is committed')])
-    expect(w.commands.at(-1)).toBe('/session S1')
+    await $.turn.complete(turn(`${stepPreview('PAY-1.1')}\n\n- **Step done:** PAY-1.1`))
+    await w.settle()
+    await commitStep($, w, 'PAY-1.1')
+
+    expect(w.toasts).toEqual([expect.stringContaining('PAY-1.1 is done')])
+    expect(w.commands.at(-1)).toBe('/session S1 autopilot is off (PAY-1.1 is done): name your next step and wait for me')
     expect(w.written.get(PILOT_FILE)).toBe('')
   })
 
@@ -505,7 +513,7 @@ describe('autopilot', () => {
     await w.settle()
     await commitStep($, w, 'PAY-1.2')
     expect(w.toasts.at(-1)).toContain('1 of 1 commits ran')
-    expect(w.commands.at(-1)).toBe('/session S1')
+    expect(w.commands.at(-1)).toBe('/session S1 autopilot is off (1 of 1 commits ran): name your next step and wait for me')
 
     await $.command.run(typed('autopilot', 'PAY-1.3'))
     await $.command.run(typed('clear'))
@@ -522,7 +530,7 @@ describe('autopilot', () => {
 
     await $.command.run(typed('clear'))
     await w.settle()
-    expect(w.commands.at(-1)).toBe('/session S1 under autopilot')
+    expect(w.commands.at(-1)).toBe(`/session S1 ${piloting('PAY-1.3')}`)
     expect(w.state.get('session')).toEqual({ id: 'S1', root: ROOT })
     expect(w.state.get('autopilot')).toMatchObject({ id: 'S1', count: 1 })
 
@@ -533,7 +541,7 @@ describe('autopilot', () => {
     await $.command.run(typed('autopilot', 'off'))
     await $.command.run(typed('clear'))
     await w.settle()
-    expect(w.commands.at(-1)).toBe('/session S1 under autopilot')
+    expect(w.commands.at(-1)).toBe(`/session S1 ${piloting('PAY-1.3')}`)
     expect(w.state.get('autopilot')).toBeUndefined()
   })
 

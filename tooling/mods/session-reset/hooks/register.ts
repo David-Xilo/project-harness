@@ -55,12 +55,21 @@ const NOTHING_FOUND = /\b(?:no|0)\s+findings?\b|\bdocs only\b/i
 const AUTOPILOT_USAGE = '/autopilot [<step>] [--max N], or /autopilot off'
 const MAX_COMMITS = 100
 const STEP_ID = /^[A-Z][A-Z0-9]*-\d+(?:\.\d+)*$/
+// The preview's line naming the steps its commit finishes, also as a heading, a list item or
+// in bold.
+const STEP_DONE = /^[\s#>*_\d.-]*Steps? done[*_]*:[*_]*[ \t]*(.+)$/gim
 // The only commands autopilot approves: a git add or a git commit, each on its own.
 const ADD_OR_COMMIT = /^git\s+(?:-C\s+\S+\s+)?(add|commit)\s/
 // A commit that rewrites one: --amend, --fixup, --squash (git takes these prefixes).
 const REWRITES = /\s--(?:am|fix|squ)/
 // What the restarted session reads in its note (/session).
 const UNDER_AUTOPILOT = 'under autopilot'
+// The note under autopilot, with the target step the session's preview marks done.
+function pilotNote(pilot: SessionResetAutopilot): string {
+  return pilot.target
+    ? `${UNDER_AUTOPILOT} until ${pilot.target} is done (the preview that finishes it says "Step done: ${pilot.target}")`
+    : UNDER_AUTOPILOT
+}
 
 // What the model reads beside an "approve" that holds a question or a condition.
 const HELD =
@@ -269,10 +278,12 @@ function autopilotWaits(answer: string, commands: string[]): string | undefined 
   return undefined
 }
 
-// Whether the preview commits step `target`: a git commit whose message starts with its ID.
-function commitsStep(commands: string[], target: string): boolean {
-  const subject = new RegExp(`(?:^|[\\s"'])${target.replace(/\./g, '\\.')}:`)
-  return commands.some(c => ADD_OR_COMMIT.exec(c)?.[1] === 'commit' && subject.test(c))
+// The steps a preview's `Step done:` lines say its commit finishes ("Step done: PAY-1.3");
+// a commit of one slice of a step has none. A remark in parentheses ("PAY-1.2 is next") is not
+// a step done.
+function stepsDone(answer: string): string[] {
+  const id = new RegExp(`\\b${STEP_ID.source.slice(1, -1)}\\b`, 'g')
+  return [...answer.matchAll(STEP_DONE)].flatMap(m => (m[1] as string).replace(/\([^)]*\)/g, '').match(id) ?? [])
 }
 
 function progress(pilot: SessionResetAutopilot): string {
@@ -413,7 +424,7 @@ export const register: Register = on => {
     }
     const pilot = { id: current.id, root: current.root, target, max, count: 0, waiting: null }
     await setAutopilot($, pilot)
-    submitAsPerson($, `Autopilot is on (${progress(pilot)}): go on with your next step, ${UNDER_AUTOPILOT} (/session).`)
+    submitAsPerson($, `Autopilot is on (${progress(pilot)}): go on with your next step, ${pilotNote(pilot)} (/session).`)
 
     return { text: `Autopilot on: ${progress(pilot)}` }
   })
@@ -638,7 +649,13 @@ export const register: Register = on => {
     // approve answers the last answer's preview: an answer with none closes it.
     const shown = PREVIEWED.test(e.answer) ? previewCommands(e.answer) : []
     if (shown.length > 0) {
-      await $.state.set(PREVIEW, { commands: shown, next: 0, at: await $.clock.now(), isReviewed: REVIEWED.test(e.answer) })
+      await $.state.set(PREVIEW, {
+        commands: shown,
+        next: 0,
+        at: await $.clock.now(),
+        isReviewed: REVIEWED.test(e.answer),
+        done: stepsDone(e.answer),
+      })
     } else if (hasRunAll && turn !== undefined && turn.writes > 0 && !turn.hasFailed) {
       await $.state.set(PREVIEW, null)
     } else if (turn === undefined && e.reason === 'answer') {
@@ -646,6 +663,7 @@ export const register: Register = on => {
     }
     const current = await session($)
     let pilot = await autopilot($)
+    let stopped: string | undefined
     // After a run, autopilot counts the commit and stops at a failure, its target, its
     // count or the checkpoint.
     if (pilot && turn !== undefined && (turn.hasCommitted || turn.hasFailed)) {
@@ -653,8 +671,8 @@ export const register: Register = on => {
       const count = turn.hasFailed ? pilot.count : pilot.count + 1
       let why = turn.hasFailed
         ? 'a command of the preview failed'
-        : target !== null && commitsStep(open?.commands ?? [], target)
-          ? `${target} is committed`
+        : target !== null && (open?.done ?? []).includes(target)
+          ? `${target} is done`
           : count >= pilot.max
             ? `${count} of ${pilot.max} commits ran`
             : undefined
@@ -665,11 +683,13 @@ export const register: Register = on => {
       pilot = why ? null : { ...pilot, count, waiting: null }
       await setAutopilot($, pilot)
       if (why) {
+        stopped = `autopilot is off (${why}): name your next step and wait for me`
         $.ui.toast(`Autopilot off: ${why}.`, { timeoutMs: 15000 })
       }
     }
     if (current && isDone) {
-      restart($, current.id, pilot ? [turn.note, UNDER_AUTOPILOT].filter(n => n !== '').join('; ') : turn.note)
+      const note = pilot ? pilotNote(pilot) : stopped
+      restart($, current.id, [turn.note, note ?? ''].filter(n => n !== '').join('; '))
     } else if (pilot && current?.id === pilot.id && shown.length > 0 && e.reason === 'answer') {
       // A new preview under autopilot: approve it, or say why it waits for the operator.
       const why = READY.test(e.answer) ? autopilotWaits(e.answer, shown) : 'it is no Ready to commit preview'

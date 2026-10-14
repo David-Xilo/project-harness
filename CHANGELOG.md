@@ -7,10 +7,12 @@ brings.
 
 - `/autopilot [<step>] [--max N]` in a session: the session-reset mod approves its
   reviewed `git add` and `git commit` previews itself (every finding fixed, or kept with
-  its reason), until the step's commit, the session's `reached` checkpoint row or N
-  commits (100 by default). A question, any other command or a failure stops it for the
-  operator; nothing is pushed. `/autopilot off` ends it, and the band shows the count and
-  the target.
+  its reason), until the commit whose preview says `Step done: <step>`, the session's
+  `reached` checkpoint row or N commits (100 by default). A question, any other command or
+  a failure stops it for the operator; nothing is pushed. `/autopilot off` ends it, and
+  the band shows the count and the target.
+- The ops band reads a session's tracks from its ID, Track and Code cells only, so the
+  bold labels of its work cell ("**CP3:**") are no longer taken for tracks.
 - Every commit is reviewed first: a preview that commits carries a `Review:` line, and
   session-reset holds an approve of one without it. Each step ends with a cleanup of the
   session's own docs, including its tracks' queue cells in the root plan.

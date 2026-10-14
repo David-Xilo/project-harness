@@ -17,7 +17,7 @@ The end-to-end run on a real workspace is still to come.
 
 ```
 /autopilot                  until this session reaches its checkpoint preconditions
-/autopilot PAY-1.3          until the commit of step PAY-1.3
+/autopilot PAY-1.3          until the commit that finishes step PAY-1.3
 /autopilot --max 5          the same, with at most 5 commits instead of 100
 /autopilot off              back to approving by hand
 ```
@@ -27,8 +27,10 @@ and the session goes on with its next step. The band shows it:
 `S2 · autopilot 3/100 → PAY-1.3`. With no step, it does not start when the session's
 checkpoint row already reads `reached`; name a step to work ahead.
 
-Each restart passes the note "under autopilot" to `/session`, so the restarted session
-knows to go on (section 4).
+Each restart passes the note "under autopilot" to `/session`, with the target step when
+there is one, so the restarted session knows to go on (section 4) and to end the preview
+that finishes the target with `Step done: <step>`. When autopilot stops, the note tells the
+session to name its next step and wait.
 
 ## 2. When it stops
 
@@ -36,7 +38,7 @@ Autopilot stops, and the session waits for the operator as it does today, when:
 
 | Why | What the operator sees |
 |---|---|
-| The target is reached: the commit of the named step, or the session's checkpoint row reads `reached` | The restarted session shows its next step and waits |
+| The target is reached: the commit whose preview says `Step done: <the named step>` (a commit of one slice of it goes on), or the session's checkpoint row reads `reached` | The restarted session shows its next step and waits |
 | The maximum number of commits ran (100 by default) | The same |
 | The session needs the operator: a decision, a step whose "done" is unclear, a checkpoint, a new objective, a live operation | The session asks, as today. Autopilot stays on: once answered, the session goes on |
 | A preview fails the checks in section 3 | The preview, waiting for a typed "approve", and a toast that says why |
@@ -155,6 +157,7 @@ its docs, and shows the preview:
 ```
 Ready to commit
 Review: code-review, 1 finding, fixed
+Step done: PAY-1.1
 ...
 git add src/charge.ts plan.md research.md
 git commit -m "PAY-1.1: a charge records one payment"
