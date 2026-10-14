@@ -82,6 +82,10 @@ let isRestarting = false
 // After a refused /clear the person runs it; then the mod starts /session with these args.
 let pendingArgs: string | undefined
 
+// The workspace session and autopilot a restart carries over its /clear: a /clear starts a
+// new host session, whose state starts empty.
+type Carried = { session: SessionResetSession | null; pilot: SessionResetAutopilot | null }
+
 async function session($: EngineInterface): Promise<SessionResetSession | null> {
   return (await $.state.get(SESSION)).value ?? null
 }
@@ -152,6 +156,35 @@ async function takeOver($: EngineInterface) {
   }
 }
 
+async function carry($: EngineInterface): Promise<Carried> {
+  return { session: await session($), pilot: await autopilot($) }
+}
+
+// A restart step the mod could not run: the person runs it from the prompt box.
+async function refused($: EngineInterface, step: string, error: unknown, then = '') {
+  try {
+    await $.prompt.fill({ text: step })
+  } catch {
+    // The box may be held by a dialog; the toast still says what to run.
+  }
+  $.ui.toast(`session-reset could not run ${step} (${error}). Press Enter to run it${then}.`, { timeoutMs: 15000 })
+}
+
+// After the restart's /clear: puts back the session and autopilot, then runs /session.
+async function reopen($: EngineInterface, args: string, carried: Carried) {
+  try {
+    if (carried.session) {
+      await $.state.set(SESSION, carried.session)
+    }
+    if (carried.pilot) {
+      await setAutopilot($, carried.pilot)
+    }
+    await $.command.run({ command: 'session', args })
+  } catch (error) {
+    await refused($, `/session ${args}`, error)
+  }
+}
+
 function restart($: EngineInterface, id: string, note: string) {
   if (isRestarting) {
     return
@@ -160,22 +193,16 @@ function restart($: EngineInterface, id: string, note: string) {
   const args = note ? `${id} ${note}` : id
   // Run once the hook has returned: $.command.run rejects inside a hook the turn waits on.
   $.clock.after(0, async () => {
-    let step = '/clear'
     try {
-      await $.command.run({ command: 'clear' })
-      step = `/session ${args}`
-      await $.command.run({ command: 'session', args })
-    } catch (error) {
-      pendingArgs = step === '/clear' ? args : undefined
+      const carried = await carry($)
       try {
-        await $.prompt.fill({ text: step })
-      } catch {
-        // The box may be held by a dialog; the toast still says what to run.
+        await $.command.run({ command: 'clear' })
+      } catch (error) {
+        pendingArgs = args
+        await refused($, '/clear', error, `; /session ${args} follows`)
+        return
       }
-      const then = step === '/clear' ? `; /session ${args} follows` : ''
-      $.ui.toast(`session-reset could not run ${step} (${error}). Press Enter to run it${then}.`, {
-        timeoutMs: 15000,
-      })
+      await reopen($, args, carried)
     } finally {
       isRestarting = false
     }
@@ -392,6 +419,10 @@ export const register: Register = on => {
   })
 
   on('command.run', { command: 'session' }, async ($, e, next) => {
+    // The person's own /session replaces a restart still waiting for its /clear.
+    if (e.origin.kind !== 'plugin' || e.origin.name !== 'session-reset') {
+      pendingArgs = undefined
+    }
     const id = e.args.trim().split(/\s+/)[0] ?? ''
     const root = SESSION_ID.test(id) ? await workspaceRoot($, await $.session.cwd()) : undefined
     if (root) {
@@ -411,17 +442,19 @@ export const register: Register = on => {
     const isOwn = e.origin.kind === 'plugin' && e.origin.name === 'session-reset'
     const args = isOwn ? undefined : pendingArgs
     pendingArgs = undefined
+    // The person's /clear that finishes a restart carries the session and autopilot as they
+    // stand now; any other ends both.
+    const carried = args ? await carry($) : undefined
     if (!isOwn) {
       await $.state.set(SESSION, null)
     }
-    // The person's own /clear ends autopilot; the one that finishes a restart does not.
     if (!isOwn && !args) {
       await setAutopilot($, null)
     }
     await $.state.set(PREVIEW, null)
     const ran = await next(e)
-    if (args) {
-      $.clock.after(0, () => void $.command.run({ command: 'session', args }))
+    if (args && carried) {
+      $.clock.after(0, () => reopen($, args, carried))
     }
 
     return ran
@@ -438,6 +471,7 @@ export const register: Register = on => {
 
   // /resume leaves this conversation for another one.
   on('command.run', { command: 'resume' }, async ($, e, next) => {
+    pendingArgs = undefined
     await $.state.set(SESSION, null)
     await $.state.set(PREVIEW, null)
     await setAutopilot($, null)

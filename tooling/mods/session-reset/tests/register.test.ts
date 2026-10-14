@@ -31,12 +31,14 @@ type Options = {
   board?: string
   // Commands whose run prints a git error.
   fails?: string[]
+  // The mod's own /clear is refused, as when a dialog holds the screen.
+  refuseClear?: boolean
 }
 
 // The world beneath the mod: state, the alias lookup and opsboard, the files it reads, and
 // the bottom of the command, prompt, tool and turn chains.
 function world(on: On, options: Options = {}): World {
-  const { alias = { exitCode: 0, stdout: "alias gp='git push'\n" }, files, saved = {}, fails = [] } = options
+  const { alias = { exitCode: 0, stdout: "alias gp='git push'\n" }, files, saved = {}, fails = [], refuseClear } = options
   let board = options.board ?? ''
   const runs: (readonly string[])[] = []
   const toasts: string[] = []
@@ -71,7 +73,14 @@ function world(on: On, options: Options = {}): World {
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('session.end', ($, e) => ({ sessionId: e.sessionId }))
   on('command.run', ($, e) => {
+    if (refuseClear && e.command === 'clear' && e.origin.kind === 'plugin') {
+      throw new Error('busy')
+    }
     commands.push(e.args ? `/${e.command} ${e.args}` : `/${e.command}`)
+    // A /clear starts a new host session, whose state starts empty.
+    if (e.command === 'clear') {
+      state.clear()
+    }
     return { text: '' }
   })
   on('prompt.submit', ($, e) => {
@@ -396,7 +405,9 @@ describe('autopilot', () => {
     await $.turn.complete(turn('Committed.'))
     await w.settle()
 
+    // The session and autopilot outlive the /clear, which starts a new host session.
     expect(w.commands.at(-1)).toBe('/session S1 under autopilot')
+    expect(w.state.get('session')).toEqual({ id: 'S1', root: ROOT })
     expect(w.state.get('autopilot')).toEqual({ id: 'S1', root: ROOT, target: 'PAY-1.3', max: 100, count: 1, waiting: null })
     expect(w.written.get(PILOT_FILE)).toBe(`${ROOT}\tS1\tPAY-1.3\t1\t100\t\n`)
 
@@ -464,7 +475,7 @@ describe('autopilot', () => {
 
     expect(w.toasts).toEqual([expect.stringContaining('PAY-1.1 is committed')])
     expect(w.commands.at(-1)).toBe('/session S1')
-    expect(w.state.get('autopilot')).toBeNull()
+    expect(w.written.get(PILOT_FILE)).toBe('')
   })
 
   test('with no step, stops once the session reaches its checkpoint, and will not start past it', async ($, on) => {
@@ -476,7 +487,7 @@ describe('autopilot', () => {
     await commitStep($, w, 'PAY-1.1')
 
     expect(w.toasts).toEqual([expect.stringContaining('S1 reached its checkpoint')])
-    expect(w.state.get('autopilot')).toBeNull()
+    expect(w.written.get(PILOT_FILE)).toBe('')
     expect((await $.command.run(typed('autopilot'))).text).toContain('already reached')
   })
 
@@ -498,7 +509,32 @@ describe('autopilot', () => {
 
     await $.command.run(typed('autopilot', 'PAY-1.3'))
     await $.command.run(typed('clear'))
-    expect(w.state.get('autopilot')).toBeNull()
+    expect(w.written.get(PILOT_FILE)).toBe('')
+  })
+
+  test('a refused /clear: the person\'s /clear carries the session and autopilot as they stand', async ($, on) => {
+    const w = world(on, { refuseClear: true })
+    await piloted($, w, 'PAY-1.3')
+    await $.turn.complete(turn(stepPreview('PAY-1.1')))
+    await w.settle()
+    await commitStep($, w, 'PAY-1.1')
+    expect(w.toasts.at(-1)).toContain('could not run /clear')
+
+    await $.command.run(typed('clear'))
+    await w.settle()
+    expect(w.commands.at(-1)).toBe('/session S1 under autopilot')
+    expect(w.state.get('session')).toEqual({ id: 'S1', root: ROOT })
+    expect(w.state.get('autopilot')).toMatchObject({ id: 'S1', count: 1 })
+
+    // Turned off before the person's /clear, autopilot stays off.
+    await $.turn.complete(turn(stepPreview('PAY-1.2')))
+    await w.settle()
+    await commitStep($, w, 'PAY-1.2')
+    await $.command.run(typed('autopilot', 'off'))
+    await $.command.run(typed('clear'))
+    await w.settle()
+    expect(w.commands.at(-1)).toBe('/session S1 under autopilot')
+    expect(w.state.get('autopilot')).toBeUndefined()
   })
 
   test('ends with the process, and its state file is emptied', async ($, on) => {
@@ -519,7 +555,6 @@ describe('autopilot', () => {
 
     expect(w.toasts).toEqual([expect.stringContaining('committed by hand')])
     expect(w.commands.at(-1)).toBe('/session S1')
-    expect(w.state.get('autopilot')).toBeNull()
     expect(w.written.get(PILOT_FILE)).toBe('')
   })
 
