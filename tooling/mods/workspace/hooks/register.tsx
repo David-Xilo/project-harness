@@ -197,7 +197,7 @@ async function readPlan($: EngineInterface, root: string): Promise<Pick<Docs, 's
   }
   // The "Shared files" bullet of the session IDs section, sentence by sentence: the .md files
   // it names (an anchor link being plan.md). A sentence that says "never" lists files no
-  // session edits; "`S4` also owns …" gives that one session its files.
+  // session edits; "`S4` also owns …" or "`S4` owns …" gives that one session its files.
   const shared = new Set<string>()
   const at = lines.findIndex(line => /^- \*\*Shared files\b/.test(line))
   if (at < 0) {
@@ -215,12 +215,14 @@ async function readPlan($: EngineInterface, root: string): Promise<Pick<Docs, 's
     const file = target.startsWith('#') ? 'plan.md' : target.replace(/#.*$/, '')
     return /\.md$/.test(file) && !/^\w+:/.test(file) ? ` ${label} <${file}> ` : ` ${label} `
   })
-  for (const sentence of text.split(/\.\s+(?=[A-Z`])/)) {
+  // A "; `S6` owns …" clause starts its own sentence, so the files before it stay with the
+  // first owner.
+  for (const sentence of text.split(/\.\s+(?=[A-Z`])|;\s+(?=`[^`]+`\s+(?:also\s+)?owns\b)/)) {
     if (/\bnever\b/i.test(sentence) || /^\s*`?CP/.test(sentence)) {
       continue
     }
     const files = [...sentence.matchAll(/<([^>]+)>|(?<![\w/.-])([\w-][\w./-]*\.md)\b/g)].map(m => ((m[1] ?? m[2]) as string).replace(/^\.\//, ''))
-    const only = /^\s*`([^`]+)` also owns\b/.exec(sentence)?.[1]
+    const only = /^\s*`([^`]+)`\s+(?:also\s+)?owns\b/.exec(sentence)?.[1]
     const owner = only ? sessions.find(s => s.id === only) : undefined
     for (const file of files) {
       if (owner) {
