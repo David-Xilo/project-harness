@@ -34,8 +34,11 @@ const APPROVE = /^\s*approved?\b[\s,.;:!-]*(?:(?:then|next|and)\b[\s,:]*)?([\s\S
 // the note ("commit remind me of this note"). With no preview open it is a request.
 const COMMIT = /^\s*commit(?:\s+it)?\b[\s,.;:!-]*(?:(?:then|next|and)\b[\s,:]*)?([\s\S]*?)[\s,.;:!]*$/i
 
-// The words of the "Ready to commit" preview in the model's last answer.
+// The words of the "Ready to commit" preview in the model's last answer; autopilot approves
+// only such a preview. The operator approves any answer that names a preview ("Preview:
+// switch to the release branches") and shows git or gh writes in a code block.
 const READY = /\bready to commit\b/i
+const PREVIEWED = /^[\s#>*_-]*(?:ready to commit|preview)\b/im
 
 // The preview's review line (~/.claude/CLAUDE.md): "Review: code-review, 1 finding, fixed",
 // also as a list item or in bold ("- **Review:** docs only, reread"); a bare label is none.
@@ -58,13 +61,13 @@ const UNDER_AUTOPILOT = 'under autopilot'
 
 // What the model reads beside an "approve" that holds a question or a condition.
 const HELD =
-  'session-reset: this answer to the Ready to commit preview holds a question or a condition, ' +
+  'session-reset: this answer to the preview holds a question or a condition, ' +
   'so it is not an approval (~/.claude/CLAUDE.md). Answer it, and if the work should still be ' +
   'committed, show the preview again and wait for a plain "approve". git and gh writes are ' +
   'blocked for this turn.'
-// What the model reads beside an "approve" of a preview with no Review: line.
+// What the model reads beside an "approve" of a committing preview with no Review: line.
 const UNREVIEWED =
-  'session-reset: the Ready to commit preview has no Review: line, so this approve is held ' +
+  'session-reset: the preview commits but has no Review: line, so this approve is held ' +
   '(~/.claude/git-rules.md). Run code-review on the diff and fix what it finds, then show the ' +
   'preview again with its Review: line and wait for "approve". git and gh writes are blocked ' +
   'for this turn.'
@@ -239,13 +242,15 @@ function progress(pilot: SessionResetAutopilot): string {
 }
 
 // Why an answer to the open preview is not an approval: a question or a condition in its
-// note, or a preview with no Review: line (one saved before the mod read it counts as none).
+// note, or a preview that commits with no Review: line (one saved before the mod read it
+// counts as none). A preview that only switches, tags, merges or pushes needs no review.
 function holdReason(note: string, open: SessionResetPreview | null): string | undefined {
   if (DOUBT.test(note)) {
     return HELD
   }
+  const commits = open !== null && open.commands.some(c => judge(c).commits === true)
 
-  return open !== null && open.isReviewed !== true ? UNREVIEWED : undefined
+  return commits && open.isReviewed !== true ? UNREVIEWED : undefined
 }
 
 // Submit the answer of "/approve" or "/commit" as the person's words. The mod's own hooks
@@ -269,9 +274,14 @@ function matches(command: string, open: SessionResetPreview): number {
   return 0
 }
 
+// The turn that runs an approved preview: its note, how its commands went, and whether it
+// committed. The operator's approve lets any git or gh write run that is not forbidden (a
+// commit the preview did not show only when the preview has its Review: line); autopilot's
+// (`isExact`) only the preview's commands, in order.
+type Approved = { note: string; writes: number; hasFailed: boolean; hasCommitted: boolean; isExact: boolean }
+
 export const register: Register = on => {
-  // The turn that runs an approved preview: its note, and how its commands went.
-  let approved: { note: string; writes: number; hasFailed: boolean } | undefined
+  let approved: Approved | undefined
   // The turn that answers a preview with a question or a condition, or approves one with
   // no Review: line: no git write runs, and the model reads why.
   let held: string | undefined
@@ -323,7 +333,10 @@ export const register: Register = on => {
 
       return { text: 'Held: the preview has no Review: line. git writes are blocked for this turn.' }
     }
-    approved = { note, writes: 0, hasFailed: false }
+    if ((await preview($)) === null) {
+      return { text: 'No preview is open: nothing to approve.' }
+    }
+    approved = { note, writes: 0, hasFailed: false, hasCommitted: false, isExact: false }
     submitAsPerson($, 'approve')
 
     return { text: note ? `Approved; the note goes to the restarted session: ${note}` : 'Approved.' }
@@ -467,17 +480,17 @@ export const register: Register = on => {
     if (!approve) {
       return next(e)
     }
-    approved = { note: (approve[1] ?? '').trim(), writes: 0, hasFailed: false }
+    approved = { note: (approve[1] ?? '').trim(), writes: 0, hasFailed: false, hasCommitted: false, isExact: false }
 
     // In a workspace session the note is for the restarted session; the model runs the
     // preview as shown. Elsewhere the model reads the answer whole.
     return current ? next({ ...e, text: 'approve' }) : next(e)
   })
 
-  // The approve gate: a git or gh write runs only as the next command of the approved
-  // preview, in its order, once; some never run (~/.claude/CLAUDE.md). Every command of the
-  // approved preview counts: a failed one (git, gh, a pipe that hides git's exit code)
-  // keeps the session and stops the rest.
+  // The approve gate: a git or gh write runs only in a turn the operator approved, or as the
+  // next command of a preview autopilot approved; some never run (~/.claude/CLAUDE.md). A
+  // failed command (git, gh, a pipe that hides git's exit code) keeps the session and stops
+  // the rest.
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const judged = judge(e.command)
     if (judged.writes === 0) {
@@ -496,15 +509,33 @@ export const register: Register = on => {
     if (!approved || !open) {
       return {
         deny:
-          'session-reset: git and gh writes run only from an approved Ready to commit preview. ' +
+          'session-reset: git and gh writes run only after the operator approves a preview. ' +
           'Show the preview (~/.claude/CLAUDE.md) and wait for "approve".',
       }
     }
     if (approved.hasFailed) {
       return { deny: 'session-reset: a command of the approved preview failed; stop and report it.' }
     }
-    const count = matches(e.command, open)
-    if (count === 0) {
+    let count = matches(e.command, open)
+    // Under the operator's approve a corrected command stands in for the preview's: a later
+    // command of the preview counts the ones before it as done unless one of them commits,
+    // and a commit stands in for the preview's next command when that one commits.
+    if (count === 0 && !approved.isExact) {
+      const wanted = normalize(e.command)
+      const later = open.commands.findIndex((c, k) => k > open.next && normalize(c) === wanted)
+      const skipped = later > 0 ? open.commands.slice(open.next, later) : []
+      const nextCommits = judge(open.commands[open.next] ?? '').commits === true
+      count =
+        later > 0 && !skipped.some(c => judge(c).commits === true)
+          ? later - open.next + 1
+          : judged.commits === true && nextCommits
+            ? 1
+            : 0
+    }
+    if (judged.commits === true && open.isReviewed !== true && !open.commands.some(c => judge(c).commits === true)) {
+      return { deny: 'session-reset: this commit is not in the approved preview, which has no Review: line. Review, then show a new preview.' }
+    }
+    if (count === 0 && approved.isExact) {
       const expected = open.commands[open.next]
 
       return {
@@ -513,17 +544,21 @@ export const register: Register = on => {
           : 'session-reset: every command of the approved preview has run; anything more needs a new preview.',
       }
     }
+    // A command of the preview moves it on; another one runs too, under the operator's approve.
     const from = open.next
-    await $.state.set(PREVIEW, { ...open, next: from + count })
+    if (count > 0) {
+      await $.state.set(PREVIEW, { ...open, next: from + count })
+    }
     const ran = await next(e)
     if (ran.deny !== undefined || ran.isError === true || FAILED_OUTPUT.test(ran.text ?? '')) {
       approved.hasFailed = true
       const now = await preview($)
-      if (now) {
+      if (now && count > 0) {
         await $.state.set(PREVIEW, { ...now, next: Math.min(now.next, from) })
       }
     } else {
       approved.writes += judged.writes
+      approved.hasCommitted ||= judged.commits === true
     }
 
     return ran
@@ -537,7 +572,7 @@ export const register: Register = on => {
   on('tool.call', { tool: 'Monitor' }, ($, e, next) => {
     const judged = e.command === undefined ? { writes: 0 } : judge(e.command)
     return judged.writes > 0
-      ? { deny: 'session-reset: git and gh writes run only through Bash, from an approved Ready to commit preview.' }
+      ? { deny: 'session-reset: git and gh writes run only through Bash, after the operator approves a preview.' }
       : next(e)
   }).catch(($, e, next) => (next.called ? next(e) : { deny: 'session-reset: its git gate failed on this monitor.' }))
 
@@ -551,19 +586,24 @@ export const register: Register = on => {
     held = undefined
     const open = await preview($)
     const hasRunAll = open !== null && open.next >= open.commands.length
-    const isDone = turn !== undefined && e.reason === 'answer' && turn.writes > 0 && !turn.hasFailed && hasRunAll
-    // A preview stays open until all its commands ran or a new preview replaces it.
-    const shown = READY.test(e.answer) ? previewCommands(e.answer) : []
+    // The session restarts after a commit, once every command of the preview ran; a batch
+    // that only switches or tags keeps it.
+    const isDone = turn !== undefined && e.reason === 'answer' && !turn.hasFailed && turn.hasCommitted && hasRunAll
+    // A preview stays open until all its commands ran or a new preview replaces it. An
+    // approve answers the last answer's preview: an answer with none closes it.
+    const shown = PREVIEWED.test(e.answer) ? previewCommands(e.answer) : []
     if (shown.length > 0) {
       await $.state.set(PREVIEW, { commands: shown, next: 0, at: await $.clock.now(), isReviewed: REVIEWED.test(e.answer) })
-    } else if (hasRunAll && turn !== undefined && turn.writes > 0) {
+    } else if (hasRunAll && turn !== undefined && turn.writes > 0 && !turn.hasFailed) {
+      await $.state.set(PREVIEW, null)
+    } else if (turn === undefined && e.reason === 'answer') {
       await $.state.set(PREVIEW, null)
     }
     const current = await session($)
     let pilot = await autopilot($)
     // After a run, autopilot counts the commit and stops at a failure, its target, its
     // count or the checkpoint.
-    if (pilot && turn !== undefined && (turn.writes > 0 || turn.hasFailed)) {
+    if (pilot && turn !== undefined && (turn.hasCommitted || turn.hasFailed)) {
       const target = pilot.target
       const count = turn.hasFailed ? pilot.count : pilot.count + 1
       let why = turn.hasFailed
@@ -587,16 +627,18 @@ export const register: Register = on => {
       restart($, current.id, pilot ? [turn.note, UNDER_AUTOPILOT].filter(n => n !== '').join('; ') : turn.note)
     } else if (pilot && current?.id === pilot.id && shown.length > 0 && e.reason === 'answer') {
       // A new preview under autopilot: approve it, or say why it waits for the operator.
-      const why = autopilotWaits(e.answer, shown)
+      const why = READY.test(e.answer) ? autopilotWaits(e.answer, shown) : 'it is no Ready to commit preview'
       if (why) {
         await setAutopilot($, { ...pilot, waiting: 'your approve' })
         $.ui.toast(`Autopilot waits for your approve: ${why}.`, { timeoutMs: 15000 })
       } else {
-        approved = { note: '', writes: 0, hasFailed: false }
+        approved = { note: '', writes: 0, hasFailed: false, hasCommitted: false, isExact: true }
         submitAsPerson($, 'approve')
       }
     } else if (isDone && (await workspaceRoot($, await $.session.cwd()))) {
       $.ui.toast('No restart: this conversation was not started with /session <ID>.', { timeoutMs: 15000 })
+    } else if (current && turn?.hasCommitted && !turn.hasFailed && !hasRunAll && e.reason === 'answer') {
+      $.ui.toast('No restart: not every command of the preview ran. Say "committed" to restart.', { timeoutMs: 15000 })
     } else if (current && turn?.note) {
       $.ui.toast(`No restart, so your note was not passed on: "${turn.note}"`, { timeoutMs: 15000 })
     }

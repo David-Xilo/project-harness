@@ -107,7 +107,7 @@ describe('session start', () => {
 
     expect(w.runs).toEqual([['setsid', '-w', 'zsh', '-ic', 'alias -L']])
     const gp = await $.tool.call(bash('gp'))
-    expect(gp.deny).toContain('approved Ready to commit preview')
+    expect(gp.deny).toContain('operator approves a preview')
   })
 
   test('warns when the aliases cannot be read', async ($, on) => {
@@ -124,10 +124,10 @@ describe('approve gate', () => {
     await $.session.start(start)
 
     expect((await $.tool.call(bash('git status'))).deny).toBeUndefined()
-    expect((await $.tool.call(bash('git commit -m "docs: x"'))).deny).toContain('approved Ready to commit preview')
+    expect((await $.tool.call(bash('git commit -m "docs: x"'))).deny).toContain('operator approves a preview')
     expect((await $.tool.call(bash('git push --force'))).deny).toContain('never run')
     expect((await $.tool.call(bash('gh-harden acme/x'))).deny).toBeUndefined()
-    expect((await $.tool.call(bash('gh-harden acme/x --apply'))).deny).toContain('approved Ready to commit preview')
+    expect((await $.tool.call(bash('gh-harden acme/x --apply'))).deny).toContain('operator approves a preview')
   })
 
   test('an approve with a condition is not an approval', async ($, on) => {
@@ -163,7 +163,7 @@ describe('approve gate', () => {
     expect((await $.tool.call(bash('git add docs/plan.md'))).deny).toBeUndefined()
   })
 
-  test('runs the approved preview in order, then restarts the workspace session with the note', async ($, on) => {
+  test('runs the approved preview, then restarts the workspace session with the note', async ($, on) => {
     const w = world(on)
     await $.session.start(start)
     await $.command.run({ command: 'session', args: 'S1', origin: COMPOSER, presentation: { isFullscreen: false, columns: 80 } })
@@ -171,13 +171,111 @@ describe('approve gate', () => {
 
     const sent = await $.prompt.submit({ text: 'approve, go A.4', wait: false, origin: COMPOSER })
     expect(sent.text).toBe('approve')
-    expect((await $.tool.call(bash('git commit -m "docs: plan"'))).deny).toContain('next: git add docs/plan.md')
     expect((await $.tool.call(bash('git add docs/plan.md'))).deny).toBeUndefined()
     expect((await $.tool.call(bash('git commit -m "docs: plan"'))).deny).toBeUndefined()
     await $.turn.complete(turn('Committed.'))
     await w.settle()
 
     expect(w.commands).toEqual(['/session S1', '/clear', '/session S1 go A.4'])
+    // The approve covered that turn only.
+    expect((await $.tool.call(bash('git push'))).deny).toContain('operator approves a preview')
+  })
+
+  // 2026-10-13: a checkpoint's "Preview: switch to the release branches" was no Ready to
+  // commit preview, so its approved switches were refused.
+  test("the operator's approve runs any preview's git writes, and restarts only after a commit", async ($, on) => {
+    const w = world(on)
+    await $.session.start(start)
+    await $.command.run(typed('session', 'CP2'))
+    const answer = ['Preview: switch to the release branches', '', '```sh', 'git -C a switch -c release/cp2 abc # approved', '```'].join('\n')
+    await $.turn.complete(turn(answer))
+
+    // No commit, so no Review: line is needed.
+    expect((await $.prompt.submit({ text: 'approve', wait: false, origin: COMPOSER })).context).toBeUndefined()
+    expect((await $.tool.call(bash('git -C a switch -c release/cp2 abc # approved'))).deny).toBeUndefined()
+    expect((await $.tool.call(bash('git -C b switch -c release/cp2 def # approved'))).deny).toBeUndefined()
+    expect((await $.tool.call(bash('git push --force'))).deny).toContain('never run')
+    await $.turn.complete(turn('Switched.'))
+    await w.settle()
+    expect(w.commands).toEqual(['/session CP2'])
+
+    await $.turn.complete(turn(PREVIEW_ANSWER))
+    await $.prompt.submit({ text: 'approve', wait: false, origin: COMPOSER })
+    expect((await $.tool.call(bash('git add docs/plan.md docs/other.md'))).deny).toBeUndefined()
+    expect((await $.tool.call(bash('git commit -m "docs: plan"'))).deny).toBeUndefined()
+    await $.turn.complete(turn('Committed.'))
+    await w.settle()
+    expect(w.commands).toEqual(['/session CP2', '/clear', '/session CP2'])
+  })
+
+  test('an approve needs a preview, and an unshown commit needs its Review: line', async ($, on) => {
+    world(on)
+    await $.session.start(start)
+
+    // No preview open: an approve lets nothing run.
+    await $.prompt.submit({ text: 'approve', wait: false, origin: COMPOSER })
+    expect((await $.tool.call(bash('git push'))).deny).toContain('operator approves a preview')
+
+    // A code block in an answer that names no preview is none.
+    await $.turn.complete(turn(['You could run:', '```', 'git push origin development', '```'].join('\n')))
+    await $.prompt.submit({ text: 'approve', wait: false, origin: COMPOSER })
+    expect((await $.tool.call(bash('git push origin development'))).deny).toContain('operator approves a preview')
+
+    // A preview with no commit and no Review: line: its approve lets no commit run.
+    await $.turn.complete(turn(['Preview: tag the release', '', '```', 'git tag -s v1 -m "after git commit"', '```'].join('\n')))
+    expect((await $.prompt.submit({ text: 'approve', wait: false, origin: COMPOSER })).context).toBeUndefined()
+    expect((await $.tool.call(bash('git tag -s v1 -m "after git commit"'))).deny).toBeUndefined()
+    expect((await $.tool.call(bash('git -C "a b" --no-pager commit -m "x"'))).deny).toContain('not in the approved preview')
+  })
+
+  test('an answer with no preview closes the open one, and /approve then says so', async ($, on) => {
+    world(on)
+    await $.session.start(start)
+    await $.turn.complete(turn(PREVIEW_ANSWER))
+    await $.turn.complete(turn('Approach A keeps the parser; B rewrites it. Which one?'))
+
+    await $.prompt.submit({ text: 'approve', wait: false, origin: COMPOSER })
+    expect((await $.tool.call(bash('git push'))).deny).toContain('operator approves a preview')
+    expect((await $.command.run(typed('approve'))).text).toBe('No preview is open: nothing to approve.')
+  })
+
+  test('a corrected command stands in for the preview\'s, but never skips a commit', async ($, on) => {
+    const w = world(on)
+    await $.session.start(start)
+    await $.command.run(typed('session', 'S1'))
+    await $.turn.complete(turn(PREVIEW_ANSWER))
+    await $.prompt.submit({ text: 'approve', wait: false, origin: COMPOSER })
+    // A corrected message for the preview's commit.
+    expect((await $.tool.call(bash('git add docs/plan.md'))).deny).toBeUndefined()
+    expect((await $.tool.call(bash('git commit -m "docs: the plan"'))).deny).toBeUndefined()
+    await $.turn.complete(turn('Committed.'))
+    await w.settle()
+    expect(w.commands).toEqual(['/session S1', '/clear', '/session S1'])
+
+    // The push run first does not count the commit before it as done.
+    const answer = ['Ready to commit', 'Review: docs only, reread', '```', 'git add docs/plan.md', 'git commit -m "docs: plan"', 'git push', '```'].join('\n')
+    await $.turn.complete(turn(answer))
+    await $.prompt.submit({ text: 'approve', wait: false, origin: COMPOSER })
+    expect((await $.tool.call(bash('git push'))).deny).toBeUndefined()
+    await $.turn.complete(turn('Pushed.'))
+    await w.settle()
+    expect(w.commands).toEqual(['/session S1', '/clear', '/session S1'])
+    expect(w.state.get('preview')).toMatchObject({ next: 0 })
+  })
+
+  test('no restart until every command of the preview ran', async ($, on) => {
+    const w = world(on)
+    await $.session.start(start)
+    await $.command.run(typed('session', 'S1'))
+    await $.turn.complete(turn(['Ready to commit', 'Review: docs only, reread', '```', 'git add docs/plan.md', 'git commit -m "docs: plan"', 'git push', '```'].join('\n')))
+    await $.prompt.submit({ text: 'approve', wait: false, origin: COMPOSER })
+    await $.tool.call(bash('git add docs/plan.md'))
+    await $.tool.call(bash('git commit -m "docs: plan"'))
+    await $.turn.complete(turn('Committed.'))
+    await w.settle()
+
+    expect(w.commands).toEqual(['/session S1'])
+    expect(w.toasts.at(-1)).toContain('not every command of the preview ran')
   })
 
   // Regression, 2026-10-11: a commit message in its own code block names git, and was
@@ -194,7 +292,6 @@ describe('approve gate', () => {
 
     expect((await $.tool.call(bash('git add docs/plan.md'))).deny).toBeUndefined()
     expect((await $.tool.call(bash('git commit -m "PUB-1.5: docs and the shipped git rules"'))).deny).toBeUndefined()
-    expect((await $.tool.call(bash('timeout 60 git push'))).deny).toContain('every command of the approved preview has run')
   })
 
   // Regression, 2026-10-11: a note with an apostrophe ("the operator's approve") in the
@@ -214,11 +311,11 @@ describe('approve gate', () => {
   })
 
   test('a preview saved before the Review: check is held', async ($, on) => {
-    world(on, { saved: { preview: { commands: ['git add docs/plan.md'], next: 0, at: 0 } } })
+    world(on, { saved: { preview: { commands: ['git commit -m "docs: plan"'], next: 0, at: 0 } } })
     await $.session.start(start)
 
     await $.prompt.submit({ text: 'approve', wait: false, origin: COMPOSER })
-    expect((await $.tool.call(bash('git add docs/plan.md'))).deny).toContain('no Review: line')
+    expect((await $.tool.call(bash('git commit -m "docs: plan"'))).deny).toContain('no Review: line')
   })
 })
 
@@ -302,6 +399,11 @@ describe('autopilot', () => {
     expect(w.commands.at(-1)).toBe('/session S1 under autopilot')
     expect(w.state.get('autopilot')).toEqual({ id: 'S1', root: ROOT, target: 'PAY-1.3', max: 100, count: 1, waiting: null })
     expect(w.written.get(PILOT_FILE)).toBe(`${ROOT}\tS1\tPAY-1.3\t1\t100\t\n`)
+
+    // Autopilot's approve runs only the preview's commands, in order.
+    await $.turn.complete(turn(stepPreview('PAY-1.2')))
+    await w.settle()
+    expect((await $.tool.call(bash('git push'))).deny).toContain('next: git add src/a.ts')
   })
 
   test('leaves to the operator a preview with an open finding, or one that pushes or amends', async ($, on) => {
@@ -320,7 +422,7 @@ describe('autopilot', () => {
       ...Array(3).fill(expect.stringContaining('leaves a finding open')),
       ...Array(2).fill(expect.stringContaining('more than a plain git add')),
     ])
-    expect((await $.tool.call(bash('git add src/a.ts'))).deny).toContain('approved Ready to commit preview')
+    expect((await $.tool.call(bash('git add src/a.ts'))).deny).toContain('operator approves a preview')
     expect(w.written.get(PILOT_FILE)).toBe(`${ROOT}\tS1\tPAY-1.3\t0\t100\tyour approve\n`)
 
     // A question waits for an answer; the operator's reply clears it.
@@ -328,6 +430,20 @@ describe('autopilot', () => {
     expect(w.written.get(PILOT_FILE)).toContain('\tan answer\n')
     await $.prompt.submit({ text: '1', wait: false, origin: COMPOSER })
     expect(w.written.get(PILOT_FILE)).toBe(`${ROOT}\tS1\tPAY-1.3\t0\t100\t\n`)
+  })
+
+  test('counts only commits: a switch batch the operator approves leaves the count', async ($, on) => {
+    const w = world(on)
+    await piloted($, w, 'PAY-1.3 --max 1')
+    await $.turn.complete(turn(['Preview: switch to the release branch', '```', 'git switch release/cp1 # approved', '```'].join('\n')))
+    await w.settle()
+    await $.prompt.submit({ text: 'approve', wait: false, origin: COMPOSER })
+    expect((await $.tool.call(bash('git switch release/cp1 # approved'))).deny).toBeUndefined()
+    await $.turn.complete(turn('Switched.'))
+    await w.settle()
+
+    expect(w.state.get('autopilot')).toMatchObject({ count: 0, max: 1, waiting: null })
+    expect(w.toasts).toEqual([expect.stringContaining('no Ready to commit preview')])
   })
 
   test('stops after the commit of its target step', async ($, on) => {

@@ -6,6 +6,8 @@ type Segment = { words: string[] }
 export type Judged = {
   // The parts that run a git or gh write (or a script that does).
   writes: number
+  // Whether a part is a git commit.
+  commits?: boolean
   // Why the command may never run, even approved.
   forbidden?: string
 }
@@ -218,8 +220,8 @@ function isOption(arg: string, full: string, shortest: number): boolean {
   return name.length >= shortest && full.startsWith(name)
 }
 
-// "read", "write", or why a git command may never run.
-function judgeGit(args: string[]): 'read' | 'write' | { forbidden: string } {
+// "read", "write", "commit", or why a git command may never run.
+function judgeGit(args: string[]): 'read' | 'write' | 'commit' | { forbidden: string } {
   let i = 0
   let isWrite = false
   for (; i < args.length; i++) {
@@ -268,6 +270,9 @@ function judgeGit(args: string[]): 'read' | 'write' | { forbidden: string } {
     )
   ) {
     return { forbidden: 'add stages explicit paths only, never -A, -u or .' }
+  }
+  if (sub === 'commit') {
+    return 'commit'
   }
   if (isWrite || sub === '') {
     return isWrite ? 'write' : 'read'
@@ -392,6 +397,9 @@ function judgeSegment(words: string[], depth: number, isArgument = false, isPrev
     return { writes: isRead ? 0 : 1 }
   }
   const v = judgeGit(args)
+  if (v === 'commit') {
+    return { writes: 1, commits: true }
+  }
   return v === 'read' ? { writes: 0 } : v === 'write' ? { writes: 1 } : { writes: 1, forbidden: `git ${v.forbidden}` }
 }
 
@@ -399,11 +407,13 @@ export function judge(command: string, depth = 0, isPreview = false): Judged {
   let writes = 0
   let forbidden: string | undefined
   let isOpaque = false
+  let commits = false
   for (const { words } of segments(command)) {
     const one = judgeSegment(words, depth, false, isPreview)
     writes += one.writes
     forbidden ??= one.forbidden
     isOpaque ||= one.isOpaque === true
+    commits ||= one.commits === true
   }
   // A part the parse cannot follow, in a command that names git: count it as a write. A
   // preview line counts only when git is its command, so it is not one there.
@@ -417,7 +427,7 @@ export function judge(command: string, depth = 0, isPreview = false): Judged {
     forbidden = 'the commit message holds a Co-Authored-By or "Generated with" trailer'
   }
 
-  return forbidden ? { writes, forbidden } : { writes }
+  return { writes, ...(commits ? { commits } : {}), ...(forbidden ? { forbidden } : {}) }
 }
 
 // How a command compares with a preview's: continued lines joined, whitespace collapsed,
