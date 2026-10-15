@@ -3,6 +3,14 @@
 Each release is a milestone or a patch between milestones; its tag notes list what it
 brings.
 
+## v0.3.0 (unreleased)
+
+- session-reset logs each preview, approve, git or gh write and approved turn's end (a
+  restart, or why none) to `~/.local/state/super-project/session-reset/<Claude
+  session>.jsonl`. `tooling/mods/session-reset/replay.mjs` runs the local transcripts
+  through the mod and counts the approves of a committing preview that end with no
+  restart, by cause.
+
 ## v0.2.0 (2026-10-14)
 
 - `/autopilot [<step>] [--max N]` in a session: the session-reset mod approves its

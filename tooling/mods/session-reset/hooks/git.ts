@@ -457,6 +457,14 @@ function openQuote(text: string): string {
   return quote
 }
 
+// An answer that names a preview: "Ready to commit", or a heading such as "Preview: switch
+// to the release branches".
+export const PREVIEWED = /^[\s#>*_-]*(?:ready to commit|preview)\b/im
+
+// The preview's review line (~/.claude/CLAUDE.md): "Review: code-review, 1 finding, fixed",
+// also as a list item or in bold ("- **Review:** docs only, reread"); a bare label is none.
+export const REVIEWED = /^[\s>*_-]*Review[*_]*:[*_]*[ \t]*([^\s*_].*)$/im
+
 // The commands of a "Ready to commit" preview: each command inside the answer's fenced code
 // blocks that runs a git or gh write, joined over continued lines, open quotes and heredocs.
 export function previewCommands(answer: string): string[] {

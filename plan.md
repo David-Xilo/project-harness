@@ -1,6 +1,6 @@
 # project-harness plan
 
-Updated 2026-10-14. This plan holds the work left on project-harness itself: tracks, open
+Updated 2026-10-15. This plan holds the work left on project-harness itself: tracks, open
 steps, releases and the decisions they rest on. Setup copies only `workspace/` and
 `module/` into a new workspace, never this file. What is built is described in
 [WORKFLOW.md](WORKFLOW.md) and the [CHANGELOG](CHANGELOG.md); how, in git log.
@@ -103,7 +103,7 @@ operator task is O10.
 
 **Open operator tasks:** none.
 
-**Next:** LOOP-3.1.
+**Next:** LOOP-3.2.
 
 **Notes.**
 - The publish skills (`go-public`, `publish`) were checked by reading, not on a fixture
@@ -120,29 +120,36 @@ operator task is O10.
 
 ### T2 Commit loop (M3)
 
-Why: an approved commit often does not clear and restart the session. Replaying the
-session-reset gate over past transcripts showed about 35 of 177 approves without a
-restart, almost all at the root commit. Two causes account for most of them:
-- **Nothing left to commit.** Another session had already committed the shared root file
-  whole, so `git commit` exits 1, the preview counts as failed, and a re-approve fails the
-  same way.
-- **Wrong working directory.** Preview lines carry no directory, and the shell's
-  directory persists from earlier work. The obvious fix, `cd <root> && …`, is denied as
-  not matching the preview. The bare command fails, and one failure locks every later
+Why: an approved commit often does not clear and restart the session. The replay
+(`node tooling/mods/session-reset/replay.mjs [--list]`) runs the local transcripts through
+the mod as it stands. On 2026-10-15, 92 of 213 approves of a committing preview in a
+workspace session ended with no restart. The causes, most first:
+- **A `cd` the preview did not show (42).** Preview lines carry no directory, and the
+  shell's directory persists from earlier work. The model adds `cd <root> && …`, which
+  does not match the preview. The bare command fails, and one failure locks every later
   command.
+- **Chained differently from the preview (22).** `git add … && git commit …` in one call,
+  or a `git log -1` added to the commit.
+- **Nothing left to commit (10).** Another session had already committed the shared root
+  file whole, so `git commit` exits 1, the preview counts as failed, and a re-approve fails
+  the same way.
+- **The rest:** no git write in the approved turn (8), a preview command an older gate
+  denied (4), signing failures (3), and git reads after the preview, gated as writes (2).
 
-The other causes: chaining that differs from the preview, annotated or template lines
-that can never match, a reworded message, and fenced diff blocks parsed as commands. The
-guard also reads a tool's name in any command as a call to that tool: copying the
-`commit-all` and `push-all` scripts with `cp` was denied.
+Another 32 approves found no open preview: 9 answers said "Ready to commit" but not as a
+heading, and the others reported a failure or showed no preview, so the operator's
+approve answered nothing. Outside workspace sessions the same causes recur, plus a tool's
+name in a command that is not git: copying the `commit-all` and `push-all` scripts with
+`cp` was denied. Annotated or template lines that can never match, a reworded message and
+fenced diff blocks parsed as commands also occur; the replay counts each turn under its
+first cause.
 
 The fix (decision D2): the model stops retyping git commands. On a plain approve, the mod
 runs the preview itself.
 
 | Done | Pri | Step | Depends on | Done when |
 |---|---|---|---|---|
-| [ ] | P0 | LOOP-3.1: session-reset appends a JSONL log under `~/.local/state/`: preview, approve, each command and result, restart or the reason for none. A local replay script over transcripts serves as the regression harness; its data is never committed | M2 | The replay reproduces the failure classes above |
-| [ ] | P0 | LOOP-3.2: Preview contract. Exactly one fenced block tagged `commit` holds the commands, each pinned to an absolute repository path (`git -C <abs>`, `gh` with `--repo`). Diffs and messages go in other blocks and are never parsed. A block with placeholders or annotations is rejected at preview time, with a toast. Update the git rules, `/session` and WORKFLOW.md | LOOP-3.1 | Parser tests pass |
+| [ ] | P0 | LOOP-3.2: Preview contract. Exactly one fenced block tagged `commit` holds the commands, each pinned to an absolute repository path (`git -C <abs>`, `gh` with `--repo`). Diffs and messages go in other blocks and are never parsed. A block with placeholders or annotations is rejected at preview time, with a toast. Update the git rules, `/session` and WORKFLOW.md | — | Parser tests pass |
 | [ ] | P0 | LOOP-3.3: Runner. First a spike: how a mod hands output back to the conversation. Then, on a plain approve, the mod runs the block in order with `$.process.run`, with a timeout long enough for the signing prompt. It stops at the first failure and gives the model the failing command and output to report; on success it restarts. Git writes typed by the model stay denied | LOOP-3.2 | A two-repository preview runs and restarts in a live workspace |
 | [ ] | P0 | LOOP-3.4: Empty commit. Before each `git commit`, if the paths from its `git add` have no diff against HEAD and nothing is staged, record "already committed in `<hash>`" and continue | LOOP-3.3 | The fixture of a root file committed by another session restarts |
 | [ ] | P1 | LOOP-3.5: Recovery. A re-approve resumes at the failed command. `/committed` restarts only after a git check: the preview's paths are clean and each repository's HEAD moved, or the path was already committed. Relax its doubt filter. The band shows "preview n/m ran, failed at …" | LOOP-3.3 | Tests for each path |

@@ -63,12 +63,21 @@ function world(on: On, options: Options = {}): World {
     toasts.push(e.text)
     return { value: undefined }
   })
-  on('fs.read', ($, e) => ({ value: files ? (files[e.path] ?? '') : `${ROOT}\n` }))
+  on('fs.read', ($, e) => {
+    // What the mod wrote reads back; a state file it has not written is missing.
+    const text = written.get(e.path) ?? (e.path.includes('/.local/state/') ? undefined : files ? (files[e.path] ?? '') : `${ROOT}\n`)
+    if (text === undefined) {
+      throw new Error(`ENOENT: ${e.path}`)
+    }
+    return { value: text }
+  })
   on('fs.write', ($, e) => {
     written.set(e.path, e.text)
     return { value: undefined }
   })
+  on('fs.exists', ($, e) => ({ value: written.has(e.path) || !e.path.includes('/.local/state/') }))
   on('session.cwd', () => ({ value: ROOT }))
+  on('session.id', () => ({ value: 'claude-1' }))
   on('prompt.fill', () => ({ isFilled: true }))
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('session.end', ($, e) => ({ sessionId: e.sessionId }))
@@ -105,6 +114,14 @@ const typed = (command: string, args = '') =>
 const stepPreview = (step: string, review = 'Review: code-review, 1 finding, fixed', more: string[] = []) =>
   ['Ready to commit', '', review, '', '```', 'git add src/a.ts', `git commit -m "${step}: a step"`, ...more, '```'].join('\n')
 const PILOT_FILE = `${HOME}/.local/state/super-project/autopilot/_work_acme__S1.tsv`
+const LOG_FILE = `${HOME}/.local/state/super-project/session-reset/claude-1.jsonl`
+// The log's entries, each reduced to its event and the fields named.
+const logged = (w: World, ...fields: string[]) =>
+  (w.written.get(LOG_FILE) ?? '')
+    .trim()
+    .split('\n')
+    .map(line => JSON.parse(line) as Record<string, unknown>)
+    .map(entry => Object.fromEntries(['event', ...fields].filter(f => f in entry).map(f => [f, entry[f]])))
 // The restart note under autopilot with a target.
 const piloting = (step: string) => `under autopilot until ${step} is done (the preview that finishes it says "Step done: ${step}")`
 const REACHED = `status\t${ROOT}\tcheckpoint\t\`S1\`\treached\n`
@@ -190,6 +207,15 @@ describe('approve gate', () => {
     expect(w.commands).toEqual(['/session S1', '/clear', '/session S1 go A.4'])
     // The approve covered that turn only.
     expect((await $.tool.call(bash('git push'))).deny).toContain('operator approves a preview')
+    expect(logged(w, 'via', 'command', 'matched', 'restart', 'args')).toEqual([
+      { event: 'preview' },
+      { event: 'approve', via: 'typed' },
+      { event: 'command', command: 'git add docs/plan.md', matched: 1 },
+      { event: 'command', command: 'git commit -m "docs: plan"', matched: 1 },
+      { event: 'turn', restart: true },
+      { event: 'restart', args: 'S1 go A.4' },
+      { event: 'command', command: 'git push' },
+    ])
   })
 
   // 2026-10-13: a checkpoint's "Preview: switch to the release branches" was no Ready to
@@ -507,6 +533,13 @@ describe('autopilot', () => {
     await commitStep($, w, 'PAY-1.1')
     expect(w.toasts.at(-1)).toContain('failed')
     expect(w.state.get('autopilot')).toBeNull()
+    expect(logged(w, 'failed', 'why', 'off').filter(l => l.event !== 'command' || l.failed !== undefined)).toEqual([
+      { event: 'preview' },
+      { event: 'autopilot' },
+      { event: 'command', failed: 'error: failed' },
+      { event: 'turn', why: 'a command failed' },
+      { event: 'autopilot', off: 'a command of the preview failed' },
+    ])
 
     await $.command.run(typed('autopilot', 'PAY-1.3 --max 1'))
     await $.turn.complete(turn(stepPreview('PAY-1.2')))

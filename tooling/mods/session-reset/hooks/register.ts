@@ -1,7 +1,7 @@
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { SessionResetAutopilot, SessionResetPreview, SessionResetSession } from '../types'
-import { judge, normalize, parseAliases, previewCommands, setAliases } from './git'
+import { judge, normalize, parseAliases, PREVIEWED, previewCommands, REVIEWED, setAliases } from './git'
 
 // The workspace session and the open preview, kept by the host so a hot reload keeps them.
 const SESSION = { plugin: 'session-reset', key: 'session' } as const
@@ -36,13 +36,10 @@ const COMMIT = /^\s*commit(?:\s+it)?\b[\s,.;:!-]*(?:(?:then|next|and)\b[\s,:]*)?
 
 // The words of the "Ready to commit" preview in the model's last answer; autopilot approves
 // only such a preview. The operator approves any answer that names a preview ("Preview:
-// switch to the release branches") and shows git or gh writes in a code block.
+// switch to the release branches", git.ts PREVIEWED) and shows git or gh writes in a code
+// block. Its review line is git.ts REVIEWED.
 const READY = /\bready to commit\b/i
-const PREVIEWED = /^[\s#>*_-]*(?:ready to commit|preview)\b/im
 
-// The preview's review line (~/.claude/CLAUDE.md): "Review: code-review, 1 finding, fixed",
-// also as a list item or in bold ("- **Review:** docs only, reread"); a bare label is none.
-const REVIEWED = /^[\s>*_-]*Review[*_]*:[*_]*[ \t]*([^\s*_].*)$/im
 // A review line that leaves a finding to the operator: "2 left open", "skipped", "wasn't fixed".
 const OPEN_FINDING = /\?|n['’]t\b|\b(?:open|left|remain\w*|unfixed|not|skip\w*|defer\w*|later|ignored?|todo|recorded)\b/i
 // How the session settled its findings: fixed, or kept with a reason ("4 kept as documented
@@ -116,14 +113,73 @@ async function setAutopilot($: EngineInterface, pilot: SessionResetAutopilot | n
   if (!at) {
     return
   }
-  const home = (await $.env.get('HOME')) ?? ''
-  const dir = `${(await $.env.get('XDG_STATE_HOME')) || `${home}/.local/state`}/super-project/autopilot`
+  const dir = await stateDir($, 'autopilot')
   const line = pilot
     ? `${[pilot.root, pilot.id, pilot.target ?? '', pilot.count, pilot.max, pilot.waiting ?? ''].join('\t')}\n`
     : ''
   await $.fs.write(`${dir}/${at.root.replace(/[^\w.-]/g, '_')}__${at.id}.tsv`, line).catch(() => {
     $.ui.toast('session-reset could not write the autopilot state for opsboard.', { timeoutMs: 15000 })
   })
+}
+
+// The commit loop's log: one JSON line per preview, approve, git or gh write, and approved
+// turn's end (restart, or why none), in ${XDG_STATE_HOME:-~/.local/state}/super-project/
+// session-reset/<Claude session>.jsonl. One file per Claude session, so sessions in parallel
+// never write the same file; the writes of one session queue here. The engine has no append,
+// so the file's text stays here and each line rewrites it whole; a full file (LOG_PART) goes
+// on in <Claude session>.2.jsonl, and so on. A file that exists but cannot be read is never
+// written over: the log goes on in the next part. A failed write is lost: the log never stops
+// the gate.
+const LOG_PART = 1024 * 1024
+let logged: Promise<void> = Promise.resolve()
+let logTo: { base: string; part: number; text: string } | undefined
+
+// ${XDG_STATE_HOME:-~/.local/state}/super-project/<name>.
+async function stateDir($: EngineInterface, name: string): Promise<string> {
+  const home = (await $.env.get('HOME')) ?? ''
+  return `${(await $.env.get('XDG_STATE_HOME')) || `${home}/.local/state`}/super-project/${name}`
+}
+
+const logFile = (at: { base: string; part: number }) => (at.part === 1 ? `${at.base}.jsonl` : `${at.base}.${at.part}.jsonl`)
+
+// The first part of the session's log with room left, and its text.
+async function openLog($: EngineInterface, base: string): Promise<{ base: string; part: number; text: string }> {
+  for (let part = 1; ; part++) {
+    if (!(await $.fs.exists(logFile({ base, part })))) {
+      return { base, part, text: '' }
+    }
+    const text = await $.fs.read(logFile({ base, part })).catch(() => undefined)
+    if (text !== undefined && text.length < LOG_PART) {
+      return { base, part, text }
+    }
+  }
+}
+
+function log($: EngineInterface, event: string, fields: Record<string, unknown> = {}): Promise<void> {
+  logged = logged
+    .then(async () => {
+      const base = `${await stateDir($, 'session-reset')}/${await $.session.id()}`
+      if (logTo?.base !== base) {
+        logTo = await openLog($, base)
+      }
+      if (logTo.text.length >= LOG_PART) {
+        logTo = { base, part: logTo.part + 1, text: '' }
+      }
+      const current = await session($)
+      const line = JSON.stringify({ at: new Date(await $.clock.now()).toISOString(), event, id: current?.id ?? null, ...fields })
+      await $.fs.write(logFile(logTo), `${logTo.text}${line}\n`)
+      logTo.text += `${line}\n`
+    })
+    .catch(() => undefined)
+
+  return logged
+}
+
+// A failed command's output, enough to tell why it failed: git puts the reason first
+// ("fatal: …") or last ("no changes added to commit").
+function excerpt(text: string | undefined): string {
+  const out = (text ?? '').trim()
+  return out.length <= 600 ? out : `${out.slice(0, 300)} … ${out.slice(-300)}`
 }
 
 // A value from the tooling config, by the rules of `sp-config`: KEY=value lines in
@@ -204,10 +260,12 @@ function restart($: EngineInterface, id: string, note: string) {
   $.clock.after(0, async () => {
     try {
       const carried = await carry($)
+      await log($, 'restart', { args })
       try {
         await $.command.run({ command: 'clear' })
       } catch (error) {
         pendingArgs = args
+        await log($, 'restart-refused', { error: String(error) })
         await refused($, '/clear', error, `; /session ${args} follows`)
         return
       }
@@ -302,6 +360,35 @@ function holdReason(note: string, open: SessionResetPreview | null): string | un
   return commits && open.isReviewed !== true ? UNREVIEWED : undefined
 }
 
+// Why the log says an approve was held, if it was.
+function heldFields(reason: string | undefined, open: SessionResetPreview | null): { held?: string } {
+  if (reason !== undefined) {
+    return { held: reason === HELD ? 'a question or a condition' : 'no Review: line' }
+  }
+
+  return open === null ? { held: 'no preview open' } : {}
+}
+
+// Why an approved turn ends with no restart, or undefined when it restarts (in a workspace
+// session): after a commit, once every command of the preview ran. A batch that only switches
+// or tags keeps the session.
+function noRestart(turn: Approved, open: SessionResetPreview | null, reason: string): string | undefined {
+  if (turn.hasFailed) {
+    return 'a command failed'
+  }
+  if (reason !== 'answer') {
+    return `the turn ended: ${reason}`
+  }
+  if (!turn.hasCommitted) {
+    return 'no commit ran'
+  }
+  if (open === null || open.next < open.commands.length) {
+    return `${open?.next ?? 0} of ${open?.commands.length ?? 0} commands ran`
+  }
+
+  return undefined
+}
+
 // Submit the answer of "/approve" or "/commit" as the person's words. The mod's own hooks
 // do not see this prompt, so the command hook sets the turn's state first.
 function submitAsPerson($: EngineInterface, text: string) {
@@ -368,7 +455,9 @@ export const register: Register = on => {
 
   on('command.run', { command: ['approve', 'commit'] }, async ($, e) => {
     const note = e.args.trim()
-    held = holdReason(note, await preview($))
+    const open = await preview($)
+    held = holdReason(note, open)
+    await log($, 'approve', { via: `/${e.command}`, note, ...heldFields(held, open) })
     if (held === HELD) {
       approved = undefined
       submitAsPerson($, `approve, ${note}`)
@@ -382,7 +471,7 @@ export const register: Register = on => {
 
       return { text: 'Held: the preview has no Review: line. git writes are blocked for this turn.' }
     }
-    if ((await preview($)) === null) {
+    if (open === null) {
       return { text: 'No preview is open: nothing to approve.' }
     }
     approved = { note, writes: 0, hasFailed: false, hasCommitted: false, isExact: false }
@@ -495,6 +584,7 @@ export const register: Register = on => {
     if (!current) {
       return { text: 'No /session ID in this session, so there is nothing to restart.' }
     }
+    await log($, 'committed', { via: '/committed' })
     await takeOver($)
     restart($, current.id, e.args.trim())
 
@@ -522,12 +612,16 @@ export const register: Register = on => {
     // In every session: an approve with a question or a condition, or of a preview with
     // no Review: line, is not an approval.
     held = approve ? holdReason(approve[1] ?? '', open) : undefined
+    if (approve) {
+      await log($, 'approve', { via: 'typed', note: (approve[1] ?? '').trim(), ...heldFields(held, open) })
+    }
     if (held !== undefined) {
       return next({ ...e, context: [...(e.context ?? []), held] })
     }
     const current = await session($)
     const committed = current ? COMMITTED.exec(e.text) : null
     if (current && committed && !DOUBT.test(e.text)) {
+      await log($, 'committed', { via: 'typed' })
       await takeOver($)
       restart($, current.id, (committed[1] ?? '').trim())
 
@@ -552,25 +646,28 @@ export const register: Register = on => {
     if (judged.writes === 0) {
       return next(e)
     }
+    const refuse = async (deny: string) => {
+      await log($, 'command', { command: e.command, denied: deny })
+      return { deny }
+    }
     if (judged.forbidden) {
-      return { deny: `session-reset: never run: ${judged.forbidden} (~/.claude/CLAUDE.md).` }
+      return refuse(`session-reset: never run: ${judged.forbidden} (~/.claude/CLAUDE.md).`)
     }
     if (e.agentId !== undefined) {
-      return { deny: 'session-reset: a subagent never runs git or gh writes; the main session runs them after approve.' }
+      return refuse('session-reset: a subagent never runs git or gh writes; the main session runs them after approve.')
     }
     if (held !== undefined) {
-      return { deny: held }
+      return refuse(held)
     }
     const open = await preview($)
     if (!approved || !open) {
-      return {
-        deny:
-          'session-reset: git and gh writes run only after the operator approves a preview. ' +
+      return refuse(
+        'session-reset: git and gh writes run only after the operator approves a preview. ' +
           'Show the preview (~/.claude/CLAUDE.md) and wait for "approve".',
-      }
+      )
     }
     if (approved.hasFailed) {
-      return { deny: 'session-reset: a command of the approved preview failed; stop and report it.' }
+      return refuse('session-reset: a command of the approved preview failed; stop and report it.')
     }
     let count = matches(e.command, open)
     // Under the operator's approve a corrected command stands in for the preview's: a later
@@ -589,16 +686,16 @@ export const register: Register = on => {
             : 0
     }
     if (judged.commits === true && open.isReviewed !== true && !open.commands.some(c => judge(c).commits === true)) {
-      return { deny: 'session-reset: this commit is not in the approved preview, which has no Review: line. Review, then show a new preview.' }
+      return refuse('session-reset: this commit is not in the approved preview, which has no Review: line. Review, then show a new preview.')
     }
     if (count === 0 && approved.isExact) {
       const expected = open.commands[open.next]
 
-      return {
-        deny: expected
+      return refuse(
+        expected
           ? `session-reset: not the next command of the approved preview. Run them one by one, as shown; next: ${expected}`
           : 'session-reset: every command of the approved preview has run; anything more needs a new preview.',
-      }
+      )
     }
     // A command of the preview moves it on; another one runs too, under the operator's approve.
     const from = open.next
@@ -606,7 +703,9 @@ export const register: Register = on => {
       await $.state.set(PREVIEW, { ...open, next: from + count })
     }
     const ran = await next(e)
-    if (ran.deny !== undefined || ran.isError === true || FAILED_OUTPUT.test(ran.text ?? '')) {
+    const hasFailed = ran.deny !== undefined || ran.isError === true || FAILED_OUTPUT.test(ran.text ?? '')
+    await log($, 'command', { command: e.command, matched: count, ...(hasFailed ? { failed: ran.deny ?? excerpt(ran.text) } : {}) })
+    if (hasFailed) {
       approved.hasFailed = true
       const now = await preview($)
       if (now && count > 0) {
@@ -618,19 +717,36 @@ export const register: Register = on => {
     }
 
     return ran
-  }).catch(($, e, next) =>
-    next.called || !/\b(git|gh|commit-all|push-all)\b/.test(e.command)
-      ? next(e)
-      : { deny: 'session-reset: its git gate failed, so git and gh writes are blocked.' },
-  )
+  }).catch(($, e, next) => {
+    if (next.called || !/\b(git|gh|commit-all|push-all)\b/.test(e.command)) {
+      return next(e)
+    }
+    const deny = 'session-reset: its git gate failed, so git and gh writes are blocked.'
+    // Not awaited: a catch handler answers within a grace.
+    void log($, 'command', { command: e.command, denied: deny, error: String(next.error) })
+
+    return { deny }
+  })
 
   // A monitor runs its command unseen in the background: never a git or gh write.
-  on('tool.call', { tool: 'Monitor' }, ($, e, next) => {
+  on('tool.call', { tool: 'Monitor' }, async ($, e, next) => {
     const judged = e.command === undefined ? { writes: 0 } : judge(e.command)
-    return judged.writes > 0
-      ? { deny: 'session-reset: git and gh writes run only through Bash, after the operator approves a preview.' }
-      : next(e)
-  }).catch(($, e, next) => (next.called ? next(e) : { deny: 'session-reset: its git gate failed on this monitor.' }))
+    if (judged.writes === 0) {
+      return next(e)
+    }
+    const deny = 'session-reset: git and gh writes run only through Bash, after the operator approves a preview.'
+    await log($, 'command', { command: e.command, denied: deny, tool: 'Monitor' })
+
+    return { deny }
+  }).catch(($, e, next) => {
+    if (next.called) {
+      return next(e)
+    }
+    const deny = 'session-reset: its git gate failed on this monitor.'
+    void log($, 'command', { command: e.command, denied: deny, tool: 'Monitor', error: String(next.error) })
+
+    return { deny }
+  })
 
   // After all the approved commands ran, with a git write and no failed command, restart.
   on('turn.complete', async ($, e, next) => {
@@ -642,26 +758,28 @@ export const register: Register = on => {
     held = undefined
     const open = await preview($)
     const hasRunAll = open !== null && open.next >= open.commands.length
-    // The session restarts after a commit, once every command of the preview ran; a batch
-    // that only switches or tags keeps it.
-    const isDone = turn !== undefined && e.reason === 'answer' && !turn.hasFailed && turn.hasCommitted && hasRunAll
+    const missed = turn === undefined ? undefined : noRestart(turn, open, e.reason)
+    const isDone = turn !== undefined && missed === undefined
     // A preview stays open until all its commands ran or a new preview replaces it. An
     // approve answers the last answer's preview: an answer with none closes it.
     const shown = PREVIEWED.test(e.answer) ? previewCommands(e.answer) : []
+    const isReviewed = shown.length > 0 && REVIEWED.test(e.answer)
+    const done = shown.length > 0 ? stepsDone(e.answer) : undefined
     if (shown.length > 0) {
-      await $.state.set(PREVIEW, {
-        commands: shown,
-        next: 0,
-        at: await $.clock.now(),
-        isReviewed: REVIEWED.test(e.answer),
-        done: stepsDone(e.answer),
-      })
+      await $.state.set(PREVIEW, { commands: shown, next: 0, at: await $.clock.now(), isReviewed, done })
     } else if (hasRunAll && turn !== undefined && turn.writes > 0 && !turn.hasFailed) {
       await $.state.set(PREVIEW, null)
     } else if (turn === undefined && e.reason === 'answer') {
       await $.state.set(PREVIEW, null)
     }
     const current = await session($)
+    if (turn !== undefined) {
+      const why = missed ?? (!current ? 'no /session ID' : isRestarting ? 'a restart was already running' : undefined)
+      await log($, 'turn', why === undefined ? { restart: true } : { restart: false, why })
+    }
+    if (shown.length > 0) {
+      await log($, 'preview', { commands: shown, isReviewed, done })
+    }
     let pilot = await autopilot($)
     let stopped: string | undefined
     // After a run, autopilot counts the commit and stops at a failure, its target, its
@@ -683,6 +801,7 @@ export const register: Register = on => {
       pilot = why ? null : { ...pilot, count, waiting: null }
       await setAutopilot($, pilot)
       if (why) {
+        await log($, 'autopilot', { off: why })
         stopped = `autopilot is off (${why}): name your next step and wait for me`
         $.ui.toast(`Autopilot off: ${why}.`, { timeoutMs: 15000 })
       }
@@ -693,6 +812,7 @@ export const register: Register = on => {
     } else if (pilot && current?.id === pilot.id && shown.length > 0 && e.reason === 'answer') {
       // A new preview under autopilot: approve it, or say why it waits for the operator.
       const why = READY.test(e.answer) ? autopilotWaits(e.answer, shown) : 'it is no Ready to commit preview'
+      await log($, 'autopilot', why ? { waits: why } : { approves: true })
       if (why) {
         await setAutopilot($, { ...pilot, waiting: 'your approve' })
         $.ui.toast(`Autopilot waits for your approve: ${why}.`, { timeoutMs: 15000 })
