@@ -1,12 +1,15 @@
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { SessionResetAutopilot, SessionResetPreview, SessionResetSession } from '../types'
-import { judge, normalize, parseAliases, PREVIEWED, previewCommands, REVIEWED, setAliases } from './git'
+import { commitBlock, judge, normalize, parseAliases, REVIEWED, setAliases } from './git'
 
 // The workspace session and the open preview, kept by the host so a hot reload keeps them.
 const SESSION = { plugin: 'session-reset', key: 'session' } as const
 const PREVIEW = { plugin: 'session-reset', key: 'preview' } as const
 const AUTOPILOT = { plugin: 'session-reset', key: 'autopilot' } as const
+// Why the last answer's commit block opened no preview, told to the model when an approve
+// finds none open.
+const REJECTED = { plugin: 'session-reset', key: 'rejected' } as const
 
 // The session IDs the workspace plans define: S1, CP5, CP, W, publish-<repo>.
 const SESSION_ID = /^(?:S\d+|CP\d*|W|publish-[\w./-]+)$/
@@ -35,9 +38,8 @@ const APPROVE = /^\s*approved?\b[\s,.;:!-]*(?:(?:then|next|and)\b[\s,:]*)?([\s\S
 const COMMIT = /^\s*commit(?:\s+it)?\b[\s,.;:!-]*(?:(?:then|next|and)\b[\s,:]*)?([\s\S]*?)[\s,.;:!]*$/i
 
 // The words of the "Ready to commit" preview in the model's last answer; autopilot approves
-// only such a preview. The operator approves any answer that names a preview ("Preview:
-// switch to the release branches", git.ts PREVIEWED) and shows git or gh writes in a code
-// block. Its review line is git.ts REVIEWED.
+// only such a preview. The operator approves any answer whose ```commit block holds its
+// commands (git.ts commitBlock), whatever its title. Its review line is git.ts REVIEWED.
 const READY = /\bready to commit\b/i
 
 // A review line that leaves a finding to the operator: "2 left open", "skipped", "wasn't fixed".
@@ -56,7 +58,7 @@ const STEP_ID = /^[A-Z][A-Z0-9]*-\d+(?:\.\d+)*$/
 // in bold.
 const STEP_DONE = /^[\s#>*_\d.-]*Steps? done[*_]*:[*_]*[ \t]*(.+)$/gim
 // The only commands autopilot approves: a git add or a git commit, each on its own.
-const ADD_OR_COMMIT = /^git\s+(?:-C\s+\S+\s+)?(add|commit)\s/
+const ADD_OR_COMMIT = /^git\s+(?:-C\s+(?:"[^"]*"|'[^']*'|\S+)\s+)?(add|commit)\s/
 // A commit that rewrites one: --amend, --fixup, --squash (git takes these prefixes).
 const REWRITES = /\s--(?:am|fix|squ)/
 // What the restarted session reads in its note (/session).
@@ -472,7 +474,8 @@ export const register: Register = on => {
       return { text: 'Held: the preview has no Review: line. git writes are blocked for this turn.' }
     }
     if (open === null) {
-      return { text: 'No preview is open: nothing to approve.' }
+      const rejected = (await $.state.get(REJECTED)).value
+      return { text: rejected ? `No preview is open: ${rejected}` : 'No preview is open: nothing to approve.' }
     }
     approved = { note, writes: 0, hasFailed: false, hasCommitted: false, isExact: false }
     submitAsPerson($, 'approve')
@@ -552,6 +555,7 @@ export const register: Register = on => {
       await setAutopilot($, null)
     }
     await $.state.set(PREVIEW, null)
+    await $.state.set(REJECTED, null)
     const ran = await next(e)
     if (args && carried) {
       $.clock.after(0, () => reopen($, args, carried))
@@ -574,6 +578,7 @@ export const register: Register = on => {
     pendingArgs = undefined
     await $.state.set(SESSION, null)
     await $.state.set(PREVIEW, null)
+    await $.state.set(REJECTED, null)
     await setAutopilot($, null)
 
     return next(e)
@@ -661,9 +666,11 @@ export const register: Register = on => {
     }
     const open = await preview($)
     if (!approved || !open) {
+      const rejected = (await $.state.get(REJECTED)).value
       return refuse(
         'session-reset: git and gh writes run only after the operator approves a preview. ' +
-          'Show the preview (~/.claude/CLAUDE.md) and wait for "approve".',
+          'Show the preview (~/.claude/CLAUDE.md) and wait for "approve".' +
+          (rejected ? ` Your last answer opened none: ${rejected}` : ''),
       )
     }
     if (approved.hasFailed) {
@@ -762,11 +769,18 @@ export const register: Register = on => {
     const isDone = turn !== undefined && missed === undefined
     // A preview stays open until all its commands ran or a new preview replaces it. An
     // approve answers the last answer's preview: an answer with none closes it.
-    const shown = PREVIEWED.test(e.answer) ? previewCommands(e.answer) : []
+    const block = commitBlock(e.answer)
+    const shown = block?.commands ?? []
+    const rejected = block?.problem ?? null
+    await $.state.set(REJECTED, rejected)
     const isReviewed = shown.length > 0 && REVIEWED.test(e.answer)
     const done = shown.length > 0 ? stepsDone(e.answer) : undefined
     if (shown.length > 0) {
       await $.state.set(PREVIEW, { commands: shown, next: 0, at: await $.clock.now(), isReviewed, done })
+    } else if (rejected !== null) {
+      // A preview the mod cannot run closes the last one: an approve answers this answer.
+      await $.state.set(PREVIEW, null)
+      $.ui.toast(`Preview not opened: ${rejected}`, { timeoutMs: 15000 })
     } else if (hasRunAll && turn !== undefined && turn.writes > 0 && !turn.hasFailed) {
       await $.state.set(PREVIEW, null)
     } else if (turn === undefined && e.reason === 'answer') {
@@ -779,6 +793,8 @@ export const register: Register = on => {
     }
     if (shown.length > 0) {
       await log($, 'preview', { commands: shown, isReviewed, done })
+    } else if (rejected !== null) {
+      await log($, 'preview', { rejected })
     }
     let pilot = await autopilot($)
     let stopped: string | undefined

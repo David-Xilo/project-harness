@@ -81,7 +81,8 @@ Never print what `leak-check` matched.
      <owner>/<repo>` prints only `ok` and `ui`.
    - The first release: the annotated, signed tag (`git -C <repo> tag -s v0.1.0 -m
      "<notes>"`), pushed, and `gh release create v0.1.0 --verify-tag --notes-from-tag`
-     run inside the checkout (it refuses `-R`). CI passes on the tag.
+     run inside the checkout (it refuses `-R`): in the preview's `commit` block, `cd
+     <absolute repo path> && gh release create …`. CI passes on the tag.
 
 ## The "Public repository" section
 

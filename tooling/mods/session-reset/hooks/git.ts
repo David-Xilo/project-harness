@@ -308,7 +308,7 @@ type SegmentJudged = Judged & { isOpaque?: boolean }
 
 // `isArgument`: the words are a tail of another command's ("timeout 60 git push"), where zsh
 // expands no alias. `isPreview`: the words are a line of a preview, so git counts only as the
-// command itself, never as a word inside another program's line (see previewCommands).
+// command itself, never as a word inside another program's line (see blockCommands).
 function judgeSegment(words: string[], depth: number, isArgument = false, isPreview = false): SegmentJudged {
   let i = 0
   const env: string[] = []
@@ -431,9 +431,15 @@ export function judge(command: string, depth = 0, isPreview = false): Judged {
 }
 
 // How a command compares with a preview's: continued lines joined, whitespace collapsed,
-// the "# approved" marker optional.
+// the "# approved" marker optional, and a cd before a pinned git left out (it changes
+// nothing).
 export function normalize(command: string): string {
-  return command.replace(/\\\n/g, ' ').replace(/\s+#\s*approved\s*$/i, '').replace(/\s+/g, ' ').trim()
+  return command
+    .replace(/\\\n/g, ' ')
+    .replace(/\s+#\s*approved\s*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^cd \S+ ?&& ?(?=git -C )/, '')
 }
 
 // The quote a line ends inside ('' when none), so the command goes on in the next line.
@@ -465,44 +471,193 @@ export const PREVIEWED = /^[\s#>*_-]*(?:ready to commit|preview)\b/im
 // also as a list item or in bold ("- **Review:** docs only, reread"); a bare label is none.
 export const REVIEWED = /^[\s>*_-]*Review[*_]*:[*_]*[ \t]*([^\s*_].*)$/im
 
-// The commands of a "Ready to commit" preview: each command inside the answer's fenced code
-// blocks that runs a git or gh write, joined over continued lines, open quotes and heredocs.
-export function previewCommands(answer: string): string[] {
+// A fenced code block: its fence, its info string ("commit", "sh") and its body.
+export const FENCED = /^[ \t]*(`{3,}|~{3,})([^\n]*)\n([\s\S]*?)^[ \t]*\1[ \t]*$/gm
+
+// The preview's commands (~/.claude/CLAUDE.md): one fenced block tagged `commit`, each line
+// one git or gh write pinned to its repository. A git or gh read there ("git log -1") is
+// left out: it runs unchecked. `problem` says why the block is no preview; undefined when
+// the answer has none and names no preview.
+export type CommitBlock = { commands: string[]; problem?: undefined } | { commands?: undefined; problem: string }
+
+export function commitBlock(answer: string): CommitBlock | undefined {
+  const blocks = [...answer.matchAll(FENCED)]
+  const tagged = blocks.filter(b => (b[2] as string).trim().split(/\s+/)[0] === 'commit')
+  if (tagged.length === 0) {
+    const isShown = PREVIEWED.test(answer) && blocks.some(b => blockCommands(b[3] as string).some(c => judge(c, 0, true).writes > 0))
+    return isShown ? { problem: 'its git commands are not in a ```commit block' } : undefined
+  }
+  if (tagged.length > 1) {
+    return { problem: `${tagged.length} commit blocks; one block holds every command` }
+  }
+  const commands: string[] = []
+  for (const command of blockCommands((tagged[0] as RegExpMatchArray)[3] as string)) {
+    const why = unfit(command)
+    if (why === READ) {
+      continue
+    }
+    if (why) {
+      return { problem: `${why}: ${command.split('\n')[0]}` }
+    }
+    commands.push(command)
+  }
+
+  return commands.length > 0 ? { commands } : { problem: 'the commit block holds no git or gh write' }
+}
+
+const READ = 'a read'
+// A leading `cd <absolute path> &&`: the pin of a command that runs only inside its checkout
+// (`gh release create --notes-from-tag` reads the local tag and refuses --repo).
+const CD_PIN = /^cd\s+(?:\/\S*|"\/[^"]*"|'\/[^']*')\s*&&\s*/
+
+// Why a line of the commit block cannot run as it stands, READ for a git or gh read, or
+// undefined when it can.
+function unfit(command: string): string | undefined {
+  const cd = CD_PIN.exec(command)
+  const rest = cd ? command.slice(cd[0].length) : command
+  const top = topLevel(rest)
+  const name = top.trim().split(/\s+/)[0] ?? ''
+  const isChained = /&&|\|\||[;|\n]|(?<![>&])&(?![>&])/.test(top.trim())
+  const judged = judge(rest, 0, true)
+  if (judged.writes === 0) {
+    return GIT_LIKE.has(name) && !isChained ? READ : 'not a git or gh write'
+  }
+  if (judged.forbidden) {
+    return `never runs (${judged.forbidden})`
+  }
+  if (isChained) {
+    return 'one command per line'
+  }
+  // `# approved` after a command that moves HEAD is the git-guard hook's marker, not a note.
+  const note = /(?:^|\s)#\s*(.*)$/m.exec(top)
+  if (note && !/^approved\s*$/i.test(note[1] as string)) {
+    return 'a note in the block'
+  }
+  if (/<[^<>\s]+>|…|(?:^|\s)\.\.\.(?:\s|$)/.test(top)) {
+    return 'a placeholder'
+  }
+  if (!GIT_LIKE.has(name)) {
+    return 'not a git or gh command first'
+  }
+  const words = segments(rest).find(s => s.words[0] === name)?.words ?? []
+  const [, first = '', second = ''] = words
+  const isPinned =
+    cd !== null ||
+    (name === 'git'
+      ? first === '-C' && second.startsWith('/')
+      : name === 'gh'
+        ? words.some((w, k) => ((w === '-R' || w === '--repo') && k + 1 < words.length) || w.startsWith('--repo=')) ||
+          (first === 'api' && words.some(w => /^\/?repos\/[\w.-]+\/[\w.-]+/.test(w)))
+        : name === 'push-all'
+          ? first.startsWith('/')
+          : /^[\w.-]+\/[\w.-]+$/.test(first))
+  return isPinned
+    ? undefined
+    : 'not pinned to its repository (git -C <absolute path>, gh --repo <owner>/<name>, or cd <absolute path> && <command>)'
+}
+
+// The command as the shell reads it at the top: quoted text and $( ) emptied (a heredoc
+// inside one too), a heredoc's body dropped, an escaped character kept as a plain one.
+function topLevel(command: string): string {
+  let out = ''
+  let quote = ''
+  for (let i = 0; i < command.length; i++) {
+    const c = command[i] as string
+    if (c === '$' && command[i + 1] === '(' && quote !== "'") {
+      i = substitutionEnd(command, i + 2)
+    } else if (quote !== '') {
+      if (c === '\\' && quote === '"') {
+        i++
+      } else if (c === quote) {
+        quote = ''
+        out += c
+      }
+    } else if (c === '\\') {
+      i++
+      out += 'x'
+    } else if (c === "'" || c === '"') {
+      quote = c
+      out += c
+    } else if (c === '<' && command[i + 1] === '<') {
+      return out + (command.slice(i).split('\n')[0] as string)
+    } else {
+      out += c
+    }
+  }
+
+  return out
+}
+
+// Where the `)` is that closes a $( ) whose text starts at `from`; quotes and a heredoc's
+// body inside it are skipped.
+function substitutionEnd(command: string, from: number): number {
+  let depth = 1
+  let quote = ''
+  for (let i = from; i < command.length; i++) {
+    const c = command[i] as string
+    if (quote !== '') {
+      if (c === '\\' && quote === '"') {
+        i++
+      } else if (c === quote) {
+        quote = ''
+      }
+      continue
+    }
+    const here = c === '<' ? /^<<-?\s*(['"]?)([\w.-]+)\1[^\n]*\n/.exec(command.slice(i)) : null
+    if (here) {
+      let at = i + here[0].length
+      for (;;) {
+        const nl = command.indexOf('\n', at)
+        const line = command.slice(at, nl < 0 ? command.length : nl)
+        if (line.trim() === here[2] || nl < 0) {
+          at = nl < 0 ? command.length : nl
+          break
+        }
+        at = nl + 1
+      }
+      i = at - 1
+    } else if (c === "'" || c === '"') {
+      quote = c
+    } else if (c === '(') {
+      depth++
+    } else if (c === ')' && --depth === 0) {
+      return i
+    }
+  }
+
+  return command.length
+}
+
+// Each command of a code block's body, joined over continued lines, open quotes and heredocs.
+export function blockCommands(body: string): string[] {
   const out: string[] = []
-  for (const block of answer.matchAll(/^[ \t]*(`{3,}|~{3,})[^\n]*\n([\s\S]*?)^[ \t]*\1[ \t]*$/gm)) {
-    const lines = (block[2] as string).split('\n')
-    for (let i = 0; i < lines.length; i++) {
-      let line = (lines[i] as string).replace(/^\s*\$\s+/, '').trim()
-      if (line === '') {
-        continue
-      }
-      // An open quote goes on in the next lines only when the line, closed where it breaks,
-      // is a git or gh command: a note such as "the operator's approve" is not one, and must
-      // not join the commands after it.
-      const quote = openQuote(line)
-      const joins = quote === '' || judge(line + quote, 0, true).writes > 0
-      while ((/\\$/.test(line) || (joins && openQuote(line) !== '')) && i + 1 < lines.length) {
-        line = /\\$/.test(line) ? `${line.slice(0, -1)} ${(lines[++i] as string).trim()}` : `${line}\n${lines[++i]}`
-      }
-      // A heredoc goes on to its end line, unless the open-quote join above already took it
-      // ("-m "$(cat <<'EOF' … EOF )"").
-      const here = /<<-?\s*(['"]?)([\w.-]+)\1/.exec(line)
-      const isEnded = here !== null && line.slice(here.index).split('\n').slice(1).some(l => l.trim() === here[2])
-      if (here && !isEnded) {
-        while (i + 1 < lines.length) {
-          const next = lines[++i] as string
-          line = `${line}\n${next}`
-          if (next.trim() === here[2]) {
-            break
-          }
+  const lines = body.split('\n')
+  for (let i = 0; i < lines.length; i++) {
+    let line = (lines[i] as string).replace(/^\s*\$\s+/, '').trim()
+    if (line === '') {
+      continue
+    }
+    // An open quote goes on in the next lines only when the line, closed where it breaks,
+    // is a git or gh command: a note such as "the operator's approve" is not one, and must
+    // not join the commands after it.
+    const quote = openQuote(line)
+    const joins = quote === '' || judge(line + quote, 0, true).writes > 0
+    while ((/\\$/.test(line) || (joins && openQuote(line) !== '')) && i + 1 < lines.length) {
+      line = /\\$/.test(line) ? `${line.slice(0, -1).trimEnd()} ${(lines[++i] as string).trim()}` : `${line}\n${lines[++i]}`
+    }
+    // A heredoc the shell reads (not "<<EOF" inside a quoted message) goes on to its end
+    // line; one inside a quoted $( ) came whole with the open quote above.
+    const here = /<<-?\s*(['"]?)([\w.-]+)\1/.exec(topLevel(line))
+    if (here) {
+      while (i + 1 < lines.length) {
+        const next = lines[++i] as string
+        line = `${line}\n${next}`
+        if (next.trim() === here[2]) {
+          break
         }
       }
-      // Only a line whose command is git or gh: a commit message or a note in a code block
-      // ("docs: the shipped git rules") is not a command, even when it names git.
-      if (judge(line, 0, true).writes > 0) {
-        out.push(line)
-      }
     }
+    out.push(line)
   }
 
   return out

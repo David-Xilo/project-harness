@@ -103,7 +103,7 @@ operator task is O10.
 
 **Open operator tasks:** none.
 
-**Next:** LOOP-3.2.
+**Next:** LOOP-3.3.
 
 **Notes.**
 - The publish skills (`go-public`, `publish`) were checked by reading, not on a fixture
@@ -122,35 +122,35 @@ operator task is O10.
 
 Why: an approved commit often does not clear and restart the session. The replay
 (`node tooling/mods/session-reset/replay.mjs [--list]`) runs the local transcripts through
-the mod as it stands. On 2026-10-15, 92 of 213 approves of a committing preview in a
-workspace session ended with no restart. The causes, most first:
-- **A `cd` the preview did not show (42).** Preview lines carry no directory, and the
-  shell's directory persists from earlier work. The model adds `cd <root> && …`, which
-  does not match the preview. The bare command fails, and one failure locks every later
-  command.
-- **Chained differently from the preview (22).** `git add … && git commit …` in one call,
-  or a `git log -1` added to the commit.
-- **Nothing left to commit (10).** Another session had already committed the shared root
+the mod as it stands. A preview from before the commit block (LOOP-3.2) gets one, each
+line pinned to the directory the same command ran in, and each recorded git write is
+pinned the same way, as a model that keeps the contract would type it; a model that does
+not shows only in the live log. Before the commit block, 92 of 213 approves of a
+committing preview in a workspace session ended with no restart, 42 of them on a `cd` the
+preview did not show. With it, on 2026-10-15, 98 of 241 did. What is left, most first:
+- **Denied when recorded (44).** An older gate denied a command the current one lets run,
+  so the replay cannot tell how the turn would have gone.
+- **Chained differently from the preview (28).** A read (`git log -1`, `git diff --stat`)
+  chained onto the writes, or the writes chained in another order.
+- **Nothing left to commit (11).** Another session had already committed the shared root
   file whole, so `git commit` exits 1, the preview counts as failed, and a re-approve fails
   the same way.
-- **The rest:** no git write in the approved turn (8), a preview command an older gate
-  denied (4), signing failures (3), and git reads after the preview, gated as writes (2).
+- **The rest:** no git write in the approved turn (9), signing failures (3), git commands
+  after the preview ran (2), and a turn that ran 2 of 4 commands (1).
 
-Another 32 approves found no open preview: 9 answers said "Ready to commit" but not as a
-heading, and the others reported a failure or showed no preview, so the operator's
-approve answered nothing. Outside workspace sessions the same causes recur, plus a tool's
-name in a command that is not git: copying the `commit-all` and `push-all` scripts with
-`cp` was denied. Annotated or template lines that can never match, a reworded message and
-fenced diff blocks parsed as commands also occur; the replay counts each turn under its
-first cause.
+Another 25 approves found no open preview: the answer showed none or reported a failure.
+The commit block rule would have refused 6 previews: `add -A` or `.` (3), `commit-all`
+(1), a note (1) and a wrapper before git (1). Outside workspace sessions the same causes
+recur, plus a tool's name in a command that is not git: copying the `commit-all` and
+`push-all` scripts with `cp` was denied. The replay counts each turn under its first
+cause.
 
 The fix (decision D2): the model stops retyping git commands. On a plain approve, the mod
 runs the preview itself.
 
 | Done | Pri | Step | Depends on | Done when |
 |---|---|---|---|---|
-| [ ] | P0 | LOOP-3.2: Preview contract. Exactly one fenced block tagged `commit` holds the commands, each pinned to an absolute repository path (`git -C <abs>`, `gh` with `--repo`). Diffs and messages go in other blocks and are never parsed. A block with placeholders or annotations is rejected at preview time, with a toast. Update the git rules, `/session` and WORKFLOW.md | — | Parser tests pass |
-| [ ] | P0 | LOOP-3.3: Runner. First a spike: how a mod hands output back to the conversation. Then, on a plain approve, the mod runs the block in order with `$.process.run`, with a timeout long enough for the signing prompt. It stops at the first failure and gives the model the failing command and output to report; on success it restarts. Git writes typed by the model stay denied | LOOP-3.2 | A two-repository preview runs and restarts in a live workspace |
+| [ ] | P0 | LOOP-3.3: Runner. First a spike: how a mod hands output back to the conversation. Then, on a plain approve, the mod runs the block in order with `$.process.run`, with a timeout long enough for the signing prompt. It stops at the first failure and gives the model the failing command and output to report; on success it restarts. Git writes typed by the model stay denied | — | A two-repository preview runs and restarts in a live workspace |
 | [ ] | P0 | LOOP-3.4: Empty commit. Before each `git commit`, if the paths from its `git add` have no diff against HEAD and nothing is staged, record "already committed in `<hash>`" and continue | LOOP-3.3 | The fixture of a root file committed by another session restarts |
 | [ ] | P1 | LOOP-3.5: Recovery. A re-approve resumes at the failed command. `/committed` restarts only after a git check: the preview's paths are clean and each repository's HEAD moved, or the path was already committed. Relax its doubt filter. The band shows "preview n/m ran, failed at …" | LOOP-3.3 | Tests for each path |
 | [ ] | P0 | LOOP-3.6: Fixtures for every failure class: empty root commit, wrong directory, signing failure, diff lines in the preview, an unbalanced apostrophe, several roots, template tag lines, a tool name in a non-git command | LOOP-3.4 | The replay restarts after every approve whose commands succeed; one week of live use confirms it from the log |

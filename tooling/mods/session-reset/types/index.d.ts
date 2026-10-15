@@ -24,6 +24,8 @@ declare module 'claude-code' {
     'session-reset': {
       session: SessionResetSession | null
       preview: SessionResetPreview | null
+      // Why the last answer's commit block opened no preview.
+      rejected: string | null
       autopilot: SessionResetAutopilot | null
     }
   }

@@ -14,13 +14,29 @@ commands.
    - a `Review:` line: what `code-review` found and what was fixed (`Review: code-review,
      2 findings, both fixed`), or `Review: docs only, reread` when no code changed;
    - the exact commit message;
-   - every command you plan to run, word for word: `git add <explicit paths>` (never `-A`
-     or `.`), `git commit -m "…"`, and any `push`, `tag -a`, `switch`, `merge` or
-     `gh release`.
+   - every command you plan to run, word for word, in one fenced code block tagged
+     `commit`, one command per line: `git add <explicit paths>` (never `-A` or `.`),
+     `git commit -m "…"`, and any `push`, `tag -a`, `switch`, `merge` or `gh release`.
+     Pin each line to its repository: `git -C <absolute path> …`, `gh … --repo
+     <owner>/<name>`, `push-all <absolute root>`; a command that must run inside its
+     checkout (`gh release create --notes-from-tag`, which refuses `--repo`) as `cd
+     <absolute path> && <command>`. No other `cd` or `&&`, no placeholders, and no
+     comment but the `# approved` that rule 2 asks for. Reads (`git log -1`) may stand in
+     the block but are not checked. Diffs, status and messages go in other blocks, which
+     are never read as commands.
 
-   Then stop and wait. A batch with no commit (a checkpoint's switches or tags) is shown
-   the same way under a heading that starts with "Preview", with its commands and no
-   `Review:` line.
+   ````
+   ```commit
+   git -C /home/me/work/acme/web add src/app.ts plan.md
+   git -C /home/me/work/acme/web commit -m "WEB-2.1: the app shell"
+   ```
+   ````
+
+   Then stop and wait. Run the block's lines one by one, as shown. A block that breaks
+   these rules opens no preview: the session-reset mod says why in a toast, and an
+   approve of it lets nothing run. A batch with no commit (a checkpoint's switches or
+   tags) is shown the same way under a heading that starts with "Preview", with its
+   `commit` block and no `Review:` line; the block, not the heading, makes it a preview.
 2. **"approve"** (or "commit", `/approve`, `/commit`) means run those commands, in that
    order. Any preview counts, whatever its title (a checkpoint's batch of switches or
    tags too). In that turn the session-reset mod lets any other git or gh write run that

@@ -15,12 +15,18 @@
 // answers with that denial, so the replay sees it fail; its cause is read from its shape. A
 // preview from before the Review: rule gets a Review: line, so the gate does not hold its
 // approve.
+//
+// A preview from before the commit block (LOOP-3.2) becomes one: its git and gh writes, each
+// pinned to the directory the same command later ran in, else the one the answer was given
+// in. Each recorded git or gh write is pinned the
+// same way, to the directory it ran in (a leading cd included), as a model that keeps the
+// contract types it. A gh command with no --repo gets --repo replay/unknown on both sides.
 
 import { spawnSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { registerHooks } from 'node:module'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 
 // The mod imports './git' with no extension, as the mod loader resolves it.
 registerHooks({
@@ -37,7 +43,9 @@ registerHooks({
 })
 
 const MOD = new URL('./hooks/register.ts', import.meta.url).href
-const { judge, normalize, PREVIEWED, REVIEWED } = await import(new URL('./hooks/git.ts', import.meta.url).href)
+const { blockCommands, commitBlock, FENCED, judge, normalize, PREVIEWED, REVIEWED } = await import(
+  new URL('./hooks/git.ts', import.meta.url).href
+)
 const STATE = '/replay-state'
 const PLUGIN = { kind: 'plugin', name: 'session-reset' }
 const COMPOSER = { kind: 'composer' }
@@ -167,6 +175,42 @@ function slashCommand(text) {
   return { command: name[1].trim(), args: (/<command-args>([\s\S]*?)<\/command-args>/.exec(text)?.[1] ?? '').trim() }
 }
 
+// A command as the contract has it: a leading cd folded in, each git pinned with -C to an
+// absolute directory, push-all given its root, gh given a --repo.
+function pinned(command, cwd) {
+  const cd = /^\s*cd\s+("[^"]*"|'[^']*'|\S+)\s*(?:&&|;)\s*/.exec(command)
+  const dir = cd ? resolve(cwd, cd[1].replace(/^["']|["']$/g, '').replace(/^~(?=\/|$)/, homedir())) : cwd
+  const rest = cd ? command.slice(cd[0].length) : command
+  return rest
+    .replace(/(^|&&\s*|;\s*|\|\|\s*)git\s+-C\s+(?!\/)(\S+)/g, (_, before, path) => `${before}git -C ${resolve(dir, path)}`)
+    .replace(/(^|&&\s*|;\s*|\|\|\s*)git\s+(?!-C\s)/g, `$1git -C ${dir} `)
+    .replace(/(^|&&\s*|;\s*)push-all(?=\s*(?:$|&&|;))/g, `$1push-all ${dir}`)
+    .replace(/(^|&&\s*|;\s*)gh\s+(?![^\n]*(?:\s-R\s|--repo))(\S+)\s+(\S+)/g, '$1gh $2 $3 --repo replay/unknown')
+}
+
+// A command with its git -C directories left out, to find where a preview line ran.
+const unpinned = command => normalize(command).replace(/\bgit -C \S+ /g, 'git ')
+
+// An answer from before the commit block, with one: its git and gh writes (the old reading
+// of a preview), each pinned as the next of `later` (the pinned commands run after it, && parts
+// apart, taken in order) that is the same command, else to `cwd`. An answer with a commit block, or no
+// preview, is as it was.
+function asCommitBlock(answer, cwd, later) {
+  if (/^[ \t]*(`{3,}|~{3,})commit\b/m.test(answer) || !(PREVIEWED.test(answer) || /\bready to commit\b/i.test(answer))) {
+    return answer
+  }
+  let from = 0
+  const commands = [...answer.matchAll(FENCED)]
+    .flatMap(b => blockCommands(b[3]))
+    .filter(c => judge(c, 0, true).writes > 0)
+    .map(c => {
+      const k = later.findIndex((ran, i) => i >= from && unpinned(ran) === unpinned(c))
+      from = k < 0 ? from : k + 1
+      return k < 0 ? pinned(c, cwd) : later[k]
+    })
+  return commands.length === 0 ? answer : `${answer}\n\n\`\`\`commit\n${commands.join('\n')}\n\`\`\``
+}
+
 // Replays one transcript; returns the mod's log, each entry with the transcript line it came from.
 async function replay(file, text) {
   const rows = text
@@ -189,6 +233,15 @@ async function replay(file, text) {
       }
     }
   }
+  // Each git or gh write the transcript ran, pinned as the replay fires it (a row with no cwd
+  // keeps the last one), by the line it ran at.
+  let cwd = rows.find(r => r.cwd)?.cwd ?? ''
+  const ran = rows.flatMap(row => {
+    cwd = row.cwd ?? cwd
+    return (row.type === 'assistant' && Array.isArray(row.message?.content) ? row.message.content : [])
+      .filter(c => c.type === 'tool_use' && c.name === 'Bash' && typeof c.input?.command === 'string' && judge(c.input.command).writes > 0)
+      .flatMap(c => pinned(c.input.command, cwd).split(/\s+&&\s+/).map(command => ({ line: row.line, command })))
+  })
   const lines = []
   let seen = 0
   // The answer an approve answered, to tell why the gate found no preview in it.
@@ -205,7 +258,9 @@ async function replay(file, text) {
   const complete = async reason => {
     if (turn) {
       answered = turn.answer
-      const answer = PREVIEWED.test(turn.answer) && !REVIEWED.test(turn.answer) ? `${turn.answer}\n\nReview: replayed` : turn.answer
+      const after = turn.line
+      const blocked = asCommitBlock(turn.answer, mod.at.cwd, ran.filter(r => r.line > after).slice(0, 40).map(r => r.command))
+      const answer = commitBlock(blocked)?.commands && !REVIEWED.test(blocked) ? `${blocked}\n\nReview: replayed` : blocked
       await mod.fire('turn.complete', { answer, reason, durationMs: 1, isAborted: reason === 'aborted', turnId: 't' }, e => ({ text: e.answer }))
       mark(turn.line)
       turn = undefined
@@ -271,7 +326,8 @@ async function replay(file, text) {
           continue
         }
         const result = results.get(c.id) ?? { text: '<tool_use_error>no recorded result</tool_use_error>', isError: true }
-        await mod.fire('tool.call', { tool: 'Bash', command: c.input.command, description: c.input.description ?? '' }, () => result)
+        const command = judge(c.input.command).writes > 0 ? pinned(c.input.command, row.cwd ?? mod.at.cwd) : c.input.command
+        await mod.fire('tool.call', { tool: 'Bash', command, description: c.input.description ?? '' }, () => result)
         mark(row.line)
       }
     }
@@ -303,7 +359,8 @@ function cause(approve) {
     if (/every command of the approved preview has run/.test(out)) {
       return 'a git command after the preview ran'
     }
-    if (shown.has(normalize(c.command))) {
+    // The gate matched it to the preview (`matched`), but it ran under an older gate.
+    if (shown.has(normalize(c.command)) || c.matched > 0) {
       return /^<tool_use_error>|Permission for this action was denied/.test(out)
         ? 'a preview command was denied when recorded'
         : `a preview command failed: ${out.split('\n')[0].slice(0, 60)}`
@@ -358,6 +415,8 @@ const WORTH = /approve|"git |git -C/
 
 const approves = []
 const held = new Map()
+// Previews the commit block rule opened none for, by problem.
+const rejected = new Map()
 const unopened = []
 let replayed = 0
 let failedFiles = 0
@@ -380,6 +439,10 @@ for (const file of files) {
   for (const entry of lines) {
     if (entry.event === 'preview') {
       preview = entry.commands
+      if (entry.rejected) {
+        const why = entry.rejected.split(':')[0]
+        rejected.set(why, (rejected.get(why) ?? 0) + 1)
+      }
     } else if (entry.event === 'approve' && entry.held) {
       const why = entry.answered === undefined ? entry.held : `${entry.held}: ${unread(entry.answered)}`
       held.set(why, (held.get(why) ?? 0) + 1)
@@ -438,6 +501,9 @@ for (const [why, n] of tally(troubled)) {
 }
 for (const [why, n] of held) {
   console.log(`held approves, ${why}: ${n}`)
+}
+for (const [why, n] of rejected) {
+  console.log(`previews not opened, ${why}: ${n}`)
 }
 if (isList) {
   for (const a of [...missed, ...troubled]) {

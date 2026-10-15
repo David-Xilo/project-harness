@@ -10,6 +10,11 @@ brings.
   session>.jsonl`. `tooling/mods/session-reset/replay.mjs` runs the local transcripts
   through the mod and counts the approves of a committing preview that end with no
   restart, by cause.
+- The preview's commands go in one ```` ```commit ```` block, each line pinned to its
+  repository (`git -C <absolute path>`, `gh … --repo <owner>/<name>`). session-reset reads
+  only that block; one with a note, a placeholder, a chain or an unpinned command opens no
+  preview, and a toast says why. A `cd` before a pinned git command still matches the
+  preview, and a git read in the block is left out.
 
 ## v0.2.0 (2026-10-14)
 

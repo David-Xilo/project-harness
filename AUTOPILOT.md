@@ -153,14 +153,16 @@ terminal 2:  claude  →  /session S2  →  /autopilot PAY-1.3
 In terminal 2, S2 builds PAY-1.1. It runs `code-review` and fixes one finding, cleans up
 its docs, and shows the preview:
 
-```
+````
 Ready to commit
 Review: code-review, 1 finding, fixed
 Step done: PAY-1.1
 ...
-git add src/charge.ts plan.md research.md
-git commit -m "PAY-1.1: a charge records one payment"
+```commit
+git -C /home/me/work/shop/pay add src/charge.ts plan.md research.md
+git -C /home/me/work/shop/pay commit -m "PAY-1.1: a charge records one payment"
 ```
+````
 
 The mod approves it. The commands run, the session restarts with `/session S2`, and the
 band reads `S2 · autopilot 1/100 → PAY-1.3`.

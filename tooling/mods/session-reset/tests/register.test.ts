@@ -6,7 +6,13 @@ const HOME = '/home/op'
 const ROOT = '/work/acme'
 const COMPOSER = { kind: 'composer' } as const
 
-const PREVIEW_ANSWER = ['Ready to commit', '', 'Review: docs only, reread', '', '```', 'git add docs/plan.md', 'git commit -m "docs: plan"', '```'].join('\n')
+// The tests write git bare; the commit block and the Bash calls pin it to ROOT, as the
+// preview contract asks (git -C <absolute path>).
+const pin = (command: string) => command.replace(/^git (?!-C )/, `git -C ${ROOT} `)
+// The preview's commit block.
+const fence = (...lines: string[]) => ['```commit', ...lines.map(pin), '```']
+
+const PREVIEW_ANSWER = ['Ready to commit', '', 'Review: docs only, reread', '', ...fence('git add docs/plan.md', 'git commit -m "docs: plan"')].join('\n')
 
 type World = {
   runs: (readonly string[])[]
@@ -97,7 +103,7 @@ function world(on: On, options: Options = {}): World {
     return { text: e.text, context: e.context }
   })
   on('tool.call', ($, e) => {
-    const text = 'command' in e && typeof e.command === 'string' && fails.includes(e.command) ? 'error: failed' : ''
+    const text = 'command' in e && typeof e.command === 'string' && fails.map(pin).includes(e.command) ? 'error: failed' : ''
     return { result: { stdout: text, stderr: '', interrupted: false }, text }
   })
   on('turn.complete', ($, e) => ({ text: e.answer }))
@@ -105,14 +111,14 @@ function world(on: On, options: Options = {}): World {
   return { runs, toasts, commands, prompts, state, written, setBoard: text => (board = text), settle: () => clock.settle() }
 }
 
-const bash = (command: string) => ({ tool: 'Bash', command, description: '' }) as const
+const bash = (command: string) => ({ tool: 'Bash', command: pin(command), description: '' }) as const
 const turn = (answer: string) => ({ answer, reason: 'answer', durationMs: 1, isAborted: false, turnId: 't' }) as const
 const start = { cwd: ROOT, surface: 'terminal', isInteractive: true } as const
 const typed = (command: string, args = '') =>
   ({ command, args, origin: COMPOSER, presentation: { isFullscreen: false, columns: 80 } }) as const
 // A preview that commits one step, reviewed clean unless told otherwise.
 const stepPreview = (step: string, review = 'Review: code-review, 1 finding, fixed', more: string[] = []) =>
-  ['Ready to commit', '', review, '', '```', 'git add src/a.ts', `git commit -m "${step}: a step"`, ...more, '```'].join('\n')
+  ['Ready to commit', '', review, '', ...fence('git add src/a.ts', `git commit -m "${step}: a step"`, ...more)].join('\n')
 const PILOT_FILE = `${HOME}/.local/state/super-project/autopilot/_work_acme__S1.tsv`
 const LOG_FILE = `${HOME}/.local/state/super-project/session-reset/claude-1.jsonl`
 // The log's entries, each reduced to its event and the fields named.
@@ -210,11 +216,11 @@ describe('approve gate', () => {
     expect(logged(w, 'via', 'command', 'matched', 'restart', 'args')).toEqual([
       { event: 'preview' },
       { event: 'approve', via: 'typed' },
-      { event: 'command', command: 'git add docs/plan.md', matched: 1 },
-      { event: 'command', command: 'git commit -m "docs: plan"', matched: 1 },
+      { event: 'command', command: pin('git add docs/plan.md'), matched: 1 },
+      { event: 'command', command: pin('git commit -m "docs: plan"'), matched: 1 },
       { event: 'turn', restart: true },
       { event: 'restart', args: 'S1 go A.4' },
-      { event: 'command', command: 'git push' },
+      { event: 'command', command: pin('git push') },
     ])
   })
 
@@ -224,13 +230,13 @@ describe('approve gate', () => {
     const w = world(on)
     await $.session.start(start)
     await $.command.run(typed('session', 'CP2'))
-    const answer = ['Preview: switch to the release branches', '', '```sh', 'git -C a switch -c release/cp2 abc # approved', '```'].join('\n')
+    const answer = ['Preview: switch to the release branches', '', ...fence(`git -C ${ROOT}/a switch -c release/cp2 abc # approved`)].join('\n')
     await $.turn.complete(turn(answer))
 
     // No commit, so no Review: line is needed.
     expect((await $.prompt.submit({ text: 'approve', wait: false, origin: COMPOSER })).context).toBeUndefined()
-    expect((await $.tool.call(bash('git -C a switch -c release/cp2 abc # approved'))).deny).toBeUndefined()
-    expect((await $.tool.call(bash('git -C b switch -c release/cp2 def # approved'))).deny).toBeUndefined()
+    expect((await $.tool.call(bash(`git -C ${ROOT}/a switch -c release/cp2 abc # approved`))).deny).toBeUndefined()
+    expect((await $.tool.call(bash(`git -C ${ROOT}/b switch -c release/cp2 def # approved`))).deny).toBeUndefined()
     expect((await $.tool.call(bash('git push --force'))).deny).toContain('never run')
     await $.turn.complete(turn('Switched.'))
     await w.settle()
@@ -259,7 +265,7 @@ describe('approve gate', () => {
     expect((await $.tool.call(bash('git push origin development'))).deny).toContain('operator approves a preview')
 
     // A preview with no commit and no Review: line: its approve lets no commit run.
-    await $.turn.complete(turn(['Preview: tag the release', '', '```', 'git tag -s v1 -m "after git commit"', '```'].join('\n')))
+    await $.turn.complete(turn(['Preview: tag the release', '', ...fence('git tag -s v1 -m "after git commit"')].join('\n')))
     expect((await $.prompt.submit({ text: 'approve', wait: false, origin: COMPOSER })).context).toBeUndefined()
     expect((await $.tool.call(bash('git tag -s v1 -m "after git commit"'))).deny).toBeUndefined()
     expect((await $.tool.call(bash('git -C "a b" --no-pager commit -m "x"'))).deny).toContain('not in the approved preview')
@@ -290,7 +296,7 @@ describe('approve gate', () => {
     expect(w.commands).toEqual(['/session S1', '/clear', '/session S1'])
 
     // The push run first does not count the commit before it as done.
-    const answer = ['Ready to commit', 'Review: docs only, reread', '```', 'git add docs/plan.md', 'git commit -m "docs: plan"', 'git push', '```'].join('\n')
+    const answer = ['Ready to commit', 'Review: docs only, reread', ...fence('git add docs/plan.md', 'git commit -m "docs: plan"', 'git push')].join('\n')
     await $.turn.complete(turn(answer))
     await $.prompt.submit({ text: 'approve', wait: false, origin: COMPOSER })
     expect((await $.tool.call(bash('git push'))).deny).toBeUndefined()
@@ -304,7 +310,7 @@ describe('approve gate', () => {
     const w = world(on)
     await $.session.start(start)
     await $.command.run(typed('session', 'S1'))
-    await $.turn.complete(turn(['Ready to commit', 'Review: docs only, reread', '```', 'git add docs/plan.md', 'git commit -m "docs: plan"', 'git push', '```'].join('\n')))
+    await $.turn.complete(turn(['Ready to commit', 'Review: docs only, reread', ...fence('git add docs/plan.md', 'git commit -m "docs: plan"', 'git push')].join('\n')))
     await $.prompt.submit({ text: 'approve', wait: false, origin: COMPOSER })
     await $.tool.call(bash('git add docs/plan.md'))
     await $.tool.call(bash('git commit -m "docs: plan"'))
@@ -322,7 +328,7 @@ describe('approve gate', () => {
     await $.session.start(start)
     const answer = [
       'Ready to commit', '', '```', ' M docs/plan.md', '```', '', '- **Review:** docs only, reread', '', '', '```', 'PUB-1.5: docs and the shipped git rules', '```', '',
-      '```', 'git add docs/plan.md', 'git commit -m "PUB-1.5: docs and the shipped git rules"', '```',
+      ...fence('git add docs/plan.md', 'git commit -m "PUB-1.5: docs and the shipped git rules"'),
     ].join('\n')
     await $.turn.complete(turn(answer))
     await $.prompt.submit({ text: 'approve', wait: false, origin: COMPOSER })
@@ -331,20 +337,24 @@ describe('approve gate', () => {
     expect((await $.tool.call(bash('git commit -m "PUB-1.5: docs and the shipped git rules"'))).deny).toBeUndefined()
   })
 
-  // Regression, 2026-10-11: a note with an apostrophe ("the operator's approve") in the
-  // commands' code block opened a quote that joined every line after it, the commands too,
-  // so the approved push was refused.
-  test('an unclosed quote outside a command does not join the lines after it', async ($, on) => {
-    world(on)
+  // 2026-10-15, the replay (plan.md T2): notes, unpinned commands and template lines in the
+  // preview's block could never match what ran. Such a block opens no preview, and says why.
+  test('a commit block that cannot run as it stands opens no preview', async ($, on) => {
+    const w = world(on)
     await $.session.start(start)
-    const answer = [
-      'Ready to commit', 'Review: code-review, no findings', '', '```', "Runs after the operator's approve.", 'git add docs/plan.md', 'git push origin development', '```',
-    ].join('\n')
+    await $.turn.complete(turn(PREVIEW_ANSWER))
+    const answer = ['Ready to commit', 'Review: docs only, reread', '', '```commit', "Runs after the operator's approve.", 'git push', '```'].join('\n')
     await $.turn.complete(turn(answer))
-    await $.prompt.submit({ text: 'approve', wait: false, origin: COMPOSER })
+    expect(w.toasts.at(-1)).toBe("Preview not opened: not a git or gh write: Runs after the operator's approve.")
 
-    expect((await $.tool.call(bash('git add docs/plan.md'))).deny).toBeUndefined()
-    expect((await $.tool.call(bash('git push origin development'))).deny).toBeUndefined()
+    await $.prompt.submit({ text: 'approve', wait: false, origin: COMPOSER })
+    const denied = await $.tool.call(bash('git add docs/plan.md'))
+    expect(denied.deny).toContain("Your last answer opened none: not a git or gh write: Runs after the operator's approve.")
+    expect((await $.command.run(typed('approve'))).text).toBe("No preview is open: not a git or gh write: Runs after the operator's approve.")
+    expect(logged(w, 'rejected').filter(e => e.event === 'preview')).toEqual([
+      { event: 'preview' },
+      { event: 'preview', rejected: "not a git or gh write: Runs after the operator's approve." },
+    ])
   })
 
   test('a preview saved before the Review: check is held', async ($, on) => {
@@ -446,7 +456,7 @@ describe('autopilot', () => {
     await $.turn.complete(turn(stepPreview('PAY-1.2', review)))
     await w.settle()
     expect(w.prompts.slice(prompts)).toEqual(['approve'])
-    expect((await $.tool.call(bash('git push'))).deny).toContain('next: git add src/a.ts')
+    expect((await $.tool.call(bash('git push'))).deny).toContain(`next: ${pin('git add src/a.ts')}`)
   })
 
   test('leaves to the operator a preview with an open finding, or one that pushes or amends', async ($, on) => {
@@ -483,7 +493,7 @@ describe('autopilot', () => {
   test('counts only commits: a switch batch the operator approves leaves the count', async ($, on) => {
     const w = world(on)
     await piloted($, w, 'PAY-1.3 --max 1')
-    await $.turn.complete(turn(['Preview: switch to the release branch', '```', 'git switch release/cp1 # approved', '```'].join('\n')))
+    await $.turn.complete(turn(['Preview: switch to the release branch', ...fence('git switch release/cp1 # approved')].join('\n')))
     await w.settle()
     await $.prompt.submit({ text: 'approve', wait: false, origin: COMPOSER })
     expect((await $.tool.call(bash('git switch release/cp1 # approved'))).deny).toBeUndefined()
