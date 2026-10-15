@@ -445,7 +445,7 @@ describe('autopilot', () => {
 
     // The session and autopilot outlive the /clear, which starts a new host session.
     expect(w.commands.at(-1)).toBe(`/session S1 ${piloting('PAY-1.3')}`)
-    expect(w.state.get('session')).toEqual({ id: 'S1', root: ROOT })
+    expect(w.state.get('session')).toEqual({ id: 'S1', root: ROOT, since: 0 })
     expect(w.state.get('autopilot')).toEqual({ id: 'S1', root: ROOT, target: 'PAY-1.3', max: 100, count: 1, waiting: null })
     expect(w.written.get(PILOT_FILE)).toBe(`${ROOT}\tS1\tPAY-1.3\t1\t100\t\n`)
 
@@ -574,7 +574,7 @@ describe('autopilot', () => {
     await $.command.run(typed('clear'))
     await w.settle()
     expect(w.commands.at(-1)).toBe(`/session S1 ${piloting('PAY-1.3')}`)
-    expect(w.state.get('session')).toEqual({ id: 'S1', root: ROOT })
+    expect(w.state.get('session')).toEqual({ id: 'S1', root: ROOT, since: 0 })
     expect(w.state.get('autopilot')).toMatchObject({ id: 'S1', count: 1 })
 
     // Turned off before the person's /clear, autopilot stays off.

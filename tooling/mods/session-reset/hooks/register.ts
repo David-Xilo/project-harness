@@ -142,6 +142,34 @@ async function stateDir($: EngineInterface, name: string): Promise<string> {
   return `${(await $.env.get('XDG_STATE_HOME')) || `${home}/.local/state`}/super-project/${name}`
 }
 
+// The session registry (opsboard): which workspace session each Claude session runs, one
+// file per Claude session in ${XDG_STATE_HOME:-~/.local/state}/super-project/sessions/.
+// Claude Code's own ~/.claude/sessions/<pid>.json says whether the process lives and is busy;
+// opsboard joins the two on the Claude session. Written on /session and on a restart,
+// removed when the Claude session ends (a /clear, a /resume, the process leaving); a file
+// that outlived its process (killed, or a reload lost `enrolled`) matches no live record.
+let enrolled: string | undefined
+
+async function enroll($: EngineInterface, current: SessionResetSession) {
+  const claude = await $.session.id()
+  const since = new Date(current.since ?? (await $.clock.now())).toISOString()
+  const entry = { claude, id: current.id, root: current.root, since }
+  try {
+    await $.fs.write(`${await stateDir($, 'sessions')}/${claude}.json`, `${JSON.stringify(entry)}\n`)
+    enrolled = claude
+  } catch {
+    $.ui.toast('session-reset could not write the session registry for opsboard.', { timeoutMs: 15000 })
+  }
+}
+
+async function unenroll($: EngineInterface, claude: string) {
+  if (enrolled !== claude) {
+    return
+  }
+  enrolled = undefined
+  await $.process.run(['rm', '-f', `${await stateDir($, 'sessions')}/${claude}.json`], { timeoutMs: 5000 }).catch(() => undefined)
+}
+
 const logFile = (at: { base: string; part: number }) => (at.part === 1 ? `${at.base}.jsonl` : `${at.base}.${at.part}.jsonl`)
 
 // The first part of the session's log with room left, and its text.
@@ -242,6 +270,8 @@ async function reopen($: EngineInterface, args: string, carried: Carried) {
   try {
     if (carried.session) {
       await $.state.set(SESSION, carried.session)
+      // Before /session, which the host may refuse: the session runs on either way.
+      await enroll($, carried.session)
     }
     if (carried.pilot) {
       await setAutopilot($, carried.pilot)
@@ -529,7 +559,11 @@ export const register: Register = on => {
     const id = e.args.trim().split(/\s+/)[0] ?? ''
     const root = SESSION_ID.test(id) ? await workspaceRoot($, await $.session.cwd()) : undefined
     if (root) {
-      await $.state.set(SESSION, { id, root })
+      // A restart, or /session again, keeps when the session started.
+      const was = await session($)
+      const since = was?.id === id && was.root === root ? (was.since ?? (await $.clock.now())) : await $.clock.now()
+      await $.state.set(SESSION, { id, root, since })
+      await enroll($, { id, root, since })
     }
     // Another session ID is another session: autopilot was for this one.
     if ((await autopilot($))?.id !== id) {
@@ -565,7 +599,9 @@ export const register: Register = on => {
   })
 
   // The process ends (/exit, ctrl+c): autopilot ends with it. A /clear is handled above.
+  // Every end leaves the registry: a restart's /session enrolls the new Claude session.
   on('session.end', async ($, e, next) => {
+    await unenroll($, e.sessionId)
     if (e.reason !== 'clear') {
       await setAutopilot($, null)
     }

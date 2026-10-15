@@ -1,5 +1,6 @@
-// The workspace session this conversation runs (`/session <ID>`), or null.
-export type SessionResetSession = { id: string; root: string }
+// The workspace session this conversation runs (`/session <ID>`), or null; `since` is when
+// it started (ms), kept over its restarts.
+export type SessionResetSession = { id: string; root: string; since?: number }
 
 // The commands of the open "Ready to commit" preview; `next` is the first one not yet run,
 // `isReviewed` says whether the preview has its `Review:` line, and `done` lists the steps

@@ -3,7 +3,7 @@
 Each release is a milestone or a patch between milestones; its tag notes list what it
 brings.
 
-## v0.3.0 (unreleased)
+## Unreleased
 
 - session-reset logs each preview, approve, git or gh write and approved turn's end (a
   restart, or why none) to `~/.local/state/super-project/session-reset/<Claude
@@ -15,6 +15,9 @@ brings.
   only that block; one with a note, a placeholder, a chain or an unpinned command opens no
   preview, and a toast says why. A `cd` before a pinned git command still matches the
   preview, and a git read in the block is left out.
+- session-reset records which workspace session each Claude session runs in
+  `~/.local/state/super-project/sessions/<Claude session>.json`, written on `/session`
+  and removed when the Claude session ends.
 
 ## v0.2.0 (2026-10-14)
 
