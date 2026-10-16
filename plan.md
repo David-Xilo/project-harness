@@ -1,6 +1,6 @@
 # project-harness plan
 
-Updated 2026-10-15. This plan holds the work left on project-harness itself: tracks, open
+Updated 2026-10-16. This plan holds the work left on project-harness itself: tracks, open
 steps, releases and the decisions they rest on. Setup copies only `workspace/` and
 `module/` into a new workspace, never this file. What is built is described in
 [WORKFLOW.md](WORKFLOW.md) and the [CHANGELOG](CHANGELOG.md); how, in git log.
@@ -72,31 +72,42 @@ section 1).
 
 | Code | Component | Owns | Tracks left |
 |---|---|---|---|
-| DOC | Template docs | README, WORKFLOW, SETUP, `workspace/`, `module/` | T5 |
-| MOD | Mods | session-reset, workspace | T3, then T2 |
-| BIN | Scripts | opsboard, sp-claude-init, session-sweep, commit-all, push-all, leak-check, publish-check, gh-harden | T3 |
+| DOC | Template docs | README, WORKFLOW, SETUP, `workspace/`, `module/` | T6, then T5 |
+| MOD | Mods | session-reset, workspace | T7, then T2 |
+| BIN | Scripts | opsboard, sp-claude-init, session-sweep, commit-all, push-all, leak-check, publish-check, gh-harden | T7 |
 | HOOK | Hooks | git-guard, typecheck, the pre-push hook | — |
 | SKL | Skills and commands | skill templates, `/session`, `/operator-steps` | T5, then T2 |
+| ENG | Engineering skills | `tooling/global-skills/`, `tooling/agents/`, their lines in `tooling/install` | T6, then T7 |
 | PUB | Publishing | `tooling/publish/` (templates, rulesets) | — |
 
 ## Tracks and order
 
-One session at a time works here, from a plain session in this repository; it is not a
-registered root. The tracks run in the order of the table below, so each finishes
-before the next starts.
+Two sessions work here, each a plain session in this repository (it is not a registered
+root), and no component is written by both ([D17](#decisions)). Each runs its tracks in
+the order below, so each track finishes before that session's next one starts.
+
+| Session | Auto mode | Tracks, in order |
+|---|---|---|
+| **H1** | yes | T6, then T5 |
+| **H2** | never: it edits session-reset | T3 (BOARD-4.5), then T7, then T2 |
 
 | Track | Goal | Milestone | Release |
 |---|---|---|---|
 | **T3 Session board** | The ops board shows each session ID: live or not, working, waiting or idle, since when | M4 | v0.3.0 |
-| **T5 Code cleanup** | `/code-cleanup` runs a full maintenance pass on a repository: fewer, truer comments, simpler code, only the tests that matter, and a verdict on its design | M5 | v0.4.0 |
-| **T2 Commit loop** | Every approve whose commands succeed ends in a session restart | M3 | v0.5.0 |
+| **T6 Engineering skills** | pstack's engineering skills, adapted to Claude Code and the git rules, installed as global skills: principles, verification with a test budget, writing, review, understanding, lessons into checks, trails, and the `/rigor` mode with its playbooks | M6 | in ship order |
+| **T5 Code cleanup** | `/code-cleanup` runs a full maintenance pass on a repository: fewer, truer comments, simpler code, only the tests that matter, and a verdict on its design | M5 | in ship order |
+| **T7 PR mode** | A second mode beside approve mode: a session works in its own worktree, each step ends in a PR a verifier on another model checks, and the operator merges | M7 | in ship order |
+| **T2 Commit loop** | Every approve whose commands succeed ends in a session restart | M3 | in ship order |
 
 T1 Public (M1) is done: v0.1.0 and v0.1.1. T4 Autopilot (M2) is done: v0.2.0.
 
-T2 pauses after LOOP-3.2. After T5 comes a spike on worktrees and PRs: sessions working
-in their own worktrees, or as cloud sessions, each step ending in a PR the operator
-merges, with conflicts solved at the merge instead of files owned per session. It
-decides how much of T2's runner (LOOP-3.3 to 3.6) is still needed (D14).
+T2 pauses after LOOP-3.2. T7 starts with the spike D14 asked for: sessions working in
+their own worktrees, or as cloud sessions, each step ending in a PR the operator merges,
+with conflicts solved at the merge instead of files owned per session. It decides how
+much of T2's runner (LOOP-3.3 to 3.6) is still needed.
+
+When H2 needs a DOC edit before H1 releases DOC, it writes it in PRMODE.md, which T7
+creates and owns.
 
 **Waiting on the operator:** the `O<n>` tasks, under "Open operator tasks" in the tracker.
 
@@ -108,13 +119,16 @@ operator task is O10.
 
 **Open operator tasks:** none.
 
-**Next:** CLEAN-5.1 while Gate M4 runs; BOARD-4.5 once it passes.
+**Next:** H1: ENG-6.2. H2: BOARD-4.5 once Gate M4 passes, then PR-7.1.
 
 **Notes.**
 - The publish skills (`go-public`, `publish`) were checked by reading, not on a fixture
   workspace. The first real `/go-public` is their run.
 - Edits to the session-reset mod get no verdict from auto mode's check; make them outside
-  auto mode.
+  auto mode (session H2).
+- From pstack, T6 leaves out `setup-pstack` (Cursor's model config), `make-bot-ui` (Grok
+  bot webhooks) and the `benny` pack (Cursor automations triaging Slack). benny can come
+  back as a `/schedule` routine when a workspace needs it.
 - GitHub drops parameters it does not use from a stored ruleset (`update` on a tag
   ruleset keeps none), so a ruleset file holds only what GitHub keeps, or `gh-harden`
   reads it as different forever.
@@ -179,6 +193,52 @@ and `/ops` join the two; the old attention files (`~/.cache/agents`) are retired
 - [ ] **Gate M4:** the board matches the running sessions for a week (2026-10-16 to
   2026-10-23) → v0.3.0.
 
+### T6 Engineering skills (M6)
+
+Why: the harness says when a session may commit, but little about how well it works.
+pstack (`cursor/plugins`, `pstack/`, MIT) is one engineer's set of skills for rigorous
+work, and most of it is prose that ports to Claude Code. T6 brings in the parts that fit
+approve mode. The parts that need PRs come with T7.
+
+How each skill is ported:
+- It goes in `tooling/global-skills/<name>/`, and `tooling/install` links it to
+  `~/.claude/skills/<name>`. An agent goes in `tooling/agents/`. These skills serve this
+  repository and every workspace; `tooling/skills/` keeps only workspace-workflow skills.
+- Fewer, larger skills, because every skill's description loads into each session: one
+  `principles` skill with a reference per principle, and one mode skill whose playbooks
+  are references.
+- Cursor's `Task` becomes the Agent tool, and "another model family" becomes another
+  Claude model (opus, sonnet, haiku, fable). The Cursor-only parts go: the model rule
+  file, Grok, `cursor-team-kit`, the control skills and `create-skill`. Transcripts are
+  `~/.claude/projects/<cwd slug>/*.jsonl`.
+- Git defers to `git-rules.md`: nothing is committed, pushed or opened outside a preview,
+  and subjects keep the `<ID or area>: …` style.
+- The prose is rewritten in this repository's plain style, and each SKILL.md ends with a
+  line crediting pstack ([tooling/global-skills/LICENSE-pstack](tooling/global-skills/LICENSE-pstack)).
+
+**The test budget.** pstack's habit of proving the change on the real thing comes in,
+but tests must not pile up. A test stays only if it fails when the behaviour breaks and
+passes when only the internals change. Each feature gets one end-to-end path, plus tests
+for its tricky logic. A new test either replaces an old one or says in the preview why
+it is needed.
+
+| Done | Pri | Step | Depends on | Done when |
+|---|---|---|---|---|
+| [ ] | P0 | ENG-6.2: `principles`: an index, and one reference per pstack principle (24). `never-block-on-the-human` holds in PR mode and in read-only work; in approve mode git still waits for the operator | — | `/principles` loads and its index names every reference |
+| [ ] | P0 | ENG-6.3: Verification within the test budget: `prove-it-works` in `principles`, `tdd`, `blast-radius`, `create-verification-skill` and `maintain-verification-skill` (for workspace modules). The budget goes in `tdd` and in `test-behavior-not-implementation` | ENG-6.2 | Each skill runs once on real code |
+| [ ] | P1 | ENG-6.4: Writing: `technical-writing`, and `unslop` with `bro`'s plain voice. `git-rules.md` rule 4 and WORKFLOW.md point at them for docs, commit messages and PR bodies | — | One CHANGELOG entry rewritten with them reads plain |
+| [ ] | P0 | ENG-6.5: Review: the `comment-sicko` agent, `no-comments`, and `interrogate` (two reviewers on different Claude models, the rubric, the code-quality lens and the four buckets). It adds to `code-review`; rule 1 still asks for `code-review` | ENG-6.2 | `/interrogate` on a real diff sorts its findings into the four buckets |
+| [ ] | P1 | ENG-6.6: Understanding: `how`, `why` (git, the GitHub MCP and whatever other MCPs are present), `teach`, `recall` | — | `/how` walks through session-reset correctly |
+| [ ] | P1 | ENG-6.7: Lessons into checks: `correct` (its rule table in AGENTS.md or CLAUDE.md; `replay.mjs` output counts as evidence) and `reflect` (three reviewers; skill edits only after the operator approves) | ENG-6.2 | `/correct` on this repository names a mistake class with evidence |
+| [ ] | P1 | ENG-6.8: Trails and catch-up: `show-me-your-work` with `log.sh` (the trail in `.audit/<session>.tsv`, out of git) and `ketchup`. AUTOPILOT.md: an autopilot run keeps a trail and ends with a ketchup summary | — | A `log.sh` run writes a valid row |
+| [ ] | P2 | ENG-6.9: Framing and fan-out: `in-your-own-words`, `sharpen`, `figure-it-out`, `arena`, `swarm` (on the Agent tool; a Workflow only when the operator asks for one) | — | Each loads |
+| [ ] | P0 | ENG-6.10: The mode skill `rigor`, from `poteto-mode` with `poteto-help` as its help. Playbooks as references: investigation, bug fix, perf, hillclimb, runtime and trace forensics, feature, refactoring, prototype, visual parity, authoring a skill, eval (`claude plugin eval` where it fits), session pickup, pause safely (a handoff or a resume note, no wip commit in approve mode), multi-phase plan (in this plan's format). Also `automate-me`, to draft the operator's own mode from transcripts | ENG-6.2 to 6.9 | `/rigor` on a small bug in a workspace module follows the bug-fix playbook |
+| [ ] | P2 | ENG-6.11: `typescript-best-practices`, for the mods. The module AGENTS.md template names `tdd`, the verify skill and the test budget | ENG-6.3 | The template renders through `sp-new` |
+| [ ] | P1 | ENG-6.12: Docs (WORKFLOW.md section 1, SETUP), CHANGELOG, release | ENG-6.10 | Tagged |
+
+- [ ] **Gate M6:** `/rigor` and `/interrogate` used on real work in a workspace, and the
+  operator keeps them → release.
+
 ### T5 Code cleanup (M5)
 
 Why: sessions add code step by step, and nothing ever takes a step back. Comments go
@@ -204,19 +264,45 @@ What the pass does, in this order:
 Each area is its own reviewed commit (`code-review`, then a preview), so `/autopilot` can
 run the pass and stops at the design proposals.
 
+The passes use T6's skills: comments through `no-comments` and the `comment-sicko`
+agent, tests through the two-edit check of `test-behavior-not-implementation` and the
+test budget, simplify and design through `interrogate`'s code-quality lens, and every
+removal proved safe with `blast-radius`.
+
 | Done | Pri | Step | Depends on | Done when |
 |---|---|---|---|---|
-| [ ] | P0 | CLEAN-5.1: The `code-cleanup` skill (`tooling/skills/code-cleanup/SKILL.md`): the passes above, the scope argument, the rule that behaviour stays the same, one commit per area, design changes only as proposals. List it in WORKFLOW.md, README and SETUP | M4 | The skill is installed by `sp-claude-init` |
+| [ ] | P0 | CLEAN-5.1: The `code-cleanup` skill (`tooling/skills/code-cleanup/SKILL.md`): the passes above on T6's skills, the scope argument, the rule that behaviour stays the same, one commit per area, design changes only as proposals. List it in WORKFLOW.md, README and SETUP | ENG-6.5 | The skill is installed by `sp-claude-init` |
 | [ ] | P0 | CLEAN-5.2: First run on this repository, then on a real workspace module; fix the skill from what it got wrong | CLEAN-5.1 | Both runs end with the tests passing and the operator agrees with what was removed |
-| [ ] | P1 | CLEAN-5.3: CHANGELOG, release | CLEAN-5.2 | v0.4.0 tagged |
+| [ ] | P1 | CLEAN-5.3: CHANGELOG, release | CLEAN-5.2 | Tagged |
 
 - [ ] **Gate M5:** `/code-cleanup` runs on a real workspace module, its commits pass review
-  and the operator keeps them → v0.4.0.
+  and the operator keeps them → release.
+
+### T7 PR mode (M7)
+
+Why: in approve mode every commit waits for the operator, and sessions own files so they
+never collide. pstack works the other way: each agent has its own branch, opens a PR,
+another model verifies it, and conflicts are solved at the merge. T7 adds that as a
+second mode, the way `/autopilot` was added, and is the spike D14 asked for. Approve mode
+stays as it is. In PR mode a session commits freely on its own branch in its own
+worktree. The gate moves to the PR: a verifier's verdict, then the operator's merge. One
+writer owns the stack's topology (pstack's autopilot-stack).
+
+| Done | Pri | Step | Depends on | Done when |
+|---|---|---|---|---|
+| [ ] | P0 | PR-7.1: Spike: a worktree per session (`git worktree add … # approved`) or a cloud session, a branch per step, how session-reset tells PR mode from approve mode and what it lets run there. Write D16 | BOARD-4.5 | D16 written and the operator agrees |
+| [ ] | P0 | PR-7.2: PRMODE.md. The lifecycle: a step, commits on the session's branch, a PR with a briefing body, a verifier on another model (`interrogate`, then prove-it-works on the real artifact), a ledger row per PR and head SHA, and the operator's merge. Also: pstack's brief template for spawned agents, liveness judged by side effects, never-block-on-the-human inside the session's own branch, and a wip commit there to pause | PR-7.1 | The operator has read it and agrees |
+| [ ] | P0 | PR-7.3: session-reset in PR mode: `git add`, `git commit` and `git push` of the session's own branch in its worktree run without an approve; `gh pr create` runs from a preview; a merge, a force-push, a retarget and other branches stay forbidden or wait for an approve | PR-7.2 | Tests for each allowed and refused command (gate logic, so within the budget) |
+| [ ] | P0 | PR-7.4: workspace mod: the write guard by worktree in PR mode; the band shows the step's PR and its verdict | PR-7.3 | A live workspace session runs in PR mode |
+| [ ] | P1 | PR-7.5: opsboard: PR and verdict columns (`gh pr list`), and `--worktrees`, a read-only audit after pstack's `worktree-audit.sh` that never deletes | PR-7.3 | `opsboard --md` shows them on a live workspace |
+| [ ] | P1 | PR-7.6: The PR playbooks as references of `rigor`: babysit (CI, review threads, conflicts; run under `/loop`), shipping, opening a PR (in this repository's subject style), autopilot-stack, orchestrate, worktree cleanup, autonomous run | PR-7.2, ENG-6.10 | `/rigor` babysits a real PR to green |
+| [ ] | P1 | PR-7.7: Docs, CHANGELOG, release. Then answer D14: how much of T2's runner is still needed | PR-7.6 | Tagged |
+
+- [ ] **Gate M7:** a workspace session runs a step to a merged PR in PR mode → release.
 
 ## Releases and versions
 
-- Each milestone is the next `v0.<n>.0`, in the order they ship (the tracks table names
-  each one's; D14): an annotated, signed tag whose notes list the
+- Each milestone is the next `v0.<n>.0`, in the order they ship (D14, D17): an annotated, signed tag whose notes list the
   capabilities, and a GitHub Release (`gh release create <tag> --verify-tag
   --notes-from-tag`, run inside the checkout: it refuses `-R`). A patch version `v0.<m>.<p>` carries fixes
   and small tooling between milestones.
@@ -260,3 +346,4 @@ run the pass and stops at the design proposals.
 | D13 | Autopilot is a command in one session, not a driver: `/autopilot [<step>] [--max N]` makes session-reset approve that session's previews itself until the step's commit, the session's checkpoint preconditions or N commits (100 by default). It approves only reviewed `git add` and `git commit` previews, so nothing is pushed; a question, a failure or anything else waits for the operator. Every step, in both modes, is reviewed before its commit and cleans up its docs after it. Only the setup scripts run outside Claude Code. Replaces D5 (a mode per workspace), D6 (worktrees, PRs, merges) and D7 (`policy.md`, `inbox.md`) ([AUTOPILOT.md](AUTOPILOT.md)) | 2026-10-13 |
 | D14 | T3 and T5 come before the rest of T2. T2 pauses after LOOP-3.2 for a spike on worktrees and PRs after T5 (sessions in their own worktrees or in the cloud, each step a PR, conflicts solved at the merge), which reopens D6 and decides how much of D2's runner is still needed. Releases are numbered in the order they ship: M4 is v0.3.0, M5 v0.4.0, M3 v0.5.0; step IDs keep their milestone | 2026-10-15 |
 | D15 | Every workspace session keeps the root docs (the root's `.md` files outside the module repositories) current as its work goes and leaves them uncommitted; the operator or `CP<m>` commits the root in one commit, and sessions push only when a step needs it. Root docs that only a checkpoint could change drifted from the work. The workspace mod lets every session write them; submodule pins and tags stay with `CP<m>` | 2026-10-16 |
+| D17 | pstack's engineering skills come in as global skills (`tooling/global-skills/`, linked into `~/.claude/skills/`), adapted to Claude Code and the git rules (T6). What needs PRs comes as PR mode, a second mode beside approve mode (T7). Tests follow a budget: verification on the real artifact, tests that catch real breaks, no pile-up. Two sessions work here: H1 in auto mode (T6, T5), H2 never in auto mode (session-reset: T3, T7, T2). Releases stay numbered in the order they ship, so D14's version numbers for M5 and M3 no longer hold | 2026-10-16 |

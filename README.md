@@ -42,3 +42,6 @@ sessions to run.
 - [AUTOPILOT.md](AUTOPILOT.md): sessions that commit on their own until a target.
 - [SETUP.md](SETUP.md): setting up a project, step by step.
 - [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), [LICENSE](LICENSE) (MIT).
+- The engineering skills in `tooling/global-skills/` are adapted from
+  [pstack](https://github.com/cursor/plugins/tree/main/pstack) (MIT,
+  [its license](tooling/global-skills/LICENSE-pstack)).

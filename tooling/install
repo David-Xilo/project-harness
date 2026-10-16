@@ -2,7 +2,7 @@
 # usage: tooling/install           link the tooling into place, backing up what it replaces
 #        tooling/install --check   say what is linked and what is not; change nothing
 #        tooling/install [--check] --hook <repo>...   only the pre-push hook, into those repositories
-# Links each file (each mod folder) to the path the tools are called by, so the repository is
+# Links each file (each mod or skill folder) to the path the tools are called by, so the repository is
 # the running copy. A file already there that is not the link moves to
 # ${XDG_STATE_HOME:-~/.local/state}/super-project/backup/<time>/. Running it again changes
 # nothing. settings.json is never edited: the hooks and plugin dirs it needs are printed.
@@ -49,6 +49,13 @@ else
   done
   for m in "$repo"/mods/*/; do
     links+=("${m%/}" "$claude/mods/$(basename "$m")")
+  done
+  # The engineering skills (each a folder) and their agents, for every session on this machine.
+  for s in "$repo"/global-skills/*/; do
+    [ -d "$s" ] && links+=("${s%/}" "$claude/skills/$(basename "$s")")
+  done
+  for f in "$repo"/agents/*.md; do
+    [ -f "$f" ] && links+=("$f" "$claude/agents/$(basename "$f")")
   done
   [ -f "$repo/claude/git-rules.md" ] && links+=("$repo/claude/git-rules.md" "$claude/git-rules.md")
   # The pre-push hook runs leak-check in this repository, when it is a git checkout.
