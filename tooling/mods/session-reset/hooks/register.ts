@@ -1,6 +1,6 @@
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { SessionResetAutopilot, SessionResetPreview, SessionResetSession } from '../types'
+import type { SessionResetApproved, SessionResetAutopilot, SessionResetPreview, SessionResetSession } from '../types'
 import { commitBlock, judge, normalize, parseAliases, REVIEWED, setAliases } from './git'
 
 // The workspace session and the open preview, kept by the host so a hot reload keeps them.
@@ -10,6 +10,10 @@ const AUTOPILOT = { plugin: 'session-reset', key: 'autopilot' } as const
 // Why the last answer's commit block opened no preview, told to the model when an approve
 // finds none open.
 const REJECTED = { plugin: 'session-reset', key: 'rejected' } as const
+// The turn the operator or autopilot approved, and why an approve is held: kept by the host
+// too, so the mod reloading between an approve and its commands loses neither.
+const APPROVED = { plugin: 'session-reset', key: 'approved' } as const
+const HOLDING = { plugin: 'session-reset', key: 'holding' } as const
 
 // The session IDs the workspace plans define: S1, CP5, CP, W, publish-<repo>.
 const SESSION_ID = /^(?:S\d+|CP\d*|W|publish-[\w./-]+)$/
@@ -145,20 +149,26 @@ async function stateDir($: EngineInterface, name: string): Promise<string> {
 // The session registry (opsboard): which workspace session each Claude session runs, one
 // file per Claude session in ${XDG_STATE_HOME:-~/.local/state}/super-project/sessions/.
 // Claude Code's own ~/.claude/sessions/<pid>.json says whether the process lives and is busy;
-// opsboard joins the two on the Claude session. Written on /session and on a restart,
-// removed when the Claude session ends (a /clear, a /resume, the process leaving); a file
+// opsboard joins the two on the Claude session. Written on /session, on a restart and at
+// each turn's end (`preview`: one is open, so an idle session waits for its approve);
+// removed when the Claude session ends (a /clear, a /resume, the process leaving). A file
 // that outlived its process (killed, or a reload lost `enrolled`) matches no live record.
 let enrolled: string | undefined
+// A registry that cannot be written is told once, not at every turn's end.
+let hasWarned = false
 
 async function enroll($: EngineInterface, current: SessionResetSession) {
   const claude = await $.session.id()
   const since = new Date(current.since ?? (await $.clock.now())).toISOString()
-  const entry = { claude, id: current.id, root: current.root, since }
+  const entry = { claude, id: current.id, root: current.root, since, preview: (await preview($)) !== null }
   try {
     await $.fs.write(`${await stateDir($, 'sessions')}/${claude}.json`, `${JSON.stringify(entry)}\n`)
     enrolled = claude
   } catch {
-    $.ui.toast('session-reset could not write the session registry for opsboard.', { timeoutMs: 15000 })
+    if (!hasWarned) {
+      hasWarned = true
+      $.ui.toast('session-reset could not write the session registry for opsboard.', { timeoutMs: 15000 })
+    }
   }
 }
 
@@ -404,7 +414,7 @@ function heldFields(reason: string | undefined, open: SessionResetPreview | null
 // Why an approved turn ends with no restart, or undefined when it restarts (in a workspace
 // session): after a commit, once every command of the preview ran. A batch that only switches
 // or tags keeps the session.
-function noRestart(turn: Approved, open: SessionResetPreview | null, reason: string): string | undefined {
+function noRestart(turn: SessionResetApproved, open: SessionResetPreview | null, reason: string): string | undefined {
   if (turn.hasFailed) {
     return 'a command failed'
   }
@@ -446,14 +456,49 @@ function matches(command: string, open: SessionResetPreview): number {
 // committed. The operator's approve lets any git or gh write run that is not forbidden (a
 // commit the preview did not show only when the preview has its Review: line); autopilot's
 // (`isExact`) only the preview's commands, in order.
-type Approved = { note: string; writes: number; hasFailed: boolean; hasCommitted: boolean; isExact: boolean }
+async function approval($: EngineInterface): Promise<SessionResetApproved | undefined> {
+  return (await $.state.get(APPROVED)).value ?? undefined
+}
+
+async function setApproval($: EngineInterface, approved: SessionResetApproved | undefined) {
+  await $.state.set(APPROVED, approved ?? null)
+}
+
+// A command's outcome goes into the approval one at a time: two git writes that overlap
+// must not drop each other's (a failure overwritten by a success). Only the queue is lost
+// on a reload.
+let updating = Promise.resolve()
+
+function updateApproval($: EngineInterface, change: (turn: SessionResetApproved) => SessionResetApproved) {
+  const run = updating.then(async () => {
+    const turn = await approval($)
+    if (turn) {
+      await setApproval($, change(turn))
+    }
+  })
+  updating = run.catch(() => undefined)
+
+  return run
+}
+
+// The turn that answers a preview with a question or a condition, or approves one with no
+// Review: line: no git write runs, and the model reads why.
+async function holding($: EngineInterface): Promise<string | undefined> {
+  return (await $.state.get(HOLDING)).value ?? undefined
+}
+
+async function setHolding($: EngineInterface, held: string | undefined) {
+  await $.state.set(HOLDING, held ?? null)
+}
+
+// A new prompt, a turn's end and a session's end drop the approval and the hold (a session
+// may end in a turn that never completed).
+async function clearTurn($: EngineInterface) {
+  await setApproval($, undefined)
+  await setHolding($, undefined)
+}
 
 export const register: Register = on => {
-  let approved: Approved | undefined
-  // The turn that answers a preview with a question or a condition, or approves one with
-  // no Review: line: no git write runs, and the model reads why.
-  let held: string | undefined
-
   on('session.start', async ($, e, next) => {
     const commands = [
       { name: 'committed', description: 'I committed: clear this workspace session and restart it with /session <ID> [note]' },
@@ -488,16 +533,17 @@ export const register: Register = on => {
   on('command.run', { command: ['approve', 'commit'] }, async ($, e) => {
     const note = e.args.trim()
     const open = await preview($)
-    held = holdReason(note, open)
+    const held = holdReason(note, open)
+    await setHolding($, held)
     await log($, 'approve', { via: `/${e.command}`, note, ...heldFields(held, open) })
     if (held === HELD) {
-      approved = undefined
+      await setApproval($, undefined)
       submitAsPerson($, `approve, ${note}`)
 
       return { text: 'Not an approval: a question or a condition. git writes are blocked for this turn.' }
     }
     if (held === UNREVIEWED) {
-      approved = undefined
+      await setApproval($, undefined)
       // This prompt gets no context from the mod's own hooks, so it says why itself.
       submitAsPerson($, `approve. ${UNREVIEWED}`)
 
@@ -507,7 +553,7 @@ export const register: Register = on => {
       const rejected = (await $.state.get(REJECTED)).value
       return { text: rejected ? `No preview is open: ${rejected}` : 'No preview is open: nothing to approve.' }
     }
-    approved = { note, writes: 0, hasFailed: false, hasCommitted: false, isExact: false }
+    await setApproval($, { note, writes: 0, hasFailed: false, hasCommitted: false, isExact: false })
     submitAsPerson($, 'approve')
 
     return { text: note ? `Approved; the note goes to the restarted session: ${note}` : 'Approved.' }
@@ -590,6 +636,7 @@ export const register: Register = on => {
     }
     await $.state.set(PREVIEW, null)
     await $.state.set(REJECTED, null)
+    await clearTurn($)
     const ran = await next(e)
     if (args && carried) {
       $.clock.after(0, () => reopen($, args, carried))
@@ -602,6 +649,7 @@ export const register: Register = on => {
   // Every end leaves the registry: a restart's /session enrolls the new Claude session.
   on('session.end', async ($, e, next) => {
     await unenroll($, e.sessionId)
+    await clearTurn($)
     if (e.reason !== 'clear') {
       await setAutopilot($, null)
     }
@@ -616,6 +664,7 @@ export const register: Register = on => {
     await $.state.set(PREVIEW, null)
     await $.state.set(REJECTED, null)
     await setAutopilot($, null)
+    await clearTurn($)
 
     return next(e)
   })
@@ -637,8 +686,7 @@ export const register: Register = on => {
     if (e.turnId !== undefined) {
       return next(e)
     }
-    approved = undefined
-    held = undefined
+    await clearTurn($)
     const isPerson = e.origin.kind === 'composer' || e.origin.kind === 'bridge'
     if (!isPerson) {
       return next(e)
@@ -652,7 +700,8 @@ export const register: Register = on => {
     const approve = APPROVE.exec(e.text) ?? (open !== null ? COMMIT.exec(e.text) : null)
     // In every session: an approve with a question or a condition, or of a preview with
     // no Review: line, is not an approval.
-    held = approve ? holdReason(approve[1] ?? '', open) : undefined
+    const held = approve ? holdReason(approve[1] ?? '', open) : undefined
+    await setHolding($, held)
     if (approve) {
       await log($, 'approve', { via: 'typed', note: (approve[1] ?? '').trim(), ...heldFields(held, open) })
     }
@@ -671,7 +720,7 @@ export const register: Register = on => {
     if (!approve) {
       return next(e)
     }
-    approved = { note: (approve[1] ?? '').trim(), writes: 0, hasFailed: false, hasCommitted: false, isExact: false }
+    await setApproval($, { note: (approve[1] ?? '').trim(), writes: 0, hasFailed: false, hasCommitted: false, isExact: false })
 
     // In a workspace session the note is for the restarted session; the model runs the
     // preview as shown. Elsewhere the model reads the answer whole.
@@ -697,9 +746,11 @@ export const register: Register = on => {
     if (e.agentId !== undefined) {
       return refuse('session-reset: a subagent never runs git or gh writes; the main session runs them after approve.')
     }
+    const held = await holding($)
     if (held !== undefined) {
       return refuse(held)
     }
+    const approved = await approval($)
     const open = await preview($)
     if (!approved || !open) {
       const rejected = (await $.state.get(REJECTED)).value
@@ -749,14 +800,13 @@ export const register: Register = on => {
     const hasFailed = ran.deny !== undefined || ran.isError === true || FAILED_OUTPUT.test(ran.text ?? '')
     await log($, 'command', { command: e.command, matched: count, ...(hasFailed ? { failed: ran.deny ?? excerpt(ran.text) } : {}) })
     if (hasFailed) {
-      approved.hasFailed = true
+      await updateApproval($, turn => ({ ...turn, hasFailed: true }))
       const now = await preview($)
       if (now && count > 0) {
         await $.state.set(PREVIEW, { ...now, next: Math.min(now.next, from) })
       }
     } else {
-      approved.writes += judged.writes
-      approved.hasCommitted ||= judged.commits === true
+      await updateApproval($, turn => ({ ...turn, writes: turn.writes + judged.writes, hasCommitted: turn.hasCommitted || judged.commits === true }))
     }
 
     return ran
@@ -796,9 +846,8 @@ export const register: Register = on => {
     if (e.agentId !== undefined) {
       return next(e)
     }
-    const turn = approved
-    approved = undefined
-    held = undefined
+    const turn = await approval($)
+    await clearTurn($)
     const open = await preview($)
     const hasRunAll = open !== null && open.next >= open.commands.length
     const missed = turn === undefined ? undefined : noRestart(turn, open, e.reason)
@@ -823,6 +872,9 @@ export const register: Register = on => {
       await $.state.set(PREVIEW, null)
     }
     const current = await session($)
+    if (current) {
+      await enroll($, current)
+    }
     if (turn !== undefined) {
       const why = missed ?? (!current ? 'no /session ID' : isRestarting ? 'a restart was already running' : undefined)
       await log($, 'turn', why === undefined ? { restart: true } : { restart: false, why })
@@ -869,7 +921,7 @@ export const register: Register = on => {
         await setAutopilot($, { ...pilot, waiting: 'your approve' })
         $.ui.toast(`Autopilot waits for your approve: ${why}.`, { timeoutMs: 15000 })
       } else {
-        approved = { note: '', writes: 0, hasFailed: false, hasCommitted: false, isExact: true }
+        await setApproval($, { note: '', writes: 0, hasFailed: false, hasCommitted: false, isExact: true })
         submitAsPerson($, 'approve')
       }
     } else if (isDone && (await workspaceRoot($, await $.session.cwd()))) {

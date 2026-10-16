@@ -2,6 +2,10 @@
 // it started (ms), kept over its restarts.
 export type SessionResetSession = { id: string; root: string; since?: number }
 
+// The turn that runs an approved preview (register.ts), kept by the host so a hot reload
+// keeps it.
+export type SessionResetApproved = { note: string; writes: number; hasFailed: boolean; hasCommitted: boolean; isExact: boolean }
+
 // The commands of the open "Ready to commit" preview; `next` is the first one not yet run,
 // `isReviewed` says whether the preview has its `Review:` line, and `done` lists the steps
 // its `Step done:` line says its commit finishes.
@@ -27,6 +31,9 @@ declare module 'claude-code' {
       preview: SessionResetPreview | null
       // Why the last answer's commit block opened no preview.
       rejected: string | null
+      approved: SessionResetApproved | null
+      // Why this turn's approve is held, if it is.
+      holding: string | null
       autopilot: SessionResetAutopilot | null
     }
   }

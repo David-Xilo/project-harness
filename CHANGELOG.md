@@ -18,6 +18,12 @@ brings.
 - session-reset records which workspace session each Claude session runs in
   `~/.local/state/super-project/sessions/<Claude session>.json`, written on `/session`
   and removed when the Claude session ends.
+- The ops board shows whether each session runs: working, waiting for you, a preview
+  open, idle, or not running, since when, and how many processes claim its ID. It also
+  lists the live processes at a root with no session row. It reads Claude Code's process
+  records through session-reset's registry, in `opsboard`, `--md` and `--tsv`.
+- session-reset keeps an approve over a reload of the mod, so the approved commands still
+  run when the mod's code changes between the approve and them.
 
 ## v0.2.0 (2026-10-14)
 

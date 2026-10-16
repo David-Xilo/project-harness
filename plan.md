@@ -108,7 +108,7 @@ operator task is O10.
 
 **Open operator tasks:** none.
 
-**Next:** BOARD-4.3.
+**Next:** BOARD-4.4.
 
 **Notes.**
 - The publish skills (`go-public`, `publish`) were checked by reading, not on a fixture
@@ -175,9 +175,9 @@ carry no session ID.
 
 | Done | Pri | Step | Depends on | Done when |
 |---|---|---|---|---|
-| [ ] | P0 | BOARD-4.3: Join process liveness into the `session` rows of `opsboard --tsv`, through the registry's Claude session: working, waiting for approval, waiting for input, idle since, or not running; two processes claiming one ID; checkpoint status and since; dirty repositories; open `O<n>` and handoffs addressed to it. Also list live sessions at a root with no ID. A registry file with no live record is stale: skipped, and removed when older than a day. Output in `--tsv`, plain and `--md`. The Claude Code records are internal: one reader function, failing soft | — | Matches a manual check of running sessions, the registry's files included |
-| [ ] | P1 | BOARD-4.4: The `/ops` Sessions block shows liveness: idle sessions first ("idle 25m, ready"); the band shows the count of idle sessions | BOARD-4.3 | Seen in the pane |
-| [ ] | P1 | BOARD-4.5: Retire `~/.cache/agents`; docs, CHANGELOG, release | BOARD-4.4 | v0.3.0 tagged |
+| [ ] | P1 | BOARD-4.4: The `/ops` Sessions block shows liveness (the `session` rows' live, since and pids columns, after the seven it reads): idle sessions first ("idle 25m, ready"); the band shows the count of idle sessions | — | Seen in the pane |
+| [ ] | P2 | BOARD-4.6: More per session in the `session` rows: since when its checkpoint row holds, its dirty repositories, and the open `O<n>` and handoffs addressed to it | — | Matches a manual check of a workspace |
+| [ ] | P1 | BOARD-4.5: Retire `~/.cache/agents`; docs, CHANGELOG, release | BOARD-4.4, BOARD-4.6 | v0.3.0 tagged |
 
 - [ ] **Gate M4:** the board matches the running sessions for a week → v0.3.0.
 

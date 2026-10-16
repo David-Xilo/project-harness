@@ -41,9 +41,12 @@ decisions that limit sessions, such as a maximum count or a host limit), handoff
 project plan's "Current state" and "Next".
 
 Then run `opsboard --tsv <root>`. Its `session` rows (columns: `session`, root, ID,
-state, next, ready, blocked by, checkpoint, autopilot) give each `S<n>` session's state
-(`reached`, `ready`, `blocked`, `idle` or `no plan`), next step, ready count, checkpoint
-row and autopilot, and, when nothing is ready, what blocks it. They count the not-done
+state, next, ready, blocked by, checkpoint, autopilot, live, since, pids) give each
+`S<n>` session's state (`reached`, `ready`, `blocked`, `idle` or `no plan`), next step,
+ready count, checkpoint row and autopilot, and, when nothing is ready, what blocks it.
+`live` says whether it runs (`working`, `waiting`, `approve`, `idle`, `not running`),
+since when (epoch seconds) and in which processes; its `live` rows (root, ID or `—`,
+live, since, pid, cwd) are the other processes at the root. The `session` rows count the not-done
 items of the module plans' "Next", against the ticked steps, the handoffs and the open
 `O<n>` entries. Take the ready counts from them and check a few against the module plans.
 Count by hand: the blocked steps of every session, every session without a row (project
