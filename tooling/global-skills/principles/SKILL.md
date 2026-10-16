@@ -30,7 +30,7 @@ principle means the reference of that name.
 | [prove-it-works](references/prove-it-works.md) | verification | Before calling it done, check the real artifact: run it, read the value, inspect the diff. Not a proxy or "it compiles". |
 | [fix-root-causes](references/fix-root-causes.md) | verification | Trace each symptom to the first place the system went wrong and fix it there; a guard is a fix only for a legitimate state. |
 | [sequence-verifiable-units](references/sequence-verifiable-units.md) | verification | Split multi-step work into small units that each end in a checked state, and order commits so the sequence proves itself. |
-| [test-behavior-not-implementation](references/test-behavior-not-implementation.md) | verification | A test asserts what users of the code can observe: it fails when the behaviour breaks and passes when only internals change. |
+| [test-behavior-not-implementation](references/test-behavior-not-implementation.md) | verification | A test asserts what users of the code can observe: it fails when the behaviour breaks and passes when only internals change. Holds the test budget. |
 | [explain-the-number](references/explain-the-number.md) | verification | Before trusting a measured number, find what limits it and rule out that it measured something else. |
 | [guard-the-context-window](references/guard-the-context-window.md) | delegation | Send bulk to subagents and keep summaries, not raw payloads, in the main thread. |
 | [never-block-on-the-human](references/never-block-on-the-human.md) | delegation | Proceed on reversible work and present the result; in this harness, git still waits for the operator's approve. |
