@@ -108,7 +108,7 @@ operator task is O10.
 
 **Open operator tasks:** none.
 
-**Next:** BOARD-4.6.
+**Next:** CLEAN-5.1 while Gate M4 runs; BOARD-4.5 once it passes.
 
 **Notes.**
 - The publish skills (`go-public`, `publish`) were checked by reading, not on a fixture
@@ -169,16 +169,15 @@ Why: the operator cannot see which sessions are running, which are idle and whic
 for an approve. Claude Code's own per-process records (`~/.claude/sessions/<pid>.json`)
 already give `busy`, `idle` or `waiting`, the Claude session and liveness (`pid` and
 `procStart`). session-reset's registry (BOARD-4.1) says which `/session <ID>` each Claude
-session runs: `~/.local/state/super-project/sessions/<Claude session>.json`. The old
-attention files in `~/.cache/agents` have no working state, are never cleaned up and
-carry no session ID.
+session runs: `~/.local/state/super-project/sessions/<Claude session>.json`. `opsboard`
+and `/ops` join the two; the old attention files (`~/.cache/agents`) are retired.
 
 | Done | Pri | Step | Depends on | Done when |
 |---|---|---|---|---|
-| [ ] | P2 | BOARD-4.6: More per session in the `session` rows: since when its checkpoint row holds, its dirty repositories, and the open `O<n>` and handoffs addressed to it | — | Matches a manual check of a workspace |
-| [ ] | P1 | BOARD-4.5: Retire `~/.cache/agents`; docs, CHANGELOG, release | BOARD-4.6 | v0.3.0 tagged |
+| [ ] | P1 | BOARD-4.5: Release v0.3.0: the CHANGELOG heading, the tag and the GitHub Release | Gate M4 | v0.3.0 tagged |
 
-- [ ] **Gate M4:** the board matches the running sessions for a week → v0.3.0.
+- [ ] **Gate M4:** the board matches the running sessions for a week (2026-10-16 to
+  2026-10-23) → v0.3.0.
 
 ### T5 Code cleanup (M5)
 
