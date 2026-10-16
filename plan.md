@@ -119,7 +119,7 @@ operator task is O10.
 
 **Open operator tasks:** none.
 
-**Next:** H1: ENG-6.4. H2: BOARD-4.5 once Gate M4 passes, then PR-7.1.
+**Next:** H1: ENG-6.5. H2: BOARD-4.5 once Gate M4 passes, then PR-7.1.
 
 **Notes.**
 - The publish skills (`go-public`, `publish`) were checked by reading, not on a fixture
@@ -224,13 +224,12 @@ it is needed.
 
 | Done | Pri | Step | Depends on | Done when |
 |---|---|---|---|---|
-| [ ] | P1 | ENG-6.4: Writing: `technical-writing`, and `unslop` with `bro`'s plain voice. `git-rules.md` rule 4 and WORKFLOW.md point at them for docs, commit messages and PR bodies | — | One CHANGELOG entry rewritten with them reads plain |
 | [ ] | P0 | ENG-6.5: Review: the `comment-sicko` agent, `no-comments`, and `interrogate` (two reviewers on different Claude models, the rubric, the code-quality lens and the four buckets). It adds to `code-review`; rule 1 still asks for `code-review` | — | `/interrogate` on a real diff sorts its findings into the four buckets |
 | [ ] | P1 | ENG-6.6: Understanding: `how`, `why` (git, the GitHub MCP and whatever other MCPs are present), `teach`, `recall` | — | `/how` walks through session-reset correctly |
 | [ ] | P1 | ENG-6.7: Lessons into checks: `correct` (its rule table in AGENTS.md or CLAUDE.md; `replay.mjs` output counts as evidence) and `reflect` (three reviewers; skill edits only after the operator approves) | — | `/correct` on this repository names a mistake class with evidence |
 | [ ] | P1 | ENG-6.8: Trails and catch-up: `show-me-your-work` with `log.sh` (the trail in `.audit/<session>.tsv`, out of git) and `ketchup`. AUTOPILOT.md: an autopilot run keeps a trail and ends with a ketchup summary | — | A `log.sh` run writes a valid row |
 | [ ] | P2 | ENG-6.9: Framing and fan-out: `in-your-own-words`, `sharpen`, `figure-it-out`, `arena`, `swarm` (on the Agent tool; a Workflow only when the operator asks for one) | — | Each loads |
-| [ ] | P0 | ENG-6.10: The mode skill `rigor`, from `poteto-mode` with `poteto-help` as its help. Playbooks as references: investigation, bug fix, perf, hillclimb, runtime and trace forensics, feature, refactoring, prototype, visual parity, authoring a skill, eval (`claude plugin eval` where it fits), session pickup, pause safely (a handoff or a resume note, no wip commit in approve mode), multi-phase plan (in this plan's format). Also `automate-me`, to draft the operator's own mode from transcripts | ENG-6.4 to 6.9 | `/rigor` on a small bug in a workspace module follows the bug-fix playbook |
+| [ ] | P0 | ENG-6.10: The mode skill `rigor`, from `poteto-mode` with `poteto-help` as its help. Playbooks as references: investigation, bug fix, perf, hillclimb, runtime and trace forensics, feature, refactoring, prototype, visual parity, authoring a skill, eval (`claude plugin eval` where it fits), session pickup, pause safely (a handoff or a resume note, no wip commit in approve mode), multi-phase plan (in this plan's format). Also `automate-me`, to draft the operator's own mode from transcripts | ENG-6.5 to 6.9 | `/rigor` on a small bug in a workspace module follows the bug-fix playbook |
 | [ ] | P2 | ENG-6.11: `typescript-best-practices`, for the mods. The module AGENTS.md template names `tdd`, the verify skill and the test budget | — | The template renders through `sp-new` |
 | [ ] | P1 | ENG-6.12: Docs (WORKFLOW.md section 1, SETUP), CHANGELOG, release | ENG-6.10 | Tagged |
 

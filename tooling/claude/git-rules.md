@@ -58,7 +58,8 @@ commands.
 4. **Message rules.** Follow the repository's style: a subject `<step ID or area>: <what
    changed>` (for example `ORC-6.1: …` or `docs: …`), short plain sentences, and an
    optional body. No Co-Authored-By line, no "Generated with" line and no other trailer.
-   The same holds for PR bodies, tag notes and release notes.
+   The same holds for PR bodies, tag notes and release notes. Write them, and the docs,
+   with the `technical-writing` and `unslop` skills.
 5. **Safety.** Never force-push, and never rebase or rewrite a published branch. Never
    run `reset --hard`, `clean` or `restore` on the operator's work; the hook blocks them.
    In a workspace shared by several sessions, stage only paths in the repositories this

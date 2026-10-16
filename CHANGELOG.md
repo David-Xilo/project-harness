@@ -5,11 +5,11 @@ brings.
 
 ## Unreleased
 
-- session-reset logs each preview, approve, git or gh write and approved turn's end (a
-  restart, or why none) to `~/.local/state/super-project/session-reset/<Claude
-  session>.jsonl`. `tooling/mods/session-reset/replay.mjs` runs the local transcripts
-  through the mod and counts the approves of a committing preview that end with no
-  restart, by cause.
+- session-reset keeps a log in `~/.local/state/super-project/session-reset/<Claude
+  session>.jsonl`. It records each preview, each approve, each git or gh write, and how
+  each approved turn ended: with a restart, or the reason it did not restart.
+  `tooling/mods/session-reset/replay.mjs` runs the local transcripts through the mod. It
+  counts the approved previews that commit but end with no restart, grouped by cause.
 - The preview's commands go in one ```` ```commit ```` block, each line pinned to its
   repository (`git -C <absolute path>`, `gh … --repo <owner>/<name>`). session-reset reads
   only that block; one with a note, a placeholder, a chain or an unpinned command opens no
