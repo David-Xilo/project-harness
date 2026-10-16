@@ -284,8 +284,25 @@ async function board($: EngineInterface, only?: string): Promise<Board> {
     } else if (kind === 'handoff') {
       out.handoffs.push({ root, id: f[0] ?? '', fromTo: f[1] ?? '', status: f[2] ?? '' })
     } else if (kind === 'session') {
-      const [id = '', state = '', next = '—', ready = '0', blockedBy = '—', checkpoint = '—', autopilot = '—'] = f
-      out.sessions.push({ workspace, id, state, next, ready: Number(ready), blockedBy, checkpoint, autopilot })
+      const [id = '', state = '', next = '—', ready = '0', blockedBy = '—', checkpoint = '—', autopilot = '—', live, since = '—', pids = '—'] = f
+      out.sessions.push({
+        workspace,
+        id,
+        state,
+        next,
+        ready: Number(ready),
+        blockedBy,
+        checkpoint,
+        autopilot,
+        live: live || 'not running',
+        since: Number(since) || 0,
+        pids: pids === '—' ? [] : pids.split(','),
+      })
+    } else if (kind === 'live' && f[0] && f[0] !== '—') {
+      // A live CP, W or publish session: no plan row, only whether it runs.
+      const [id = '', live, since = '—', pid = ''] = f
+      const row = { state: '', next: '—', ready: 0, blockedBy: '—', checkpoint: '—', autopilot: '—' }
+      out.sessions.push({ workspace, id, ...row, live: live || 'idle', since: Number(since) || 0, pids: pid ? [pid] : [] })
     }
   }
 
@@ -683,7 +700,11 @@ function isMine(row: WorkspaceOpsRow, id: string, tracks: string[]): boolean {
   return row.tell === id || lower.includes(row.owner.toLowerCase()) || lower.includes(sectionHead)
 }
 
+// Refreshes overlap (the timer, a turn's end, /session); only the latest writes the band.
+let bandRuns = 0
+
 async function refreshBand($: EngineInterface) {
+  const run = ++bandRuns
   const session = (await $.state.get(SESSION)).value
   const root = session?.root ?? (await rootOf($, await $.session.cwd()))
   if (!root) {
@@ -724,6 +745,13 @@ async function refreshBand($: EngineInterface) {
     if (h > 0) {
       parts.push(`handoffs ${h} to ${session.id}`)
     }
+    // The other sessions that wait for the operator: idle, a question or a preview. Read
+    // fresh, not from the docs cache, which only plan and status changes renew.
+    const live = await board($, root).then(b => b.sessions, () => [])
+    const waiting = live.filter(s => s.id !== session.id && waitsForYou(s))
+    if (waiting.length > 0) {
+      parts.push(`${waiting.length} wait for you`)
+    }
     const dirty: string[] = []
     for (const repo of me?.repos ?? []) {
       const ran = await $.process.run(['git', '-C', `${root}/${repo}`, 'status', '--porcelain'], { timeoutMs: 5000 }).catch(() => undefined)
@@ -741,14 +769,48 @@ async function refreshBand($: EngineInterface) {
       parts.push('guard on')
     }
   }
+  if (run !== bandRuns) {
+    return
+  }
   const band: WorkspaceBand = { text: parts.join(' · '), isWarning }
   await $.state.set(BAND, band)
 }
 
-// "S1 blocked · COL-1.2 · blocked by STO-1.1 · autopilot 3/100 → COL-1.2", or
-// "S2 ready · STO-1.1 · 2 ready", or "S3 reached".
-function sessionLine(s: WorkspaceSessionRow): string {
-  const parts = [`${s.id} ${s.state}`]
+// Whether a session runs, as the pane says it: "idle 25m", "waiting for you 2m", "preview
+// open 1h", "working 3m", "not running"; "· 2 processes" when several claim its ID.
+function liveText(s: WorkspaceSessionRow, now: number): string {
+  if (s.live === 'not running') {
+    return s.live
+  }
+  const word = s.live === 'waiting' ? 'waiting for you' : s.live === 'approve' ? 'preview open' : s.live
+  const d = Math.max(0, Math.floor(now / 1000) - s.since)
+  const age = s.since <= 0 ? '' : d < 3600 ? ` ${Math.floor(d / 60)}m` : d < 86400 ? ` ${Math.floor(d / 3600)}h` : ` ${Math.floor(d / 86400)}d`
+
+  return `${word}${age}${s.pids.length > 1 ? ` · ${s.pids.length} processes` : ''}`
+}
+
+// A session waits for the operator with a preview to approve, a question, or idle with
+// ready work; an idle one that reached its checkpoint or has nothing next does not.
+function waitsForYou(s: WorkspaceSessionRow): boolean {
+  return s.live === 'approve' || s.live === 'waiting' || (s.live === 'idle' && s.state === 'ready')
+}
+
+// Those that wait for the operator come first (a preview, a question, ready work), then
+// the other idle ones, those not running, and the working ones last.
+function liveRank(s: WorkspaceSessionRow): number {
+  const k = ['approve', 'waiting'].indexOf(s.live)
+
+  return k >= 0 ? k : waitsForYou(s) ? 2 : s.live === 'idle' ? 3 : s.live === 'not running' ? 4 : 5
+}
+
+// "S3 idle 25m · ready · STO-1.1 · 2 ready", "S1 working 3m · blocked · COL-1.2 · blocked
+// by STO-1.1 · autopilot 3/100 → COL-1.2", "S4 not running · reached" or "CP3 preview open
+// 2m". The plan's "idle" reads "nothing next", apart from the process's idle.
+function sessionLine(s: WorkspaceSessionRow, now: number): string {
+  const parts = [`${s.id} ${liveText(s, now)}`]
+  if (s.state !== '') {
+    parts.push(s.state === 'idle' ? 'nothing next' : s.state)
+  }
   if (s.next !== '—') {
     parts.push(s.next)
   }
@@ -908,13 +970,15 @@ export const register: Register = on => {
         {workspaces.map(w => {
           const rows = ops.rows.filter(r => r.workspace === w && (showLater || r.kind === 'you'))
           const cp = ops.checkpoints.find(c => c.workspace === w)
-          const sessions = ops.sessions.filter(s => s.workspace === w)
+          const sessions = ops.sessions.filter(s => s.workspace === w).sort((a, z) => liveRank(a) - liveRank(z))
           return (
             <Box key={`ws-${w}`} flexDirection="column" marginTop={1}>
               <Text bold wrap="wrap">{`${w}${cp ? ` · ${cp.text}` : ''}`}</Text>
               {sessions.map(s => (
                 <Box key={`${w}-${s.id}`} paddingLeft={2}>
-                  <Text dimColor={s.state === 'idle'} wrap="wrap">{sessionLine(s)}</Text>
+                  <Text dimColor={!waitsForYou(s)} wrap="wrap">
+                    {sessionLine(s, ops.at)}
+                  </Text>
                 </Box>
               ))}
               {rows.length === 0 && (

@@ -19,7 +19,9 @@ export type WorkspaceOpsRow = {
 }
 
 // One session of a workspace, as `opsboard --tsv` joins it: its state (reached, ready,
-// blocked, idle), next step, ready count, what blocks it, checkpoint row and autopilot.
+// blocked, idle), next step, ready count, what blocks it, checkpoint row and autopilot, and
+// whether it runs: working, waiting (for the operator's input), approve (a preview open),
+// idle or not running, since when (epoch seconds, 0 unknown) and in which processes.
 export type WorkspaceSessionRow = {
   workspace: string
   id: string
@@ -29,6 +31,9 @@ export type WorkspaceSessionRow = {
   blockedBy: string
   checkpoint: string
   autopilot: string
+  live: string
+  since: number
+  pids: string[]
 }
 
 // The operator steps pane: open entries, each workspace's checkpoint line and sessions.

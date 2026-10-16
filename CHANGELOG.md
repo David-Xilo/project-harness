@@ -22,6 +22,9 @@ brings.
   open, idle, or not running, since when, and how many processes claim its ID. It also
   lists the live processes at a root with no session row. It reads Claude Code's process
   records through session-reset's registry, in `opsboard`, `--md` and `--tsv`.
+- The `/ops` pane says whether each session runs ("idle 25m", "preview open 3m"), the
+  sessions that wait for you first (a preview, a question, or idle with ready work), and
+  the band counts the other sessions that wait for you.
 - Every workspace session keeps the root docs (plan.md, handoffs.md, operator.md and
   the root's other `.md` files) current as it works, and leaves them uncommitted; the
   operator or the checkpoint session commits the root in one commit. The workspace mod

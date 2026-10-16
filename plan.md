@@ -108,7 +108,7 @@ operator task is O10.
 
 **Open operator tasks:** none.
 
-**Next:** BOARD-4.4.
+**Next:** BOARD-4.6.
 
 **Notes.**
 - The publish skills (`go-public`, `publish`) were checked by reading, not on a fixture
@@ -175,9 +175,8 @@ carry no session ID.
 
 | Done | Pri | Step | Depends on | Done when |
 |---|---|---|---|---|
-| [ ] | P1 | BOARD-4.4: The `/ops` Sessions block shows liveness (the `session` rows' live, since and pids columns, after the seven it reads): idle sessions first ("idle 25m, ready"); the band shows the count of idle sessions | — | Seen in the pane |
 | [ ] | P2 | BOARD-4.6: More per session in the `session` rows: since when its checkpoint row holds, its dirty repositories, and the open `O<n>` and handoffs addressed to it | — | Matches a manual check of a workspace |
-| [ ] | P1 | BOARD-4.5: Retire `~/.cache/agents`; docs, CHANGELOG, release | BOARD-4.4, BOARD-4.6 | v0.3.0 tagged |
+| [ ] | P1 | BOARD-4.5: Retire `~/.cache/agents`; docs, CHANGELOG, release | BOARD-4.6 | v0.3.0 tagged |
 
 - [ ] **Gate M4:** the board matches the running sessions for a week → v0.3.0.
 
