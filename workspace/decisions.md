@@ -9,7 +9,7 @@ supersedes one, and name the newer ID.
 | IDs | Meaning today |
 |---|---|
 | SD1 | ({{date}}, workspace setup) One home per fact: status in the module plan's "Current state" and "Next", evidence in module `research.md`, order, gates and releases in the root plan, requests in [handoffs](handoffs.md), operator tasks in [operator.md](operator.md), release commits in [release.md](release.md), what works in [capabilities](capabilities.md) |
-| SD2 | ({{date}}, workspace setup) [Tracks](plan.md#tracks-and-checkpoints): one writing track per repository; requests between tracks go through root [handoffs](handoffs.md); root files change only at checkpoints, or when the operator asks, except each session's own queue cells |
+| SD2 | ({{date}}, workspace setup) [Tracks](plan.md#tracks-and-checkpoints): one writing track per repository; requests between tracks go through root [handoffs](handoffs.md); every session keeps the root docs current and leaves them uncommitted, and the operator or the checkpoint session commits the root in one commit; submodule pins and tags change only at checkpoints |
 | SD3 | ({{date}}, workspace setup) At most four track sessions run at once, each holding one or more tracks; a request between tracks of one session needs no handoff row |
 | SD4 | ({{date}}, workspace setup) Steps only the operator can do live in root [operator.md](operator.md), one section per track plus General, one ID per task (`O<n>`) with full paths, commands and web steps; the operator says "O<n> done" to the session the entry names |
 | SD5 | ({{date}}, workspace setup) [Session IDs](plan.md#session-ids) `S1`–`S{{n}}`, `CP<m>` and `publish-<repo>`; `/session <ID>` starts each one from the root plan and handoffs.md |

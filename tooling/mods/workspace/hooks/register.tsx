@@ -460,6 +460,28 @@ async function real($: EngineInterface, path: string): Promise<string> {
   }
 }
 
+// A root doc: a .md file of the root's own repository, outside every other repository (a
+// folder on its way with a .git), hidden folders (.claude's commands and skills) and the
+// files a "`S6` owns …" clause gives another session. Every session keeps them current and
+// leaves them uncommitted; the operator or the checkpoint session commits them
+// (~/.claude/git-rules.md).
+async function isRootDoc($: EngineInterface, docs: Docs, id: string, rel: string): Promise<boolean> {
+  const parts = rel.split('/')
+  if (!rel.endsWith('.md') || parts.some(part => part.startsWith('.')) || ownerOf(docs, parts[0] ?? '')) {
+    return false
+  }
+  if (docs.sessions.some(s => s.id !== id && s.files.includes(rel))) {
+    return false
+  }
+  for (let k = 1; k < parts.length; k++) {
+    if (await $.fs.stat(`${docs.root}/${parts.slice(0, k).join('/')}/.git`).then(() => true, () => false)) {
+      return false
+    }
+  }
+
+  return true
+}
+
 // May the session write this (absolute, resolved) path?
 async function judgeWrite($: EngineInterface, { docs, id }: Context, path: string): Promise<string | undefined> {
   const root = docs.root
@@ -483,6 +505,10 @@ async function judgeWrite($: EngineInterface, { docs, id }: Context, path: strin
       return 'the checkpoint is running (handoffs.md "Checkpoint status"), so S sessions start no work; only a fix the checkpoint asks for, on a release/ branch.'
     }
   }
+  // While the checkpoint runs it alone writes the root: its one root commit holds them all.
+  if (!isCheckpointRunning && (await isRootDoc($, docs, id, rel))) {
+    return undefined
+  }
   if (id.startsWith('publish-')) {
     const repo = id.slice('publish-'.length)
     if (rel === repo || rel.startsWith(`${repo}/`) || docs.shared.includes(rel)) {
@@ -503,7 +529,7 @@ async function judgeWrite($: EngineInterface, { docs, id }: Context, path: strin
   }
   const why = owner
     ? `${top} belongs to \`${owner.id}\`; ask it through a handoffs.md row`
-    : `${rel} is not \`${id}\`'s to write (its repositories: ${me.repos.join(', ') || 'none'}; shared files: ${docs.shared.join(', ')})`
+    : `${rel} is not \`${id}\`'s to write (its repositories: ${me.repos.join(', ') || 'none'}; past those, the root docs: the root's .md files outside other repositories, hidden folders and files another session owns)`
 
   return `${why} (${docs.name}/plan.md "Session IDs").`
 }
@@ -814,7 +840,7 @@ export const register: Register = on => {
       ? await judgeWrite($, ctx, await real($, resolve(edit[1] as string, ctx.cwd, h)))
       : await judgeBash($, ctx, args, h, await isPreviewOpen($))
     const me = sessionOf(ctx.docs, ctx.id)
-    const scope = me ? `${ctx.id} writes ${me.repos.join(', ') || (me.isRootScope ? 'the root' : 'no repository')}; shared: ${ctx.docs.shared.join(', ')}` : ctx.id
+    const scope = me ? `${ctx.id} writes ${me.repos.join(', ') || (me.isRootScope ? 'the root' : 'no repository')}, and the root docs${me.files.length ? `; owns ${me.files.join(', ')}` : ''}` : ctx.id
 
     return { text: `${why ? `deny: ${why}` : 'allow'}\n(${scope}; git writes are session-reset's gate)` }
   })

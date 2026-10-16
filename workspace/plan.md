@@ -116,19 +116,20 @@ one section per track plus General, with the steps for each.
   and its delivery in both module plans.
 - **Handoffs.** A request to another track is one row in [handoffs](handoffs.md): the
   requester opens it, the owner acknowledges, delivers and closes it, and records the
-  step in its own plan. `handoffs.md` is the only shared file between checkpoints;
-  appending a new [glossary](glossary.md) entry is also allowed, and so are a track's
-  own entries in `operator.md` and its repositories' rows in [release.md](release.md).
+  step in its own plan.
 - **Operator steps (SD4).** A step only the operator can do (a file, a secret, a
   decision, a host or web action) is one entry `O<n>` under the track's heading in
   [operator.md](operator.md), or under General when it spans tracks. One ID is one task
   the operator finishes. It gives full paths, commands and web steps, what it unblocks
   and the session to tell. The operator says "O<n> done" to that session; the session
   checks the result, records the evidence in its own plan and deletes the entry.
-- **Root files** (`plan.md` and its reference files `acceptance.md`, `decisions.md`,
+- **Root docs** (`plan.md` and its reference files `acceptance.md`, `decisions.md`,
   `future-steps.md`{{#runtime}}, `operations.md`{{/runtime}}, `capabilities.md`, `README.md`,
-  submodule pins, tags) change only in a `CP<m>` session, or when the operator asks; a
-  session keeps only its own tracks' queue cells current.
+  `handoffs.md`, `operator.md`, `release.md`, the glossary): every session keeps them
+  current as its work goes, so the plan does not drift. It re-reads a file right before
+  editing it, edits by exact replacement and keeps what other sessions wrote. It leaves
+  them uncommitted: the operator or `CP<m>` commits the root in one commit (SD2).
+  Submodule pins and tags change only in a `CP<m>` session.
 {{#runtime}}
 - **The shared runtime** ({{runtime_name}}) is run only by `{{runtime_session}}`, and by
   `CP<m>` during its run while `{{runtime_session}}` is stopped. Other sessions ask
@@ -151,11 +152,9 @@ one section per track plus General, with the steps for each.
 operator task IDs `O<n>` are different namespaces.
 
 - **Tracks and repositories:** the session's row in the table above, and no others.
-- **Shared files:** its rows in [handoffs.md](handoffs.md) (handoff rows and its row in the
-  [checkpoint status](handoffs.md#checkpoint-status)), its repositories' rows in
-  [release.md](release.md), its tracks' entries in [operator.md](operator.md), and a new
-  [glossary](glossary.md) entry, and its tracks' queue cells in this plan. `CP<m>` also
-  edits the root files during its run.
+- **Shared files:** the root docs ([track rules](#track-rules)): this plan,
+  [handoffs.md](handoffs.md), [operator.md](operator.md), [release.md](release.md) and
+  the root's other `.md` files, left uncommitted for the operator or `CP<m>`.
 - **Checkpoint first:** while the checkpoint session's row reads `running`, `S1`–`S{{n}}`
   start no work, except a fix the `CP<m>` session asks for on a release branch. One
   checkpoint is always open, the current milestone's ([milestone
@@ -192,7 +191,9 @@ keeps them and the queues in step with the work.
    - its handoff rows: open or acknowledge what it needs, mark what it delivered, close
      what was delivered to it;
    - the `O<n>` entries it verified, which it deletes ([operator.md](operator.md));
-   - nothing stale that it wrote earlier.
+   - nothing stale that it wrote earlier;
+   - any other root doc its work changed (this plan, decisions, acceptance), left
+     uncommitted with the rest of the root ([track rules](#track-rules)).
 7. Show the Ready to commit preview, with its `Review:` line from step 4, and run it on
    "approve"; session-reset holds an approve of a preview with no `Review:` line. Once it
    succeeds the session is cleared and restarted with `/session <ID>` (the session-reset
@@ -246,7 +247,8 @@ accepts the milestone and tags it; then the next checkpoint opens.
   the row moves to the branch tip.
 - **Running it.** `CP<m>` starts only when every `S1`–`S{{n}}` row reads `reached` and no
   publish row reads `running`, and sets its row to `running`; no other session works
-  meanwhile. Then: every repository is committed → each repository switches to
+  meanwhile. Then: every repository is committed, the root too, with every session's doc
+  edits in one commit → each repository switches to
   `release/<tag>` at its recorded commit → each repository's checks and builds → the
   milestone's [acceptance](acceptance.md) runs → evidence recorded → this tracker,
   `capabilities.md` and submodule pins (the release commits) updated → tag the branch

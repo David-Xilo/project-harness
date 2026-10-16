@@ -58,8 +58,9 @@ only small forward-reference edits, and only on clean worktrees.
    `release/<tag>` merged back, never rebased; no system patch releases between
    milestones; one ID per operator task. Note older decisions it amends in their
    "meaning today" text.
-2. **Session table and Session IDs:** a `CP<m>` row (`CP5`–`CP9`-style range); shared
-   files gain the session's rows in `release.md`; "Checkpoint first" says one checkpoint
+2. **Session table and Session IDs:** a `CP<m>` row (`CP5`–`CP9`-style range); the
+   shared files are the root docs (`release.md` among them), which every session keeps
+   current and leaves uncommitted for the operator or `CP<m>`; "Checkpoint first" says one checkpoint
    is always open, work on its scope first, may work ahead once `reached`, and no work
    while the checkpoint row reads `running` except a fix it asks for.
 3. **The checkpoint section,** renamed "Milestone checkpoints" (update every
@@ -73,7 +74,8 @@ only small forward-reference edits, and only on clean worktrees.
    - **A fix after recording:** on `release/<tag>` from the recorded commit, merged back
      with `git merge --no-ff`, the row moves to the branch tip; never rebase.
    - **Running it:** only when every session row reads `reached` and no publish row reads
-     `running`; every repository switches to `release/<tag>` at its commit → build →
+     `running`; every repository is committed, the root too, with every session's doc
+     edits in one commit → every repository switches to `release/<tag>` at its commit → build →
      verifiers → evidence → tracker, capabilities, submodule pins → tag the branch tip,
      fast-forward `main` → merge back where needed → back on `development`. A failing
      check names the repository; only its owning session fixes it, on that branch.

@@ -22,6 +22,10 @@ brings.
   open, idle, or not running, since when, and how many processes claim its ID. It also
   lists the live processes at a root with no session row. It reads Claude Code's process
   records through session-reset's registry, in `opsboard`, `--md` and `--tsv`.
+- Every workspace session keeps the root docs (plan.md, handoffs.md, operator.md and
+  the root's other `.md` files) current as it works, and leaves them uncommitted; the
+  operator or the checkpoint session commits the root in one commit. The workspace mod
+  lets every session write them, and the git rules, the templates and SD2 say so.
 - session-reset keeps an approve over a reload of the mod, so the approved commands still
   run when the mod's code changes between the approve and them.
 

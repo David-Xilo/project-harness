@@ -62,7 +62,11 @@ commands.
 5. **Safety.** Never force-push, and never rebase or rewrite a published branch. Never
    run `reset --hard`, `clean` or `restore` on the operator's work; the hook blocks them.
    In a workspace shared by several sessions, stage only paths in the repositories this
-   session owns; a shared root file goes in whole, with its full diff in the preview.
+   session owns. There, a session that does not own the root (`S<n>`, `publish-<repo>`)
+   keeps the root docs (plan.md, handoffs.md, operator.md and the root's other `.md`
+   files) current as the work goes and never stages them: the operator, the checkpoint
+   session or the root's own session (`W`) commits the root in one commit. Push only when
+   the step needs it.
    Never stage submodule pointers outside a checkpoint session.
 6. **After running**, show the result per repository (`git log -1 --format='%h %an %G?
    %s'`, and any push or tag output).

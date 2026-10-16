@@ -71,10 +71,10 @@ checkpoints](plan.md#tracks-and-checkpoints). It finds its ID (`S1`–`S{{n}}`, 
 (at most four track sessions, SD3). Each repository has one writing track. A session
 edits only its tracks' repositories. It asks other sessions through rows in
 [handoffs.md](handoffs.md) and the operator through entries under its tracks in
-[operator.md](operator.md), one ID `O<n>` per task (SD4). With its repositories' rows in
-[release.md](release.md), these are the only root files it may edit (it may also append
-a glossary entry and keep its tracks' queue cells in the plan current). Root files
-otherwise change only in a checkpoint session `CP<m>`.
+[operator.md](operator.md), one ID `O<n>` per task (SD4). It keeps the root docs (the
+plan, handoffs.md, operator.md, release.md and the root's other `.md` files) current as
+its work goes, and leaves them uncommitted: the operator or a checkpoint session `CP<m>`
+commits the root in one commit. Submodule pins and tags change only in `CP<m>`.
 Each milestone has one [checkpoint](plan.md#milestone-checkpoints), always one open:
 every session works up to its scope, records its release commits in release.md and marks
 `reached` in handoffs.md's checkpoint status, then may work ahead; `CP<m>` runs only when

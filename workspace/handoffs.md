@@ -1,7 +1,7 @@
 # Handoffs between tracks
 
-The one shared file between checkpoints ([track rules](plan.md#track-rules)). A track
-never edits another track's repository; it asks here instead.
+Requests between tracks ([track rules](plan.md#track-rules)). A track never edits another
+track's repository; it asks here instead.
 
 - **Open:** the requesting track adds a row with the next free `H` number. It names the
   owner track, the need, what it unblocks and how the requester will know it is done.

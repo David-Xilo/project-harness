@@ -16,7 +16,7 @@ const PLAN = [
   '',
   '### Session IDs',
   '',
-  '- **Shared files:** its rows in handoffs.md.',
+  '- **Shared files:** its rows in handoffs.md; `S2` owns stack.md.',
   '',
 ].join('\n')
 const RUNTIME = {
@@ -54,7 +54,7 @@ function world(on: On, opts: { id: string; workspace?: unknown; dirty?: string[]
     state.set(e.key, e.value)
     return { value: { isSet: true, version: 0 } }
   })
-  const folders = new Set(['/work', ROOT, `${ROOT}/acme-api`, `${ROOT}/acme-stack`])
+  const folders = new Set(['/work', ROOT, `${ROOT}/acme-api`, `${ROOT}/acme-stack`, `${ROOT}/vendor/lib/.git`])
   on('fs.read', ($, e) => {
     const text = files[e.path]
     return text === undefined ? { deny: `ENOENT: ${e.path}` } : { value: text }
@@ -123,6 +123,17 @@ describe('runtime rule', () => {
     expect((await $.tool.call(bash('./stackctl.sh up'))).deny).toBeUndefined()
     expect((await $.tool.call(bash('echo x > acme-stack/file'))).deny).toBeUndefined()
     expect(w.toasts).toEqual([expect.stringContaining('.claude/workspace.json: runtime.scripts is empty')])
+  })
+
+  test('every session edits the root docs, not another repository or a root script', async ($, on) => {
+    world(on, { id: 'S1' })
+    expect((await $.tool.call(bash('echo x >> plan.md'))).deny).toBeUndefined()
+    expect((await $.tool.call(bash('echo x > docs/notes.md'))).deny).toBeUndefined()
+    expect((await $.tool.call(bash('echo x > acme-stack/README.md'))).deny).toContain('belongs to `S2`')
+    expect((await $.tool.call(bash('echo x > run.sh'))).deny).toContain('past those, the root docs')
+    expect((await $.tool.call(bash('echo x > vendor/lib/README.md'))).deny).toContain('workspace:')
+    expect((await $.tool.call(bash('echo x > .claude/commands/session.md'))).deny).toContain('workspace:')
+    expect((await $.tool.call(bash('echo x > stack.md'))).deny).toContain('workspace:')
   })
 
   test('the write guard still holds next to the rule', async ($, on) => {
