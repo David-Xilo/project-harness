@@ -17,3 +17,9 @@
   ```
 
   CI runs the same.
+- Prove user-facing behaviour with the verify skill in
+  `.claude/skills/verify-{{repo}}/`.
+  `create-verification-skill` writes it when there is none. Fix a bug test-first with
+  `tdd` when a cheap local test exists. Every test follows the test budget (the
+  `test-behavior-not-implementation` principle, in the `principles` skill): it stays only
+  if it fails when the behaviour breaks and passes when only the internals change.
