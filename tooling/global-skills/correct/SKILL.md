@@ -26,8 +26,8 @@ has happened twice.
   correction that is there and happened again is a repeat. Transcripts at
   `~/.claude/projects/<slug>/*.jsonl` hold the rest. Grep them for the operator pushing
   back ("no", "don't", "I said", "again", "stop") and read only the matching turns.
-  `<slug>` is the working directory with each "/" turned into "-". Read only this
-  project's folder.
+  `<slug>` is the working directory with every character other than a letter or digit
+  turned into "-". Read only this project's folder.
 - **The commit gate:** `node <project-harness>/tooling/mods/session-reset/replay.mjs
   --list ~/.claude/projects/<slug>` replays this project's transcripts through
   session-reset and lists each approve that didn't restart, by cause. A cause that keeps

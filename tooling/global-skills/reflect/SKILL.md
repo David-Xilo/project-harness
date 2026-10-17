@@ -13,9 +13,9 @@ session followed correctly. One-offs are not learnings.
 ## 1. Find this session's transcript
 
 Transcripts live at `~/.claude/projects/<slug>/<uuid>.jsonl`, where `<slug>` is the
-working directory with each "/" turned into "-"; subagent transcripts sit under
-`<uuid>/subagents/`. Read only this project's folder: other folders hold other projects'
-private chats.
+working directory with every character other than a letter or digit turned into "-";
+subagent transcripts sit under `<uuid>/subagents/`. Read only this project's folder:
+other folders hold other projects' private chats.
 
 ```bash
 ls -t ~/.claude/projects/<slug>/*.jsonl | head -10

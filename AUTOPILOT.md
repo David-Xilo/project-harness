@@ -47,6 +47,17 @@ Autopilot stops, and the session waits for the operator as it does today, when:
 An answer the operator types never turns autopilot off, so answering a question lets the
 session go on alone. To take over, run `/autopilot off`.
 
+**A trail, and a catch-up at the end.** Under autopilot the session logs its decisions
+with the `show-me-your-work` skill in `<root>/.audit/<ID>.tsv`, which stays out of git.
+The run starts with a row with phase `autopilot` (its target and maximum), and each
+restarted session reads the last rows and opens its stretch with a `start` row. When the
+target, the maximum or the checkpoint is reached, the restarted session that names its
+next step and waits has a reviewer on another model check the run's rows, from that
+`autopilot` row on, against session-reset's log of the run and `git log`, opening a
+transcript only where a row needs it. Then it opens with a `ketchup` of the whole run and
+ends with the reviewer's Attention flags. When autopilot stops for another reason, such
+as a failed command, the session says why, and the trail is what the operator reads.
+
 ## 3. What autopilot approves
 
 The mod approves a preview itself only when all of these hold. Otherwise it waits for a
