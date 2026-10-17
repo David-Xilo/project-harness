@@ -1,0 +1,8 @@
+{
+  "name": "project-harness",
+  "description": "Skills for working in Claude Code desktop without the harness",
+  "owner": { "name": "project-harness" },
+  "plugins": [
+    { "name": "desk", "source": "./desk", "description": "Engineering skills for one task, one worktree, one PR" }
+  ]
+}

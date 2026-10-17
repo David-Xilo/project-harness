@@ -66,9 +66,10 @@ flowchart LR
 
 ## Components and ownership
 
-One track writes each component at a time. Every component lives under `tooling/`, and
-`tooling/install` links it to the path it runs from ([WORKFLOW.md](WORKFLOW.md)
-section 1).
+One track writes each component at a time. Every component but DESK lives under
+`tooling/`, and `tooling/install` links it to the path it runs from ([WORKFLOW.md](WORKFLOW.md)
+section 1). DESK's plugin stays in `claude-desktop/`, which each project loads as a local
+marketplace.
 
 | Code | Component | Owns | Tracks left |
 |---|---|---|---|
@@ -79,17 +80,19 @@ section 1).
 | SKL | Skills and commands | skill templates, `/session`, `/operator-steps` | T5, then T2 |
 | ENG | Engineering skills | `tooling/global-skills/`, `tooling/agents/`, their lines in `tooling/install` | T6, then T7 |
 | PUB | Publishing | `tooling/publish/` (templates, rulesets) | — |
+| DESK | Desktop way of working | `claude-desktop/` (the `desk` plugin), `tooling/bin/sp-claude-desktop` | T8 |
 
 ## Tracks and order
 
-Two sessions work here, each a plain session in this repository (it is not a registered
-root), and no component is written by both ([D17](#decisions)). Each runs its tracks in
+Three sessions work here, each a plain session in this repository (it is not a registered
+root), and no component is written by two ([D17](#decisions), [D18](#decisions)). Each runs its tracks in
 the order below, so each track finishes before that session's next one starts.
 
 | Session | Auto mode | Tracks, in order |
 |---|---|---|
 | **H1** | yes | T6, then T5 |
 | **H2** | never: it edits session-reset | T3 (BOARD-4.5), then T7, then T2 |
+| **H3** | yes | T8 |
 
 | Track | Goal | Milestone | Release |
 |---|---|---|---|
@@ -98,6 +101,7 @@ the order below, so each track finishes before that session's next one starts.
 | **T5 Code cleanup** | `/code-cleanup` runs a full maintenance pass on a repository: fewer, truer comments, simpler code, only the tests that matter, and a verdict on its design | M5 | in ship order |
 | **T7 PR mode** | A second mode beside approve mode: a session works in its own worktree, each step ends in a PR a verifier on another model checks, and the operator merges | M7 | in ship order |
 | **T2 Commit loop** | Every approve whose commands succeed ends in a session restart | M3 | in ship order |
+| **T8 Desktop** | A second way of working, apart from the harness, for projects run in the Claude desktop app: one task, one worktree, one PR; skills as the `desk` plugin; `sp-claude-desktop` turns the harness off in one project | M8 | in ship order |
 
 T1 Public (M1) is done: v0.1.0 and v0.1.1. T4 Autopilot (M2) is done: v0.2.0.
 
@@ -115,11 +119,14 @@ creates and owns.
 
 Priorities: **P0** critical path, **P1** required but parallel, **P2** only for a named
 need. Step IDs are `<CODE>-<milestone>.<n>`, never renumbered or reused; the next
-operator task is O10.
+operator task is O11.
 
-**Open operator tasks:** none.
+**Open operator tasks:**
+- O10 (unblocks DESK-8.5): run `sp-claude-desktop <project>` on a test project and do the
+  three checks under "Not checked yet" in [claude-desktop/README.md](claude-desktop/README.md)
+  in the desktop app. Then tell H3 "O10 done", with any check that failed.
 
-**Next:** H1: ENG-6.11. H2: the BOARD-4.4 fixes from H1's `/interrogate`, then PR-7.3 (out of auto mode), and BOARD-4.5 once Gate M4 passes.
+**Next:** H1: ENG-6.12. H2: the BOARD-4.4 fixes from H1's `/interrogate`, then PR-7.3 (out of auto mode), and BOARD-4.5 once Gate M4 passes. H3: DESK-8.4.
 
 **Notes.**
 - The publish skills (`go-public`, `publish`) were checked by reading, not on a fixture
@@ -224,8 +231,7 @@ it is needed.
 
 | Done | Pri | Step | Depends on | Done when |
 |---|---|---|---|---|
-| [ ] | P2 | ENG-6.11: `typescript-best-practices`, for the mods. The module AGENTS.md template names `tdd`, the verify skill and the test budget | — | The template renders through `sp-new` |
-| [ ] | P1 | ENG-6.12: Docs (WORKFLOW.md section 1, SETUP), CHANGELOG, release | ENG-6.11 | Tagged |
+| [ ] | P1 | ENG-6.12: Docs (WORKFLOW.md section 1, SETUP), CHANGELOG, release | — | Tagged |
 
 - [ ] **Gate M6:** `/rigor` and `/interrogate` used on real work in a workspace, and the
   operator keeps them → release.
@@ -289,6 +295,34 @@ writer owns the stack's topology (pstack's autopilot-stack).
 
 - [ ] **Gate M7:** a workspace session runs a step to a merged PR in PR mode → release.
 
+### T8 Desktop (M8)
+
+Why: the harness fits several terminal sessions that the operator approves one commit at
+a time. Several projects at once in the Claude desktop app need less: each task gets its
+own session, worktree, branch and PR, and the operator reviews at the merge. T8 builds
+that as a separate way of working, with no commit gate, and leaves the harness as it is.
+[claude-desktop/README.md](claude-desktop/README.md) describes it.
+
+- `sp-claude-desktop <project>` writes the project's `.claude/settings.local.json`. It
+  turns off the mods (`<name>@inline: false`) and every hook (`disableAllHooks`). It skips
+  `~/.claude/CLAUDE.md` and its imports (`claudeMdExcludes`), and turns off the user
+  skills, commands (`skillOverrides`) and agents (`permissions.deny`). It installs the
+  `desk` plugin at local scope from `claude-desktop/` as a directory marketplace.
+  Checked in headless sessions with 2.1.302; the desktop app is O10.
+- Plugin skills are namespaced (`desk:<name>`) and `skillOverrides` does not touch them,
+  so they never clash with the global skills of the same name.
+- The `desk` skills are copies, not links. T6's skills keep the harness lines, so H3
+  never edits `tooling/global-skills/` and copies a change by hand when one is worth it.
+
+| Done | Pri | Step | Depends on | Done when |
+|---|---|---|---|---|
+| [ ] | P1 | DESK-8.4: Port from pstack at `0317eb8`, with its Claude Code mapping (`docs/harness/claude-code.md`), the skills whose local copies have the harness in their logic: show-me-your-work, ketchup, correct, reflect, architect, figure-it-out, swarm, arena, the verification pair, benchmark-checklist and typescript-best-practices (the `desk` skills already name several of these), and a `poteto-agent` delegate agent | — | Each loads as `desk:<name>` and has no harness line |
+| [ ] | P1 | DESK-8.5: The mode skill `desk:desk`, a router ported from pstack's poteto-mode. Playbooks: feature, bug fix, investigation, refactoring, session pickup, pause safely, opening a PR, babysit (CI and review threads, under `/loop`), shipping, autonomous run, and worktree cleanup with `worktree-audit.sh`. PRs open with no preview, in the repository's subject style and with no trailer | DESK-8.4, O10 | `/desk:desk` takes a small bug in the test project to an open, verified PR |
+| [ ] | P1 | DESK-8.6: A line in the root README pointing to `claude-desktop/README.md`; CHANGELOG, release | DESK-8.5 | Tagged |
+
+- [ ] **Gate M8:** the operator works one real project through the desktop app for a
+  week and keeps the setup → release.
+
 ## Releases and versions
 
 - Each milestone is the next `v0.<n>.0`, in the order they ship (D14, D17): an annotated, signed tag whose notes list the
@@ -337,3 +371,4 @@ writer owns the stack's topology (pstack's autopilot-stack).
 | D15 | Every workspace session keeps the root docs (the root's `.md` files outside the module repositories) current as its work goes and leaves them uncommitted; the operator or `CP<m>` commits the root in one commit, and sessions push only when a step needs it. Root docs that only a checkpoint could change drifted from the work. The workspace mod lets every session write them; submodule pins and tags stay with `CP<m>` | 2026-10-16 |
 | D16 | PR mode (T7), from the PR-7.1 spike. **Where:** a local worktree per session and repository, `<root>/.worktrees/<ID>/<repo>` (gitignored by the root), made once from a preview (`git -C <root>/<repo> worktree add <root>/.worktrees/<ID>/<repo> -b <ID>/<step> origin/development # approved`). The session stays at the root, writes by absolute path and pins git with `-C`, so it can hold several repositories; Claude Code's own `EnterWorktree` and `claude -w` move a session into one repository only, and cloud sessions carry neither the mods nor the private submodules, so both wait. PR-7.3 first checks that a submodule's worktree is sound (its shared `core.worktree`); if not, the worktree is a clone of the module repository at the same path. **Branches:** one per step, `<ID>/<step>`, from `origin/development`, or from the session's previous step branch when the step builds on an unmerged PR (a stack the session alone shapes); a conflict is solved by merging `development` into the branch, never a rebase or a force-push. **Mode:** `/pr [on\|off]` in a `/session`, kept in session-reset's session state over restarts like `/autopilot`, shown in the band; a workspace can mix modes. **What runs:** in the session's own worktrees, with no approve: `add`, `commit`, `switch -c <ID>/…`, `fetch`, `merge origin/development`, and `push origin <ID>/…` without force or delete. From a preview: the first `worktree add`, its `worktree remove`, and `gh pr create --base development --head <ID>/<step>` and `gh pr comment` on the session's own PR; autopilot may approve the two `gh` commands. Never: a merge into `development` or `main`, a push to another branch, a force-push, a retarget; the main checkouts stay in approve mode. **Step end:** the session spawns a verifier on another model on the pushed head (`interrogate`, then prove-it-works on the real artifact), puts its verdict and the head SHA in the PR body and a ledger row, opens the PR, and restarts with `/session <ID>`; the operator merges on GitHub. The write guard allows the session its own `.worktrees/<ID>/` and the root docs (D15), so two sessions may change one repository and meet at the merge. A checkpoint's release commit is a merged commit on `development`. [PRMODE.md](PRMODE.md) holds the details | 2026-10-16 |
 | D17 | pstack's engineering skills come in as global skills (`tooling/global-skills/`, linked into `~/.claude/skills/`), adapted to Claude Code and the git rules (T6). What needs PRs comes as PR mode, a second mode beside approve mode (T7). Tests follow a budget: verification on the real artifact, tests that catch real breaks, no pile-up. Two sessions work here: H1 in auto mode (T6, T5), H2 never in auto mode (session-reset: T3, T7, T2). Releases stay numbered in the order they ship, so D14's version numbers for M5 and M3 no longer hold | 2026-10-16 |
+| D18 | A second way of working for the Claude desktop app, apart from the harness (T8): one task, one session, one worktree, one PR, and the operator's merge as the only gate. No commit gate, no `/session`, no docs contract. `sp-claude-desktop <project>` turns the harness off in one project through its `settings.local.json`; every other project keeps it. The skills ship as the `desk` plugin in `claude-desktop/`, copied from T6 with the harness lines removed or ported again from pstack, so T6 and T8 never share a file. A third session, H3, owns T8 | 2026-10-17 |

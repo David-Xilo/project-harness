@@ -1,0 +1,185 @@
+#!/usr/bin/env bash
+# usage: sp-claude-desktop <project>           turn the harness off in one project and the desk plugin on
+#        sp-claude-desktop --check <project>   say what is in place; change nothing
+#        sp-claude-desktop --off <project>     put the harness back in that project
+# Every other project keeps the harness. Writes only <project>/.claude/settings.local.json,
+# which stays out of git: the mods named in CLAUDE_CODE_PLUGIN_DIRS off, every hook off, the
+# user CLAUDE.md and its imports skipped, the user skills, commands and agents off, and the
+# desk plugin (claude-desktop/ in this repository) on. What it merged is kept in
+# .claude/sp-claude-desktop.json, so --off removes exactly that. Run it again after adding a
+# global skill. Needs jq and claude.
+set -euo pipefail
+here=$(dirname "$(readlink -f "$0")")
+market=$(realpath "$here/../../claude-desktop")
+claude_dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+mode=on project=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --check) mode=check ;;
+    --off) mode=off ;;
+    -*) sed -n '2,4s/^# \{0,1\}//p' "$0"; exit 2 ;;
+    *) project="$1" ;;
+  esac
+  shift
+done
+[ -n "$project" ] && [ -d "$project" ] || { sed -n '2,4s/^# \{0,1\}//p' "$0"; exit 2; }
+cd "$project"
+settings=.claude/settings.local.json
+state=.claude/sp-claude-desktop.json
+plugin=desk@project-harness
+
+# imports_of <file> <depth>: add to imports every file it imports with @path, at any
+# depth up to the five hops Claude Code follows. A relative path is from the file's folder.
+imports_of() {
+  local p
+  [ -f "$1" ] && [ "$2" -lt 5 ] || return 0
+  while read -r p; do
+    case "$p" in "~/"*) p=$HOME/${p#\~/} ;; /*) ;; *) p=$(dirname "$1")/$p ;; esac
+    p=$(realpath -ms "$p")
+    [ -f "$p" ] && [[ " ${imports[*]} " != *" $p "* ]] || continue
+    imports+=("$p")
+    # Through a symlink, exclude the target too.
+    [ "$(realpath "$p")" = "$p" ] || imports+=("$(realpath "$p")")
+    imports_of "$p" $(($2 + 1))
+  done < <(grep -oE '(^|[[:space:]])@[^[:space:]]+' "$1" | sed 's/^[[:space:]]*@//')
+}
+
+# The block to merge, built from what is installed now.
+want() {
+  local mods=() skills=() agents=() d n f
+  imports=()
+  IFS=: read -ra dirs <<<"$(jq -r '.env.CLAUDE_CODE_PLUGIN_DIRS // ""' "$claude_dir/settings.json" 2>/dev/null)"
+  for d in "${dirs[@]}"; do
+    d=${d/#\~/$HOME}
+    n=$(jq -r '.name // empty' "$d/.claude-plugin/plugin.json" 2>/dev/null) && [ -n "$n" ] && mods+=("$n@inline")
+  done
+  for d in "$claude_dir"/skills/*/; do [ -f "$d/SKILL.md" ] && skills+=("$(basename "$d")"); done
+  for f in "$claude_dir"/commands/*.md; do [ -f "$f" ] && skills+=("$(basename "$f" .md)"); done
+  for f in "$claude_dir"/agents/*.md; do
+    [ -f "$f" ] || continue
+    n=$(sed -n '1,/^---$/{s/^name: *//p}' "$f" | head -1)
+    agents+=("Agent(${n:-$(basename "$f" .md)})")
+  done
+  imports=("$claude_dir/CLAUDE.md")
+  imports_of "$claude_dir/CLAUDE.md" 0
+  jq -n \
+    --argjson mods "$(jq -n '$ARGS.positional' --args -- "${mods[@]}")" \
+    --argjson skills "$(jq -n '$ARGS.positional' --args -- "${skills[@]}")" \
+    --argjson agents "$(jq -n '$ARGS.positional' --args -- "${agents[@]}")" \
+    --argjson imports "$(jq -n '$ARGS.positional' --args -- "${imports[@]}")" '{
+      enabledPlugins: ($mods | map({(.): false}) | add // {}),
+      disableAllHooks: true,
+      claudeMdExcludes: $imports,
+      skillOverrides: ($skills | map({(.): "off"}) | add // {}),
+      permissions: { deny: $agents }
+    }'
+}
+
+# merge <file> <block>: objects merged key by key, arrays joined without duplicates.
+merge() {
+  jq --argjson block "$2" '
+    def m($a; $b): if ($a|type) == "object" and ($b|type) == "object"
+      then reduce ($b|keys[]) as $k ($a; .[$k] = m($a[$k]; $b[$k]))
+      elif ($a|type) == "array" and ($b|type) == "array" then $a + ($b - $a)
+      else $b end;
+    m(.; $block)' "$1"
+}
+
+# added <file> <block>: the part of the block the file does not hold already, so --off
+# leaves alone what the project had set before.
+# replaced <file> <block>: the file's values that the block overwrites, for --off to put back.
+replaced() {
+  jq --argjson block "$2" '
+    def r($a; $b): reduce ($b|keys[]) as $k ({};
+      if ($a[$k]|type) == "object" and ($b[$k]|type) == "object" then
+        (r($a[$k]; $b[$k])) as $sub | if $sub == {} then . else .[$k] = $sub end
+      elif $a[$k] == null or $a[$k] == $b[$k] or ($a[$k]|type) == "array" then .
+      else .[$k] = $a[$k] end);
+    r(.; $block)' "$1"
+}
+added() {
+  jq --argjson block "$2" '
+    def d($a; $b): reduce ($b|keys[]) as $k ({};
+      if $a[$k] == $b[$k] then .
+      elif ($a[$k]|type) == "object" and ($b[$k]|type) == "object" then .[$k] = d($a[$k]; $b[$k])
+      elif ($a[$k]|type) == "array" and ($b[$k]|type) == "array" then .[$k] = ($b[$k] - $a[$k])
+      else .[$k] = $b[$k] end);
+    d(.; $block)' "$1"
+}
+
+# unmerge <file> <block>: remove what the block added; drop objects left empty.
+unmerge() {
+  jq --argjson block "$2" '
+    def u($a; $b): reduce ($b|keys[]) as $k ($a;
+      if ($a[$k]|type) == "object" and ($b[$k]|type) == "object" then .[$k] = u($a[$k]; $b[$k])
+      elif ($a[$k]|type) == "array" and ($b[$k]|type) == "array" then .[$k] = ($a[$k] - $b[$k])
+      else del(.[$k]) end
+      | if (.[$k]|type) == "object" or (.[$k]|type) == "array" then (if (.[$k]|length) == 0 then del(.[$k]) else . end) else . end);
+    u(.; $block)' "$1"
+}
+
+desk_on() { [ -f "$settings" ] && jq -e --arg p "$plugin" '.enabledPlugins[$p] == true' "$settings" >/dev/null 2>&1; }
+
+if [ $mode = check ]; then
+  todo=0
+  [ -f "$settings" ] || { echo "missing  $PWD/$settings"; exit 1; }
+  block=$(want)
+  missing=$(jq -n --slurpfile s "$settings" --argjson b "$block" '
+    [ ($b.enabledPlugins | keys[] | select($s[0].enabledPlugins[.] != false) | "mod on: \(.)"),
+      (if $s[0].disableAllHooks != true then "hooks on" else empty end),
+      ($b.claudeMdExcludes - ($s[0].claudeMdExcludes // []) | .[] | "memory loads: \(.)"),
+      ($b.skillOverrides | keys[] | select($s[0].skillOverrides[.] != "off") | "skill on: \(.)"),
+      ($b.permissions.deny - ($s[0].permissions.deny // []) | .[] | "agent on: \(.)") ] | .[]' -r)
+  [ -n "$missing" ] && { echo "$missing"; todo=1; }
+  desk_on || { echo "desk plugin not enabled"; todo=1; }
+  jq -e --arg m "$market" '.extraKnownMarketplaces["project-harness"].source.path == $m' "$settings" >/dev/null ||
+    { echo "desk marketplace does not point at $market"; todo=1; }
+  [ $todo = 0 ] && echo "ok       $PWD: harness off, desk on"
+  exit $todo
+fi
+
+if [ $mode = off ]; then
+  [ -f "$state" ] || { echo "nothing to undo in $PWD"; exit 0; }
+  desk_on && claude plugin uninstall "$plugin" --scope local >/dev/null
+  out=$(unmerge "$settings" "$(jq '.added' "$state")")
+  printf '%s\n' "$out" >"$settings"
+  out=$(merge "$settings" "$(jq '.restore' "$state")")
+  printf '%s\n' "$out" | jq 'del(.extraKnownMarketplaces["project-harness"]) | del(.enabledPlugins["'"$plugin"'"])
+    | if .extraKnownMarketplaces == {} then del(.extraKnownMarketplaces) else . end
+    | if .enabledPlugins == {} then del(.enabledPlugins) else . end' >"$settings"
+  rm -f "$state"
+  echo "harness back on in $PWD"
+  exit 0
+fi
+
+mkdir -p .claude
+[ -f "$settings" ] || echo '{}' >"$settings"
+block=$(want)
+new=$(jq -n --argjson a "$(added "$settings" "$block")" --argjson r "$(replaced "$settings" "$block")" '{added: $a, restore: $r}')
+# Keep what earlier runs recorded: all they added, and the values from before the first run.
+if [ -f "$state" ]; then
+  new=$(jq -n --slurpfile old "$state" --argjson new "$new" '
+    def m($a; $b): if ($a|type) == "object" and ($b|type) == "object"
+      then reduce ($b|keys[]) as $k ($a; .[$k] = m($a[$k]; $b[$k]))
+      elif ($a|type) == "array" and ($b|type) == "array" then $a + ($b - $a)
+      else $b end;
+    {added: m($old[0].added; $new.added), restore: m($new.restore; $old[0].restore)}')
+fi
+out=$(merge "$settings" "$block")
+printf '%s\n' "$out" >"$settings"
+printf '%s\n' "$new" >"$state"
+if ! jq -e '.extraKnownMarketplaces["project-harness"]' "$settings" >/dev/null; then
+  claude plugin marketplace add "$market" --scope local >/dev/null
+fi
+desk_on || claude plugin install "$plugin" --scope local >/dev/null
+
+if gitdir=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null); then
+  prefix=$(git rev-parse --show-prefix)
+  mkdir -p "$gitdir/info"
+  for p in .claude/settings.local.json .claude/sp-claude-desktop.json .claude/worktrees/; do
+    p=/$prefix$p
+    grep -qxF "$p" "$gitdir/info/exclude" 2>/dev/null || echo "$p" >>"$gitdir/info/exclude"
+  done
+fi
+echo "harness off, desk on in $PWD"
+echo "skills: /desk:<name>. Restart open sessions there to pick it up."
