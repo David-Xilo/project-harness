@@ -119,7 +119,7 @@ operator task is O10.
 
 **Open operator tasks:** none.
 
-**Next:** H1: ENG-6.10. H2: the BOARD-4.4 fixes from H1's `/interrogate`, then PR-7.3 (out of auto mode), and BOARD-4.5 once Gate M4 passes.
+**Next:** H1: ENG-6.11. H2: the BOARD-4.4 fixes from H1's `/interrogate`, then PR-7.3 (out of auto mode), and BOARD-4.5 once Gate M4 passes.
 
 **Notes.**
 - The publish skills (`go-public`, `publish`) were checked by reading, not on a fixture
@@ -224,9 +224,8 @@ it is needed.
 
 | Done | Pri | Step | Depends on | Done when |
 |---|---|---|---|---|
-| [ ] | P0 | ENG-6.10: The mode skill `rigor`, from `poteto-mode` with `poteto-help` as its help. Playbooks as references: investigation, bug fix, perf, hillclimb, runtime and trace forensics, feature, refactoring, prototype, visual parity, authoring a skill, eval (`claude plugin eval` where it fits), session pickup, pause safely (a handoff or a resume note, no wip commit in approve mode), multi-phase plan (in this plan's format). Also `automate-me`, to draft the operator's own mode from transcripts | — | `/rigor` on a small bug in a workspace module follows the bug-fix playbook |
 | [ ] | P2 | ENG-6.11: `typescript-best-practices`, for the mods. The module AGENTS.md template names `tdd`, the verify skill and the test budget | — | The template renders through `sp-new` |
-| [ ] | P1 | ENG-6.12: Docs (WORKFLOW.md section 1, SETUP), CHANGELOG, release | ENG-6.10 | Tagged |
+| [ ] | P1 | ENG-6.12: Docs (WORKFLOW.md section 1, SETUP), CHANGELOG, release | ENG-6.11 | Tagged |
 
 - [ ] **Gate M6:** `/rigor` and `/interrogate` used on real work in a workspace, and the
   operator keeps them → release.
