@@ -49,6 +49,8 @@ excludes `.zed/` from git, warns about `submodule.recurse`, and registers the ro
 roots file (`sp-config ROOTS`). Registration turns on the session-reset and workspace
 mods, the ops board, `/operator-steps` and `session-sweep.sh` for this root. Commit
 `.claude/skills` with the root.
+The engineering skills (`/rigor` and the rest) are global: `tooling/install` linked them
+into `~/.claude/skills`, so the root needs no copy.
 
 ## 4. Check, then the first commit
 
@@ -86,6 +88,10 @@ repository that holds just the README `gh repo create --add-readme` made, and le
 other alone. It fails when a module's repository does not exist yet. Then run the checks
 below and show each module's first commit (`<CODE>-0.1: plan, research and agent rules
 from project-harness`), one preview per repository.
+
+Each module's AGENTS.md names its verify skill, `.claude/skills/verify-<repo>/`. Once the
+module has something to drive, its session writes that skill with
+`create-verification-skill`, as one of the module's own steps.
 
 A future module gets its repository from an O task in a later milestone. Then move it
 from `[[future_modules]]` to `[[modules]]` in `<root>/.claude/project.toml`, add the keys

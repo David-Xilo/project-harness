@@ -31,6 +31,18 @@ brings.
   lets every session write them, and the git rules, the templates and SD2 say so.
 - session-reset keeps an approve over a reload of the mod, so the approved commands still
   run when the mod's code changes between the approve and them.
+- The engineering skills from pstack, adapted to Claude Code and the git rules, are
+  global skills. `tooling/install` links `tooling/global-skills/` into `~/.claude/skills/`
+  and `tooling/agents/` into `~/.claude/agents/`, for this repository and every
+  workspace. `/rigor` matches a task to a playbook (bug fix, feature, investigation,
+  refactoring, perf and more) and runs the other skills as its steps need them; `/rigor
+  help` picks a skill. The others cover principles, verification with a test budget,
+  writing, review on two models, understanding code, lessons turned into checks,
+  decision trails and catch-ups, and framing and fan-out.
+- Commit messages and docs are written with the `technical-writing` and `unslop` skills
+  (git rule 4).
+- The module AGENTS.md template names the module's verify skill, `tdd` for a bug with a
+  cheap test, and the test budget.
 
 ## v0.2.0 (2026-10-14)
 
