@@ -43,6 +43,9 @@ brings.
   (git rule 4).
 - The module AGENTS.md template names the module's verify skill, `tdd` for a bug with a
   cheap test, and the test budget.
+- `/code-cleanup [<repo or path>]` runs a maintenance pass: comments, clutter, duplication,
+  simplify, tests and design, each its own reviewed commit. Behaviour stays the same, and
+  design changes come back as plan steps for the operator.
 
 ## v0.2.0 (2026-10-14)
 

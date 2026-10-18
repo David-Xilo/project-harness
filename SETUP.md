@@ -110,6 +110,7 @@ for it makes `--modules` stop and say so.
 
 - `/balance-sessions` sizes the sessions once the queues have real steps.
 - `/add-objective <idea>` adds goals later and rebalances.
+- `/code-cleanup <repo>` runs a maintenance pass on a module once features pile up.
 - `go-public` marks a module for open source; `/session publish-<repo>` releases it.
 - When the operator commits and says "committed", the session-reset mod restarts the
   session with `/session <ID>`.

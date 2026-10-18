@@ -47,6 +47,7 @@ gives.
 | Run a large change, or one to review after stepping away | `/figure-it-out` |
 | Keep a decision trail, and review it afterwards | `/show-me-your-work` |
 | Look up an engineering principle | `/principles` |
+| Run a maintenance pass on a repository | `/code-cleanup` |
 | Turn their working habits into a personal mode skill | `/automate-me` |
 | Turn what a session taught into skill edits | `/reflect` |
 | Stop agents repeating the same mistakes | `/correct` |

@@ -34,7 +34,8 @@ Run `/new-project` in Claude Code. It asks the setup questions in one message an
 the project's documents. Then open one terminal per session and run `/session S1`,
 `/session S2`, and so on; `/ops` lists what waits on you. `/autopilot` lets a session
 approve its own reviewed commits up to a step, and `/balance-sessions` says how many
-sessions to run.
+sessions to run. `/rigor` runs non-trivial work through a playbook, and `/code-cleanup`
+takes a step back after a run of features.
 
 ## More
 

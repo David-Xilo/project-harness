@@ -73,12 +73,12 @@ marketplace.
 
 | Code | Component | Owns | Tracks left |
 |---|---|---|---|
-| DOC | Template docs | README, WORKFLOW, SETUP, `workspace/`, `module/` | T6, then T5 |
+| DOC | Template docs | README, WORKFLOW, SETUP, `workspace/`, `module/` | T5 |
 | MOD | Mods | session-reset, workspace | T7, then T2 |
 | BIN | Scripts | opsboard, sp-claude-init, session-sweep, commit-all, push-all, leak-check, publish-check, gh-harden | T7 |
 | HOOK | Hooks | git-guard, typecheck, the pre-push hook | — |
-| SKL | Skills and commands | skill templates, `/session`, `/operator-steps` | T5, then T2 |
-| ENG | Engineering skills | `tooling/global-skills/`, `tooling/agents/`, their lines in `tooling/install` | T6, then T7 |
+| SKL | Skills and commands | skill templates, `/session`, `/operator-steps` | T2 |
+| ENG | Engineering skills | `tooling/global-skills/`, `tooling/agents/`, their lines in `tooling/install` | T5, then T7 |
 | PUB | Publishing | `tooling/publish/` (templates, rulesets) | — |
 | DESK | Desktop way of working | `claude-desktop/` (the `desk` plugin), `tooling/bin/sp-claude-desktop` | T8 |
 
@@ -129,7 +129,7 @@ operator task is O11.
   [claude-desktop/README.md](claude-desktop/README.md) in the desktop app. Then tell H3
   "O10 done", with any check that failed.
 
-**Next:** H1: CLEAN-5.1, and ENG-6.12 once Gate M6 passes. H2: the BOARD-4.4 fixes from H1's `/interrogate`, then PR-7.3 (out of auto mode), and BOARD-4.5 once Gate M4 passes. H3: DESK-8.4.
+**Next:** H1: CLEAN-5.2, and ENG-6.12 once Gate M6 passes. H2: the BOARD-4.4 fixes from H1's `/interrogate`, then PR-7.3 (out of auto mode), and BOARD-4.5 once Gate M4 passes. H3: DESK-8.5 once O10 is done.
 
 **Notes.**
 - The publish skills (`go-public`, `publish`) were checked by reading, not on a fixture
@@ -268,11 +268,13 @@ The passes use T6's skills: comments through `no-comments` and the `comment-sick
 agent, tests through the two-edit check of `test-behavior-not-implementation` and the
 test budget, simplify and design through `interrogate`'s code-quality lens, and every
 removal proved safe with `blast-radius`.
+`code-cleanup` is a global skill (`tooling/global-skills/code-cleanup/`), not a project
+skill: it is general engineering, and its first run is on this repository, where
+`sp-claude-init` installs nothing.
 
 | Done | Pri | Step | Depends on | Done when |
 |---|---|---|---|---|
-| [ ] | P0 | CLEAN-5.1: The `code-cleanup` skill (`tooling/skills/code-cleanup/SKILL.md`): the passes above on T6's skills, the scope argument, the rule that behaviour stays the same, one commit per area, design changes only as proposals. List it in WORKFLOW.md, README and SETUP | — | The skill is installed by `sp-claude-init` |
-| [ ] | P0 | CLEAN-5.2: First run on this repository, then on a real workspace module; fix the skill from what it got wrong | CLEAN-5.1 | Both runs end with the tests passing and the operator agrees with what was removed |
+| [ ] | P0 | CLEAN-5.2: First run on this repository, then on a real workspace module; fix the skill from what it got wrong | — | Both runs end with the tests passing and the operator agrees with what was removed |
 | [ ] | P1 | CLEAN-5.3: CHANGELOG, release | CLEAN-5.2 | Tagged |
 
 - [ ] **Gate M5:** `/code-cleanup` runs on a real workspace module, its commits pass review
@@ -319,8 +321,7 @@ that as a separate way of working, with no commit gate, and leaves the harness a
 
 | Done | Pri | Step | Depends on | Done when |
 |---|---|---|---|---|
-| [ ] | P1 | DESK-8.4: Port from pstack at `0317eb8`, with its Claude Code mapping (`docs/harness/claude-code.md`), the skills whose local copies have the harness in their logic: show-me-your-work, ketchup, correct, reflect, architect, figure-it-out, swarm, arena, the verification pair, benchmark-checklist and typescript-best-practices (the `desk` skills already name several of these), and a `poteto-agent` delegate agent | — | Each loads as `desk:<name>` and has no harness line |
-| [ ] | P1 | DESK-8.5: The mode skill `desk:desk`, a router ported from pstack's poteto-mode. Playbooks: feature, bug fix, investigation, refactoring, session pickup, pause safely, opening a PR, babysit (CI and review threads, under `/loop`), shipping, autonomous run, and worktree cleanup with `worktree-audit.sh`. PRs open with no preview, in the repository's subject style and with no trailer | DESK-8.4, O10 | `/desk:desk` takes a small bug in the test project to an open, verified PR |
+| [ ] | P1 | DESK-8.5: The mode skill `desk:desk`, a router ported from pstack's poteto-mode. Playbooks: feature, bug fix, investigation, refactoring, session pickup, pause safely, opening a PR, babysit (CI and review threads, under `/loop`), shipping, autonomous run, and worktree cleanup with `worktree-audit.sh`. PRs open with no preview, in the repository's subject style and with no trailer. Add the `desk:delegate` agent, ported from pstack's `poteto-agent`, which the ported skills already name | O10 | `/desk:desk` takes a small bug in the test project to an open, verified PR |
 | [ ] | P1 | DESK-8.6: A line in the root README pointing to `claude-desktop/README.md`; CHANGELOG, release | DESK-8.5 | Tagged |
 
 - [ ] **Gate M8:** the operator works one real project through the desktop app for a
