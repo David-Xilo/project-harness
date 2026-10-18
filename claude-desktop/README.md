@@ -109,9 +109,19 @@ rule or one line in the project's CLAUDE.md.
 | `/desk:recall` | Pick up your recent work on a topic from your past chats |
 | `/desk:sharpen`, `/desk:in-your-own-words` | Frame a task before you start it |
 | `/desk:principles` | Load the engineering rules before a design choice or before calling work done |
+| `/desk:architect`, `/desk:arena` | Design a change from competing sketches on two models, and pick or merge the best |
+| `/desk:figure-it-out` | Plan an auditable run when no narrower skill fits, such as a large migration you review after stepping away |
+| `/desk:swarm` | Fan out parallel workers for coverage, races or exploration, and get one report back |
 | `/desk:tdd` | Fix a bug test-first, within the test budget |
 | `/desk:blast-radius` | Find what a change could break outside its diff |
 | `/desk:interrogate` | Review a diff from subagents on other models |
+| `/desk:show-me-your-work` | Keep a log of each decision and its evidence during a long run, and check it at the end |
+| `/desk:ketchup` | Catch up on what changed while you were away, and what needs you |
+| `/desk:reflect` | Turn what went wrong in a chat into fixes for the project's skills and CLAUDE.md |
+| `/desk:correct` | Make a mistake agents keep repeating impossible: architecture, types, a lint, then a test |
+| `/desk:create-verification-skill`, `/desk:maintain-verification-skill` | Give the project a skill that drives the real app to verify a change, and keep it true |
+| `/desk:benchmark-checklist` | Vet a performance measurement before you report or act on it |
+| `/desk:typescript-best-practices` | Write TypeScript with types that make bad states impossible |
 | `/desk:no-comments` | Strip comments that restate the code, with the `desk:comment-sicko` agent |
 | `/desk:technical-writing`, `/desk:unslop` | Write docs, commit messages and PR bodies |
 

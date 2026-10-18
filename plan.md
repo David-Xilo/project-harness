@@ -321,7 +321,7 @@ that as a separate way of working, with no commit gate, and leaves the harness a
 
 | Done | Pri | Step | Depends on | Done when |
 |---|---|---|---|---|
-| [ ] | P1 | DESK-8.5: The mode skill `desk:desk`, a router ported from pstack's poteto-mode. Playbooks: feature, bug fix, investigation, refactoring, session pickup, pause safely, opening a PR, babysit (CI and review threads, under `/loop`), shipping, autonomous run, and worktree cleanup with `worktree-audit.sh`. PRs open with no preview, in the repository's subject style and with no trailer. Add the `desk:delegate` agent, ported from pstack's `poteto-agent`, which the ported skills already name | O10 | `/desk:desk` takes a small bug in the test project to an open, verified PR |
+| [ ] | P1 | DESK-8.5: The mode skill `desk:desk`, a router ported from pstack's poteto-mode. Playbooks: feature, bug fix, investigation, refactoring, session pickup, pause safely, opening a PR, perf issue, hillclimb, babysit (CI and review threads, under `/loop`), shipping, autonomous run, and worktree cleanup with `worktree-audit.sh`. Keep the "Subagents" and "Principles" sections and the playbook names that the ported skills cite. PRs open with no preview, in the repository's subject style and with no trailer. Add the `desk:delegate` agent, ported from pstack's `poteto-agent`, for the mode skill's subagents | O10 | `/desk:desk` takes a small bug in the test project to an open, verified PR |
 | [ ] | P1 | DESK-8.6: A line in the root README pointing to `claude-desktop/README.md`; CHANGELOG, release | DESK-8.5 | Tagged |
 
 - [ ] **Gate M8:** the operator works one real project through the desktop app for a
