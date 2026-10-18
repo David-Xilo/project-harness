@@ -29,11 +29,21 @@ desktop app signs in with a Pro or Max subscription. It needs no API key. If
 
    The last line reads `ok … harness off, desk on`. Any other line names what is still on.
 
+   In a project whose modules are git submodules, add `--modules`. A session opened in a
+   module's folder is a project of its own, so the script runs on the root and on each
+   checked-out module, nested ones too: `sp-claude-desktop --modules ~/work/my-system`.
+   The last line then reads `all <n> projects ok`, or says how many need work.
+
 3. Restart any session open in that project. Type `/desk:` in a new session to see the
    skills.
 
+If the project was planned for the harness, run `/desk:adopt` next. It goes through the
+docs and plans with you and turns sessions, tracks, handoffs and checkpoints into a
+backlog of tasks that each fit one PR.
+
 Run the script again after you add a global skill, so the new skill is turned off there
-too. To put the harness back, run `sp-claude-desktop --off ~/work/my-app`.
+too. To put the harness's settings back, run `sp-claude-desktop --off ~/work/my-app`. That
+does not undo `/desk:adopt`, which rewrites the docs. Use git for that.
 
 ## What the script changes
 
@@ -51,8 +61,8 @@ what it merged in `.claude/sp-claude-desktop.json`. `--off` removes exactly that
 
 `--off` also puts back any value the project had set before the first run. The script adds
 `.claude/settings.local.json`, `.claude/sp-claude-desktop.json` and `.claude/worktrees/`
-to the repository's `.git/info/exclude`, anchored to the project's folder. It never edits the project's
-`.gitignore`.
+to the repository's `.git/info/exclude`, anchored to the project's folder. It never edits
+the project's `.gitignore`.
 
 ## Set up the desktop app
 
@@ -94,6 +104,7 @@ rule or one line in the project's CLAUDE.md.
 
 | Skill | Use it to |
 |---|---|
+| `/desk:adopt` | Turn a harness project's docs and plans into a backlog of PR-sized tasks, one doc at a time with you |
 | `/desk:how`, `/desk:why`, `/desk:teach` | Understand code before you change it, and the reasons behind it |
 | `/desk:recall` | Pick up your recent work on a topic from your past chats |
 | `/desk:sharpen`, `/desk:in-your-own-words` | Frame a task before you start it |

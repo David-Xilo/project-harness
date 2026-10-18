@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# usage: sp-claude-desktop <project>           turn the harness off in one project and the desk plugin on
-#        sp-claude-desktop --check <project>   say what is in place; change nothing
-#        sp-claude-desktop --off <project>     put the harness back in that project
-# Every other project keeps the harness. Writes only <project>/.claude/settings.local.json,
-# which stays out of git: the mods named in CLAUDE_CODE_PLUGIN_DIRS off, every hook off, the
+# usage: sp-claude-desktop [--modules] <project>           turn the harness off in one project and the desk plugin on
+#        sp-claude-desktop [--modules] --check <project>   say what is in place; change nothing
+#        sp-claude-desktop [--modules] --off <project>     put the harness back in that project
+# --modules does the same in each checked-out submodule, nested ones too, since a session
+# opened in a module's folder is a project of its own. Every other project keeps the
+# harness. Writes only <project>/.claude/settings.local.json, which stays out of git: the mods named in CLAUDE_CODE_PLUGIN_DIRS off, every hook off, the
 # user CLAUDE.md and its imports skipped, the user skills, commands and agents off, and the
 # desk plugin (claude-desktop/ in this repository) on. What it merged is kept in
 # .claude/sp-claude-desktop.json, so --off removes exactly that. Run it again after adding a
@@ -12,17 +13,38 @@ set -euo pipefail
 here=$(dirname "$(readlink -f "$0")")
 market=$(realpath "$here/../../claude-desktop")
 claude_dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
-mode=on project=""
+mode=on project="" modules=0 flags=()
 while [ $# -gt 0 ]; do
   case "$1" in
-    --check) mode=check ;;
-    --off) mode=off ;;
+    --check) mode=check; flags+=("$1") ;;
+    --off) mode=off; flags+=("$1") ;;
+    --modules) modules=1 ;;
     -*) sed -n '2,4s/^# \{0,1\}//p' "$0"; exit 2 ;;
     *) project="$1" ;;
   esac
   shift
 done
 [ -n "$project" ] && [ -d "$project" ] || { sed -n '2,4s/^# \{0,1\}//p' "$0"; exit 2; }
+if [ $modules = 1 ]; then
+  # Every checked-out project in the tree: the root, then its submodules, depth first.
+  # A submodule never checked out is an empty folder with no .git, so it is skipped.
+  tree() {
+    echo "$1"
+    local p
+    while read -r _ p; do
+      if [ -e "$1/$p/.git" ]; then tree "$1/$p"; else echo "skipped  $1/$p: not checked out" >&2; fi
+    done < <(git config --file "$1/.gitmodules" --get-regexp '\.path$' 2>/dev/null || true)
+  }
+  [ -f "$project/.gitmodules" ] || echo "no .gitmodules in $project: only the project itself"
+  n=0 bad=0
+  while read -r p; do
+    n=$((n + 1))
+    "$0" ${flags[@]+"${flags[@]}"} "$p" || bad=$((bad + 1))
+  done < <(tree "$project")
+  [ $bad = 0 ] && echo "all $n projects ok" || echo "$bad of $n projects need work: see the lines above"
+  [ $bad = 0 ]
+  exit
+fi
 cd "$project"
 settings=.claude/settings.local.json
 state=.claude/sp-claude-desktop.json
@@ -122,7 +144,9 @@ desk_on() { [ -f "$settings" ] && jq -e --arg p "$plugin" '.enabledPlugins[$p] =
 
 if [ $mode = check ]; then
   todo=0
-  [ -f "$settings" ] || { echo "missing  $PWD/$settings"; exit 1; }
+  # say <line>: one problem, under the project's path, so --modules output reads per project.
+  say() { [ $todo = 1 ] || echo "$PWD:"; todo=1; echo "  $1"; }
+  [ -f "$settings" ] || { say "missing $settings"; exit 1; }
   block=$(want)
   missing=$(jq -n --slurpfile s "$settings" --argjson b "$block" '
     [ ($b.enabledPlugins | keys[] | select($s[0].enabledPlugins[.] != false) | "mod on: \(.)"),
@@ -130,10 +154,10 @@ if [ $mode = check ]; then
       ($b.claudeMdExcludes - ($s[0].claudeMdExcludes // []) | .[] | "memory loads: \(.)"),
       ($b.skillOverrides | keys[] | select($s[0].skillOverrides[.] != "off") | "skill on: \(.)"),
       ($b.permissions.deny - ($s[0].permissions.deny // []) | .[] | "agent on: \(.)") ] | .[]' -r)
-  [ -n "$missing" ] && { echo "$missing"; todo=1; }
-  desk_on || { echo "desk plugin not enabled"; todo=1; }
+  while read -r l; do [ -z "$l" ] || say "$l"; done <<<"$missing"
+  desk_on || say "desk plugin not enabled"
   jq -e --arg m "$market" '.extraKnownMarketplaces["project-harness"].source.path == $m' "$settings" >/dev/null ||
-    { echo "desk marketplace does not point at $market"; todo=1; }
+    say "desk marketplace does not point at $market"
   [ $todo = 0 ] && echo "ok       $PWD: harness off, desk on"
   exit $todo
 fi
@@ -148,6 +172,9 @@ if [ $mode = off ]; then
     | if .extraKnownMarketplaces == {} then del(.extraKnownMarketplaces) else . end
     | if .enabledPlugins == {} then del(.enabledPlugins) else . end' >"$settings"
   rm -f "$state"
+  # A file the first run created holds nothing now.
+  [ "$(jq -c . "$settings")" != '{}' ] || rm "$settings"
+  rmdir .claude 2>/dev/null || true
   echo "harness back on in $PWD"
   exit 0
 fi

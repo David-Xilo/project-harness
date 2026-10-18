@@ -85,8 +85,9 @@ marketplace.
 ## Tracks and order
 
 Three sessions work here, each a plain session in this repository (it is not a registered
-root), and no component is written by two ([D17](#decisions), [D18](#decisions)). Each runs its tracks in
-the order below, so each track finishes before that session's next one starts.
+root), and no component is written by two ([D17](#decisions), [D18](#decisions)). Each
+runs its tracks in the order below, so each track finishes before that session's next one
+starts.
 
 | Session | Auto mode | Tracks, in order |
 |---|---|---|
@@ -122,11 +123,13 @@ need. Step IDs are `<CODE>-<milestone>.<n>`, never renumbered or reused; the nex
 operator task is O11.
 
 **Open operator tasks:**
-- O10 (unblocks DESK-8.5): run `sp-claude-desktop <project>` on a test project and do the
-  three checks under "Not checked yet" in [claude-desktop/README.md](claude-desktop/README.md)
-  in the desktop app. Then tell H3 "O10 done", with any check that failed.
+- O10 (unblocks DESK-8.5): run `sp-claude-desktop <project>` on a test project (with
+  `--modules` when its modules are submodules), then `/desk:adopt` if it was planned for
+  the harness. Do the three checks under "Not checked yet" in
+  [claude-desktop/README.md](claude-desktop/README.md) in the desktop app. Then tell H3
+  "O10 done", with any check that failed.
 
-**Next:** H1: ENG-6.12. H2: the BOARD-4.4 fixes from H1's `/interrogate`, then PR-7.3 (out of auto mode), and BOARD-4.5 once Gate M4 passes. H3: DESK-8.4.
+**Next:** H1: CLEAN-5.1, and ENG-6.12 once Gate M6 passes. H2: the BOARD-4.4 fixes from H1's `/interrogate`, then PR-7.3 (out of auto mode), and BOARD-4.5 once Gate M4 passes. H3: DESK-8.4.
 
 **Notes.**
 - The publish skills (`go-public`, `publish`) were checked by reading, not on a fixture
@@ -231,7 +234,7 @@ it is needed.
 
 | Done | Pri | Step | Depends on | Done when |
 |---|---|---|---|---|
-| [ ] | P1 | ENG-6.12: Docs (WORKFLOW.md section 1, SETUP), CHANGELOG, release | — | Tagged |
+| [ ] | P1 | ENG-6.12: Release: the CHANGELOG heading, the tag and the GitHub Release, in ship order | Gate M6 | Tagged |
 
 - [ ] **Gate M6:** `/rigor` and `/interrogate` used on real work in a workspace, and the
   operator keeps them → release.
