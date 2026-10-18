@@ -1,0 +1,14 @@
+{
+  "name": "project-harness",
+  "description": "Engineering skills for Claude Code",
+  "owner": {
+    "name": "project-harness"
+  },
+  "plugins": [
+    {
+      "name": "desk",
+      "source": "./desk",
+      "description": "Engineering skills: understand, design, verify, review and write"
+    }
+  ]
+}

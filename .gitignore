@@ -1,7 +1,3 @@
-# Mods: generated plugin types and dependencies
-tooling/mods/*/.claude-plugin/types/
-node_modules/
-
 # Local files
 .env
 *.swp

@@ -1,9 +1,0 @@
-# Copy to .github/dependabot.yml: keeps the pinned actions up to date.
-version: 2
-updates:
-  - package-ecosystem: github-actions
-    directory: /
-    schedule:
-      interval: weekly
-    cooldown:
-      default-days: 7

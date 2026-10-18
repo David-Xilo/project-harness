@@ -1,1 +1,0 @@
-{ "name": "session-reset", "version": "0.2.0", "description": "Gate git and gh writes to the approved Ready to commit preview; after the operator says the work is committed, clear the workspace session and restart it with /session <ID>", "types": "./types/index.d.ts" }

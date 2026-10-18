@@ -1,7 +1,0 @@
-{
-  "name": "workspace",
-  "version": "0.1.0",
-  "description": "Workspace sessions: guard what a /session may write and run, apply each workspace's runtime rule (.claude/workspace.json), show the session band and the operator steps pane (/ops)",
-  "types": "./types/index.d.ts",
-  "dependencies": ["session-reset"]
-}

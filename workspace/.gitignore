@@ -1,8 +1,0 @@
-.idea/
-.env
-.envrc
-
-# local data and evidence that never goes to git
-data/
-
-# {{language}} build output (start from GitHub's template for the root's language)

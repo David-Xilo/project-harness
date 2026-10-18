@@ -1,48 +1,61 @@
 # project-harness
 
-A workflow for building one system with several Claude Code sessions in parallel. The
-operator owns the decisions; Claude does the rest, and runs git only after the operator
-approves an exact preview.
+Engineering skills for Claude Code, packaged as one plugin: `desk`. Use them to
+understand code before you change it, design and verify changes, review diffs, and write
+docs. They work in any project, in the CLI and in the Claude desktop app, and they
+assume no particular workflow.
 
-A project is a root git repository with its modules as submodules. The root holds the
-plan: milestones, tracks that each own some repositories, and the sessions that run them.
-This repository ships the document templates for a new project and the tooling that
-enforces the workflow: Claude Code mods, hooks, commands, skills and a few scripts.
-
-**Status:** early, and the workflow still changes between versions. `main` is the latest
-release; `development` is work in progress. What each release brings is in the
-[CHANGELOG](CHANGELOG.md), and what comes next in the [plan](plan.md).
+Until v0.2.0, this repository also held a harness for running several sessions in
+parallel: mods, hooks, git rules and workspace templates. That is gone. The
+[CHANGELOG](CHANGELOG.md) says what was removed, and git history keeps it.
 
 ## Install
 
-Needs Linux, [Claude Code](https://docs.claude.com/en/docs/claude-code), git, `gh`, `jq`,
-Python 3.11+ and [gitleaks](https://github.com/gitleaks/gitleaks).
+Add this repository as a plugin marketplace, then install the plugin for your user, so
+every project gets it:
 
 ```sh
-git clone --branch main https://github.com/David-Xilo/project-harness.git
-cd project-harness
-tooling/install
+claude plugin marketplace add David-Xilo/project-harness
+claude plugin install desk@project-harness --scope user
 ```
 
-`tooling/install` links the tooling into `~/.claude` and `~/.local/bin`, and prints the
-`settings.json` lines to merge by hand. Then add `@~/.claude/git-rules.md` to
-`~/.claude/CLAUDE.md`. `tooling/install --check` says what is still missing.
+To run the skills from a local checkout instead, pass its path to `marketplace add`.
 
-## Use
+Restart any open session, then type `/desk:` to list the skills.
 
-Run `/new-project` in Claude Code. It asks the setup questions in one message and builds
-the project's documents. Then open one terminal per session and run `/session S1`,
-`/session S2`, and so on; `/ops` lists what waits on you. `/autopilot` lets a session
-approve its own reviewed commits up to a step, and `/balance-sessions` says how many
-sessions to run. `/rigor` runs non-trivial work through a playbook, and `/code-cleanup`
-takes a step back after a run of features.
+## The skills
+
+| Skill | Use it to |
+|---|---|
+| `/desk:rigor` | Run non-trivial work through a playbook (bug fix, feature, perf, refactoring, and more), verified on the real thing |
+| `/desk:how`, `/desk:why`, `/desk:teach` | Understand code before you change it, and the reasons behind it |
+| `/desk:recall` | Pick up your recent work on a topic from your past chats |
+| `/desk:sharpen`, `/desk:in-your-own-words` | Frame a task before you start it |
+| `/desk:principles` | Load the engineering rules before a design choice or before calling work done |
+| `/desk:architect`, `/desk:arena` | Design a change from competing sketches on two models, and pick or merge the best |
+| `/desk:figure-it-out` | Plan an auditable run when no narrower skill fits, such as a large migration you review after stepping away |
+| `/desk:swarm` | Fan out parallel workers for coverage, races or exploration, and get one report back |
+| `/desk:tdd` | Fix a bug test-first, within the test budget |
+| `/desk:blast-radius` | Find what a change could break outside its diff |
+| `/desk:interrogate` | Review a diff from subagents on other models |
+| `/desk:code-cleanup` | Run a maintenance pass: comments, dead code, duplication, tests and a verdict on the design |
+| `/desk:show-me-your-work` | Keep a log of each decision and its evidence during a long run, and check it at the end |
+| `/desk:ketchup` | Catch up on what changed while you were away, and what needs you |
+| `/desk:reflect` | Turn what went wrong in a chat into fixes for the project's skills and CLAUDE.md |
+| `/desk:correct` | Make a mistake agents keep repeating impossible: architecture, types, a lint, then a test |
+| `/desk:create-verification-skill`, `/desk:maintain-verification-skill` | Give the project a skill that drives the real app to verify a change, and keep it true |
+| `/desk:benchmark-checklist` | Vet a performance measurement before you report or act on it |
+| `/desk:typescript-best-practices` | Write TypeScript with types that make bad states impossible |
+| `/desk:no-comments` | Strip comments that restate the code, with the `desk:comment-sicko` agent |
+| `/desk:technical-writing`, `/desk:unslop` | Write docs, commit messages and PR bodies |
+| `/desk:adopt` | Turn an old harness project's docs and plans into a backlog of PR-sized tasks, one doc at a time with you |
+
+Not sure which skill fits? Ask `/desk:rigor help`.
 
 ## More
 
-- [WORKFLOW.md](WORKFLOW.md): how it all works.
-- [AUTOPILOT.md](AUTOPILOT.md): sessions that commit on their own until a target.
-- [SETUP.md](SETUP.md): setting up a project, step by step.
-- [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), [LICENSE](LICENSE) (MIT).
-- The engineering skills in `tooling/global-skills/` are adapted from
+- [CHANGELOG.md](CHANGELOG.md), [CONTRIBUTING.md](CONTRIBUTING.md),
+  [SECURITY.md](SECURITY.md), [LICENSE](LICENSE) (MIT).
+- Many skills are adapted from
   [pstack](https://github.com/cursor/plugins/tree/main/pstack) (MIT,
-  [its license](tooling/global-skills/LICENSE-pstack)).
+  [its license](desk/skills/LICENSE-pstack)).

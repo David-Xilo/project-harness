@@ -3,49 +3,19 @@
 Each release is a milestone or a patch between milestones; its tag notes list what it
 brings.
 
-## Unreleased
+## Unreleased (v1.0.0)
 
-- session-reset keeps a log in `~/.local/state/super-project/session-reset/<Claude
-  session>.jsonl`. It records each preview, each approve, each git or gh write, and how
-  each approved turn ended: with a restart, or the reason it did not restart.
-  `tooling/mods/session-reset/replay.mjs` runs the local transcripts through the mod. It
-  counts the approved previews that commit but end with no restart, grouped by cause.
-- The preview's commands go in one ```` ```commit ```` block, each line pinned to its
-  repository (`git -C <absolute path>`, `gh … --repo <owner>/<name>`). session-reset reads
-  only that block; one with a note, a placeholder, a chain or an unpinned command opens no
-  preview, and a toast says why. A `cd` before a pinned git command still matches the
-  preview, and a git read in the block is left out.
-- session-reset records which workspace session each Claude session runs in
-  `~/.local/state/super-project/sessions/<Claude session>.json`, written on `/session`
-  and removed when the Claude session ends.
-- The ops board shows whether each session runs: working, waiting for you, a preview
-  open, idle, or not running, since when, and how many processes claim its ID. It also
-  lists the live processes at a root with no session row. It reads Claude Code's process
-  records through session-reset's registry, in `opsboard`, `--md` and `--tsv`.
-- The `/ops` pane says whether each session runs ("idle 25m", "preview open 3m"), the
-  sessions that wait for you first (a preview, a question, or idle with ready work), and
-  the band counts the other sessions that wait for you.
-- Every workspace session keeps the root docs (plan.md, handoffs.md, operator.md and
-  the root's other `.md` files) current as it works, and leaves them uncommitted; the
-  operator or the checkpoint session commits the root in one commit. The workspace mod
-  lets every session write them, and the git rules, the templates and SD2 say so.
-- session-reset keeps an approve over a reload of the mod, so the approved commands still
-  run when the mod's code changes between the approve and them.
-- The engineering skills from pstack, adapted to Claude Code and the git rules, are
-  global skills. `tooling/install` links `tooling/global-skills/` into `~/.claude/skills/`
-  and `tooling/agents/` into `~/.claude/agents/`, for this repository and every
-  workspace. `/rigor` matches a task to a playbook (bug fix, feature, investigation,
-  refactoring, perf and more) and runs the other skills as its steps need them; `/rigor
-  help` picks a skill. The others cover principles, verification with a test budget,
-  writing, review on two models, understanding code, lessons turned into checks,
-  decision trails and catch-ups, and framing and fan-out.
-- Commit messages and docs are written with the `technical-writing` and `unslop` skills
-  (git rule 4).
-- The module AGENTS.md template names the module's verify skill, `tdd` for a bug with a
-  cheap test, and the test budget.
-- `/code-cleanup [<repo or path>]` runs a maintenance pass: comments, clutter, duplication,
-  simplify, tests and design, each its own reviewed commit. Behaviour stays the same, and
-  design changes come back as plan steps for the operator.
+The repository is now one Claude Code plugin, `desk`, and nothing else. The harness is
+gone: the session-reset and workspace mods, the git-guard and typecheck hooks, the git
+rules, `/session`, `/new-project`, `/operator-steps`, the ops board, the sp-* and publish
+scripts, and the workspace and module templates. v0.2.0 is the last release with them.
+
+- The plugin sits at `desk/`, and the marketplace manifest at the repository root.
+- `desk:rigor` and `desk:code-cleanup` join the plugin, without the commit previews,
+  sessions and autopilot steps.
+- The skills that pointed at a missing `desk:desk` skill now point at `desk:rigor`.
+- `desk:adopt` no longer needs `sp-claude-desktop` to run first.
+- `automate-me` is dropped.
 
 ## v0.2.0 (2026-10-14)
 
