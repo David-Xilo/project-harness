@@ -16,6 +16,10 @@ scripts, and the workspace and module templates. v0.2.0 is the last release with
 - The skills that pointed at a missing `desk:desk` skill now point at `desk:rigor`.
 - `desk:adopt` no longer needs `sp-claude-desktop` to run first.
 - `automate-me` is dropped.
+- `desk:kickoff` reads one project's plan, asks one round of questions, and starts the
+  ready work in parallel: project threads through the coordinator, or `claude --bg -w`
+  sessions on the desktop, each with a brief in `kickoff/<project>-<date>/` and a
+  `kick-*` row on the Operator Board.
 
 ## v0.2.0 (2026-10-14)
 

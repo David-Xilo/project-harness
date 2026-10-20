@@ -49,6 +49,7 @@ Restart any open session, then type `/desk:` to list the skills.
 | `/desk:no-comments` | Strip comments that restate the code, with the `desk:comment-sicko` agent |
 | `/desk:technical-writing`, `/desk:unslop` | Write docs, commit messages and PR bodies |
 | `/desk:adopt` | Turn an old harness project's docs and plans into a backlog of PR-sized tasks, one doc at a time with you |
+| `/desk:kickoff` | Read a project's plan, challenge it with you in one round of questions, then start its ready work as parallel threads or background sessions, each with its own brief |
 
 Not sure which skill fits? Ask `/desk:rigor help`.
 
