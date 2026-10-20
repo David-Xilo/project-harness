@@ -19,7 +19,8 @@ Commit without asking for a preview or approval; follow the repository's AGENTS.
 message style.
 
 - In ikarus and safehouse, commit only on your own task branch.
-- Push only after David says yes to that push. An ask rule in user settings enforces this.
+- Push your own work without asking. Never force-push, rewrite published history or delete
+  remote branches.
 - Project files may add exceptions; for example, ikarus lands by pull request.
 
 ## Questions and defaults

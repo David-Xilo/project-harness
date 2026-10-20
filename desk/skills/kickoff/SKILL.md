@@ -130,7 +130,7 @@ games `decisions.md` (`D<n>`) or the game's `docs/decision-log.md`, game-theory 
 `decisions.md` (`D<n>`) or the site plan's Decisions, safehouse `decisions.md`
 (`SD<n>`) or the module plan's `D<n>`; follow the project's instruction file where it
 says more. On the desktop, commit that file alone in its repository's message style
-(`docs: S94 W1.20 before W1.21 (kickoff)`), no push. In a thread, write it to the device
+(`docs: S94 W1.20 before W1.21 (kickoff)`), and push it where the project's rules allow. In a thread, write it to the device
 with `device_commit_files` and put its commit command in the hand-back. Answers that only
 shape this kickoff (how many streams, which first) go in the kickoff file only.
 

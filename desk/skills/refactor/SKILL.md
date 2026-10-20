@@ -30,8 +30,9 @@ Arguments: $ARGUMENTS
 - **Delete before you reshape, reshape before you polish** (`subtract-before-you-add`).
 - **Rank by evidence.** Work goes where change is frequent and code is complex
   (hotspots), not where it looks ugly. Code nobody touches stays as it is unless it is dead.
-- **Commit without asking, never push.** Commits follow the project's AGENTS.md
-  conventions. The push and PR are David's, handed over as exact commands.
+- **Commit and push without asking.** Commits follow the project's AGENTS.md
+  conventions. Push the refactor branch and open its PR yourself; never force-push.
+  Merging follows the project's rules.
 - **Plan edits go to `development`.** `/next`, `/kickoff` and `/decisions` read the plans
   in the main checkout, so every plan step or "Waiting on David" entry this skill writes
   is a separate docs commit there (`docs(<module>): refactor follow-ups`), never only on
@@ -212,17 +213,17 @@ Commit: `chore(<module>): guard <rule>`.
    change in plain words (what moved where and why, so David's picture of the code stays
    true), the guards added, the plan steps written, what was reverted and why. Run it
    through `desk:unslop`.
-2. Add the push to the module's `plan.md` under "Waiting on David", with every command
-   and the folder it runs from:
+2. Push the branch and open the PR, from the repository:
 
    ```sh
    cd <repo path>
-   git log --oneline development..refactor/<module>-<date>
    git push -u origin refactor/<module>-<date>
    gh pr create --base development --head refactor/<module>-<date> --title "refactor(<module>): <summary>" --body-file ~/Desktop/random/projects/refactor/<project>-<module>-<date>/report.md
    ```
 
-   Commit it on `development` with the phase 5 plan steps. When the branch is merged,
-   the next `/decisions apply` or the next run removes the entry.
-3. Reply in one short message: the before/after numbers that moved, the commits, the
-   plan steps and decisions written, and the path of `report.md`.
+   Where the project leaves the merge to David, add it to the module's `plan.md` under
+   "Waiting on David" with the PR link, and commit that on `development` with the phase 5
+   plan steps. When the branch is merged, the next `/decisions apply` or the next run
+   removes the entry.
+3. Reply in one short message: the before/after numbers that moved, the commits, the PR,
+   the plan steps and decisions written, and the path of `report.md`.
