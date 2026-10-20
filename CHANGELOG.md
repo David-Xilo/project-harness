@@ -20,6 +20,12 @@ scripts, and the workspace and module templates. v0.2.0 is the last release with
   ready work in parallel: project threads through the coordinator, or `claude --bg -w`
   sessions on the desktop, each with a brief in `kickoff/<project>-<date>/` and a
   `kick-*` row on the Operator Board.
+- `desk:refactor <project> [<module>]` runs a behaviour-preserving refactor of one module:
+  hotspots and change coupling from git history (`scripts/hotspots.py`), per-stack survey
+  tools (`references/stack-tools.md`: Go, Python/uv, Rust, TypeScript/Astro, Lean 4),
+  pins, subtraction, boundary fixes, hotspot simplification, then guards in the gate with
+  a ratchet. With a project alone it surveys every module and writes the top three into
+  their plans.
 
 ## v0.2.0 (2026-10-14)
 

@@ -39,6 +39,7 @@ Restart any open session, then type `/desk:` to list the skills.
 | `/desk:blast-radius` | Find what a change could break outside its diff |
 | `/desk:interrogate` | Review a diff from subagents on other models |
 | `/desk:code-cleanup` | Run a maintenance pass: comments, dead code, duplication, tests and a verdict on the design |
+| `/desk:refactor` | Refactor one module's architecture and code without changing behaviour: rank targets from git history and per-stack tools, pin, subtract, fix boundaries, simplify hotspots, then guard the result |
 | `/desk:show-me-your-work` | Keep a log of each decision and its evidence during a long run, and check it at the end |
 | `/desk:ketchup` | Catch up on what changed while you were away, and what needs you |
 | `/desk:reflect` | Turn what went wrong in a chat into fixes for the project's skills and CLAUDE.md |
