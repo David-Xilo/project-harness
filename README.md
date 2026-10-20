@@ -54,9 +54,13 @@ type them. `how`, `sharpen`, `blast-radius`, `tdd`, `principles`, `show-me-your-
 `no-comments`, `unslop` and `typescript-best-practices` also load on their own when a task
 matches.
 
-`kickoff`, `refactor` and `workflow-review` are account skills, not plugin skills. Their
-source is in [account-skills/](account-skills/), and each runs as `/kickoff`, `/refactor` or
-`/workflow-review`.
+`decisions`, `next`, `kickoff`, `refactor` and `workflow-review` are account skills, not
+plugin skills, and each runs as `/<name>`. Their source is in
+[account-skills/](account-skills/): a change starts as a commit there, and the account copy
+is then updated to match the file. The account copy carries only `SKILL.md` with `name` and
+`description` frontmatter; the scripts and references stay here, and each skill names their
+path. On the Operator Board, `/next` owns the `ready-` rows, `/kickoff` the `kick-` rows,
+`/workflow-review` the `wf-` rows and `/decisions` the rest.
 
 ## More
 

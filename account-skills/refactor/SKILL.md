@@ -1,8 +1,6 @@
 ---
-name: refactor
-description: "Refactor one module's architecture and code without changing behaviour: rank targets from git history and per-stack tools, pin behaviour, subtract clutter, fix boundaries, simplify the hotspots, then add guards so it stays clean. Use for /refactor <project> [module], 'refactor', 'simplify', 'clean up', 'remove clutter', 'tech debt pass'."
-argument-hint: "<project> [<module>] [survey]"
-effort: high
+name: "refactor"
+description: "Refactor one module's architecture and code without changing behaviour (hotspots, per-stack survey, pin, subtract, boundaries, simplify, guards). Use for /refactor plus a project and optional module, refactor, simplify, clean up, tech debt."
 ---
 
 # Refactor
@@ -49,7 +47,8 @@ On xillz, in Claude Code (desktop app or CLI), or from a project thread through 
 Control session there: the survey tools and the gate need the machine. Reports go to
 `~/Desktop/random/projects/refactor/<project>-<module>-<YYYY-MM-DD>/`, outside the repos.
 
-If the desk plugin is not installed, read a named skill from
+Most desk skills named below are manual-only, so the Skill tool refuses them: read the
+skill's SKILL.md and follow it, from the installed desk plugin or from
 `~/Desktop/random/projects/project-harness/desk/skills/<name>/SKILL.md`. This skill's
 files are `<skill>/references/stack-tools.md` and `<skill>/scripts/hotspots.py`, where
 `<skill>` is `~/Desktop/random/projects/project-harness/account-skills/refactor` (the

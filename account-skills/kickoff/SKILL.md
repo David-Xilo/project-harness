@@ -1,7 +1,6 @@
 ---
-name: kickoff
-description: "Read one project's plan, challenge it with David in one round of questions, then start as many parallel workstreams as the plan supports, each with a self-contained brief and its own Operator Board row. Use for /kickoff followed by a project name, 'kick off the plan', 'start working on the plan', 'spawn threads for this plan'."
-argument-hint: <project> [module or plan section] [dry run]
+name: "kickoff"
+description: "Read one project's plan, challenge it with David in one round of questions, then start the ready work as parallel threads or background sessions, each with its own brief and board row. Use for /kickoff plus a project name."
 ---
 
 # Kickoff

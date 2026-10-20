@@ -24,7 +24,15 @@ version moves to 1.1.0 so `claude plugin update desk@project-harness` picks the 
   reviewers flag only gaps that affect correctness or the stated requirements.
 - `desk:code-cleanup` simplifies with the built-in `/simplify` instead of the `rigor`
   Refactoring playbook.
-- `architect`, `interrogate` and `refactor` set `effort: high`.
+- `architect` and `interrogate` set `effort: high`.
+- `account-skills/` is the single source for all five account skills: `decisions` and
+  `next` join `kickoff`, `refactor` and `workflow-review`. Their frontmatter matches the
+  account copies (`name` and `description` only). `/decisions` reads each plan's "Waiting
+  on David" and safehouse's Needs columns instead of the deleted `games/operator.md` and
+  `safehouse/sessions.md`, writes `board/rows.json`, and leaves `kick-` rows alone. `/next`
+  owns only `ready-` rows and reads only "Ready for Claude" where a plan has it.
+  `workflow-review` keeps the account copy's text with the analyzer path in
+  `account-skills/`.
 
 ## v1.0.0 (installed, not tagged)
 
