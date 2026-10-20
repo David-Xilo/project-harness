@@ -27,7 +27,7 @@ Present the framing and tradeoffs before committing to a long run. Reversible wo
 Decompose into atomic, independently-landable units. Sequence riskiest-unknown-first. Scaffold and verification come before features (the [foundational-thinking](../principles/references/foundational-thinking.md) reference).
 
 - Build the verification harness before the work, with the baseline captured from the pre-change state, so the check reads as "old value vs new value".
-- For one-way-door design decisions, run the [`desk:architect`](../architect/SKILL.md) skill (it runs [`desk:arena`](../arena/SKILL.md)). Skip it for mechanical work whose shape is already concrete. A second arena over a settled design is over-engineering (the [laziness-protocol](../principles/references/laziness-protocol.md) reference).
+- For one-way-door design decisions, run the [`desk:architect`](../architect/SKILL.md) skill (it runs [`desk:arena`](../arena/SKILL.md)). The Skill tool refuses both, so read `../architect/SKILL.md` and follow it. Skip it for mechanical work whose shape is already concrete. A second arena over a settled design is over-engineering (the [laziness-protocol](../principles/references/laziness-protocol.md) reference).
 - Decide what fans out. Parallelize only across seams, and give each worker its own worktree or branch (the [separate-before-serializing-shared-state](../principles/references/separate-before-serializing-shared-state.md) reference). Don't over-fan. Pick each subagent's `effort` for the job, per the Subagents section of the `desk:rigor` skill.
 - Write the designed phase list down. That list is what the human reviews.
 

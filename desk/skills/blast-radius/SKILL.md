@@ -29,12 +29,12 @@ Step 4 is usually one small script that imports the same library the app ships a
 
 ## Steps
 
-1. Read the change. The diff, the symbols it adds, changes, and deletes, and what it now does differently, including the part the diff doesn't spell out. Pull the PR and the commits that touched the same lines (`git log -L`, `gh pr view`), or run the `desk:why` skill.
+1. Read the change. The diff, the symbols it adds, changes, and deletes, and what it now does differently, including the part the diff doesn't spell out. Pull the PR and the commits that touched the same lines (`git log -L`, `gh pr view`), or follow the `desk:why` skill (read `../why/SKILL.md`; the Skill tool refuses it).
 2. Find the one fact it's safe because of. Most changes that look risky are safe because of a single fact, like "this call only drops already-dead cache entries and does nothing else". Find that fact. If it holds, most risky cases are cleared at once. Spend your time here, not on a long list of maybes.
 3. Look where grep stops. Read the source of the library you call, and check its pinned version and any local patch. Work out when things run: microtasks, hooks and their order, unmount and teardown, a restart. Follow what a symbol search misses: the JSON an API returns, a DB column, a wire format, another language reading the same bytes, a feature flag, code three hops downstream.
 4. Be honest about each risk. Give it a real chance of happening and a real cost if it does. Keep the risks you confirmed. List the ones you checked and cleared separately. Same rules as `desk:why`. Cite a real `file:line`, a search that finds nothing is still an answer, and never make up a caller or an API.
 5. Prove the one fact. Write a script or test that runs the real code, run it, and paste what happened.
-6. For a big or wide change, ask two subagents on different Claude models the same question and merge the answers (the `desk:arena` skill, when present). Different models catch different real bugs.
+6. For a big or wide change, ask two subagents on different Claude models the same question and merge the answers (the `desk:arena` skill in `../arena/SKILL.md`, when present). Different models catch different real bugs.
 
 ## What to hand back
 

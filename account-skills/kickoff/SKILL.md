@@ -160,7 +160,7 @@ review) is never a stream; it goes in his steps.
 
 Use a subagent instead of a session only for a short, read-only stream with no PR and no
 step of David's: a research question, a prototype that answers a Phase 2 doubt, a
-survey of a module. Run those with the `desk:swarm` skill on the desktop, or the Agent
+survey of a module. Run those with the `desk:swarm` skill on the desktop (read its SKILL.md; the Skill tool refuses it), or the Agent
 tool in a thread, and fold their result into the kickoff file before Phase 5.
 
 ## Phase 4: Write briefs

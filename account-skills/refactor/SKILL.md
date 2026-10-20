@@ -2,6 +2,7 @@
 name: refactor
 description: "Refactor one module's architecture and code without changing behaviour: rank targets from git history and per-stack tools, pin behaviour, subtract clutter, fix boundaries, simplify the hotspots, then add guards so it stays clean. Use for /refactor <project> [module], 'refactor', 'simplify', 'clean up', 'remove clutter', 'tech debt pass'."
 argument-hint: "<project> [<module>] [survey]"
+effort: high
 ---
 
 # Refactor
@@ -51,8 +52,8 @@ Control session there: the survey tools and the gate need the machine. Reports g
 If the desk plugin is not installed, read a named skill from
 `~/Desktop/random/projects/project-harness/desk/skills/<name>/SKILL.md`. This skill's
 files are `<skill>/references/stack-tools.md` and `<skill>/scripts/hotspots.py`, where
-`<skill>` is `${CLAUDE_SKILL_DIR}` or
-`~/Desktop/random/projects/project-harness/desk/skills/refactor`.
+`<skill>` is `~/Desktop/random/projects/project-harness/account-skills/refactor` (the
+account copy of this skill carries only its SKILL.md).
 
 ## Start
 
@@ -147,7 +148,7 @@ from phase 2 as the worklist. Prove each removal of anything public or reached b
 Fix the architecture inside the module, then write down the rest.
 
 1. Name the target shape: which package owns which state and decision, which way
-   dependencies point, what the public surface is. Run `desk:architect` when the change
+   dependencies point, what the public surface is. Follow `desk:architect` (read its SKILL.md; the Skill tool refuses it) when the change
    crosses more than one function boundary.
 2. Apply the moves that stay inside the module and keep its public contract: break
    cycles, hide internals (`internal/`, `pub(crate)`, no re-exports of wire or storage
@@ -182,7 +183,7 @@ move, replace conditional with polymorphism, and so on) and the pin it held agai
 
 ## Phase 7: Guard
 
-Make the cleanup stick, with the `desk:correct` order: architecture first, then types,
+Make the cleanup stick, with the order of `desk:reflect`'s correct mode (`reflect/references/correct.md`): architecture first, then types,
 then a lint, then a test.
 
 - Wire into the module's gate the guards this run made true, chosen from

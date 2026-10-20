@@ -1,6 +1,8 @@
 ---
 name: interrogate
 description: "Adversarial multi-model review of a diff: reviewers on different Claude models challenge it through a rubric and a strict code-quality lens, and you sort their findings into act on, consider, noted and dismissed. Use for /desk:interrogate, adversarial review, stress-test this, find blind spots. It adds to code-review and never replaces it."
+disable-model-invocation: true
+effort: high
 ---
 
 # Interrogate
@@ -20,7 +22,7 @@ Package the diff or file contents with any surrounding context files the reviewe
 
 ## Step 2, Intent
 
-Before spawning reviewers, state the intent in one clear paragraph from the user's message, commit messages, the PR description if one exists, and the code. If you're unsure about the intent, ask the user before proceeding.
+Before spawning reviewers, state the intent in one clear paragraph from the user's message, commit messages, the PR description if one exists, and the code. If you're unsure about the intent, pick the most likely reading, say which one you picked in the paragraph, and proceed. The user can redirect.
 
 ## Step 3, Spawn Reviewers
 

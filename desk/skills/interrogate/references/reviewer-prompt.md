@@ -28,6 +28,8 @@ Review whether the code achieves this intent well. Do NOT question the intent it
 
 ## Instructions
 
+Flag only gaps that affect correctness or the stated requirements. A reviewer told to find gaps will usually report some even when the work is sound, so a finding must show how it breaks the intent or the code's correctness, not only that it could be different.
+
 Review the code through every lens in the rubric and the code-quality lens above that you find relevant. Do not force lenses that don't apply. A simple bug fix does not need paragraphs about architectural integrity.
 
 For each finding, provide:

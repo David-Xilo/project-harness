@@ -3,7 +3,30 @@
 Each release is a milestone or a patch between milestones; its tag notes list what it
 brings.
 
-## Unreleased (v1.0.0)
+## Unreleased (v1.1.0)
+
+The desk plugin drops from 31 skills to 23, and only 9 of them load on their own. The
+version moves to 1.1.0 so `claude plugin update desk@project-harness` picks the change up.
+
+- `desk:teach` is now teach mode inside `desk:how` ("teach me this").
+- `desk:in-your-own-words` is now the first step of `desk:sharpen`.
+- `desk:ketchup` is now `desk:recall this chat`.
+- `desk:correct` is now `desk:reflect correct`.
+- `desk:adopt` is retired: its one-off migration is done.
+- `kickoff`, `refactor` and `workflow-review` leave the plugin. Their source moves to
+  `account-skills/`, and the account copies (`/kickoff`, `/refactor`,
+  `/workflow-review`) are the ones that load.
+- `interrogate`, `rigor`, `code-cleanup`, `why`, `recall`, `technical-writing` and
+  `benchmark-checklist` are manual-only (`disable-model-invocation: true`). Skills that
+  call a manual-only skill now read its SKILL.md and follow it, because the Skill tool
+  refuses it.
+- `desk:interrogate` picks the most likely intent and says so, instead of asking, and its
+  reviewers flag only gaps that affect correctness or the stated requirements.
+- `desk:code-cleanup` simplifies with the built-in `/simplify` instead of the `rigor`
+  Refactoring playbook.
+- `architect`, `interrogate` and `refactor` set `effort: high`.
+
+## v1.0.0 (installed, not tagged)
 
 The repository is now one Claude Code plugin, `desk`, and nothing else. The harness is
 gone: the session-reset and workspace mods, the git-guard and typecheck hooks, the git

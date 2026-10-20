@@ -1,6 +1,6 @@
 ---
 name: how
-description: "Use for \"how does X work\", code walkthroughs before changing something, and placement / ownership / layering questions (\"where should this live\", \"which package owns this\", \"is this the right layer\"). Explains subsystem architecture, runtime flow, onboarding mental models. Use why for motivation."
+description: "Use for \"how does X work\", \"teach me this\", \"help me really understand X\", code walkthroughs before changing something, and placement / ownership / layering questions (\"where should this live\", \"which package owns this\", \"is this the right layer\"). Explains subsystem architecture, runtime flow, onboarding mental models; teach mode adds the why and explains it plainly at the person's pace. Use why for motivation alone."
 ---
 
 # How
@@ -29,6 +29,10 @@ Once all explorers have returned, spawn one explainer with `references/explainer
 ## 4. Present
 
 Present the explainer's output. Light edits for clarity or context from the conversation are fine. Do not substantially rewrite it.
+
+## Teach mode
+
+When the person wants to understand a change or subsystem rather than get a reference answer ("teach me this", "help me really understand X", "explain this change to me"), follow `references/teach.md`. It runs these steps and `desk:why`, then explains the result plainly, one layer at a time.
 
 ## Output format
 

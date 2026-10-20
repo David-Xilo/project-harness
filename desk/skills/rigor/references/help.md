@@ -24,13 +24,12 @@ gives.
 | The user wants to | Skill |
 |---|---|
 | Do non-trivial work with rigor | `/desk:rigor` |
-| Check the agent understood the goal before it starts | `/desk:in-your-own-words` |
-| Aim a task higher before starting | `/desk:sharpen` |
+| Check the agent understood the goal, and aim the task higher, before it starts | `/desk:sharpen` |
 | Know how code works, or where new code should live | `/desk:how` |
 | Know why code is this way, or where a number came from | `/desk:why` |
-| Understand a change or subsystem, explained plainly | `/desk:teach` |
+| Understand a change or subsystem, explained plainly | `/desk:how` (teach mode) |
 | Catch up on their recent work on a topic | `/desk:recall` |
-| Catch up on this chat since their last message | `/desk:ketchup` |
+| Catch up on this chat since their last message | `/desk:recall this chat` |
 | Know what a small diff could break outside itself | `/desk:blast-radius` |
 | Settle types and module shape before code | `/desk:architect` |
 | Get several attempts at one brief, merged into the best | `/desk:arena` |
@@ -49,22 +48,22 @@ gives.
 | Look up an engineering principle | `/desk:principles` |
 | Run a maintenance pass on a repository | `/desk:code-cleanup` |
 | Turn what a session taught into skill edits | `/desk:reflect` |
-| Stop agents repeating the same mistakes | `/desk:correct` |
+| Stop agents repeating the same mistakes | `/desk:reflect correct` |
 
 If a desk skill is missing from the table, read its frontmatter and route by its
 description.
 
 Close calls:
 
-- `/desk:how` explains what the code does, `/desk:why` the reasons; `/desk:teach` runs one or both and
-  explains plainly.
+- `/desk:how` explains what the code does, `/desk:why` the reasons; "teach me" puts `/desk:how`
+  in teach mode, which runs one or both and explains plainly.
 - `/desk:arena` gives every worker the same brief and merges the best parts; `/desk:swarm` splits
   the work into slices or a race and returns one report.
 - `/desk:architect` implements right after it settles the design; add "with checkpoint" to
   review the design first.
 - `/desk:interrogate` reviews the diff; `/desk:blast-radius` looks for breakage outside it. Neither
   replaces `code-review` before a PR.
-- `/desk:recall` rebuilds context across recent chats; `/desk:ketchup` covers only this chat.
+- `/desk:recall` rebuilds context across recent chats; `/desk:recall this chat` covers only this chat.
   Resuming one chat or branch is the Session pickup playbook.
 - `/desk:figure-it-out` designs one rigorous run; a multi-phase plan splits a program into
   PR-sized steps.
@@ -77,7 +76,7 @@ Phrases inside `/desk:rigor` that pick a playbook: "take over this branch" (Sess
 
 Swap in the real paths and done checks. Informal wording works.
 
-- `/desk:in-your-own-words <long or messy ask>`
+- `/desk:sharpen in your own words: <long or messy ask>`
 - `/desk:rigor investigate why <symptom>. what we know, what data you used, your best hypotheses. no code changes yet.`
 - `use /desk:how to understand <subsystem>, then /desk:why to find out why it broke recently.`
 - `/desk:rigor <symptom>. repro first, then fix and verify.`

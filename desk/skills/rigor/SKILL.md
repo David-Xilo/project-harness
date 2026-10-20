@@ -1,12 +1,15 @@
 ---
 name: rigor
 description: "Rigorous engineering mode: match the task to a playbook (investigation, bug fix, perf, hillclimb, runtime or trace forensics, feature, refactoring, prototype, visual parity, authoring a skill, eval, session pickup, pause safely, multi-phase plan), copy its steps into the todo list, and run the other engineering skills as the steps need them. Use for /desk:rigor, '/desk:rigor help', or non-trivial work that must be verified on the real thing."
+disable-model-invocation: true
 ---
 
 # Rigor
 
 The playbooks this file names are in `playbooks/<name>.md`, next to it. The other skills
-are in this plugin, at `../<name>/SKILL.md`. For a help question ("/desk:rigor help",
+are in this plugin, at `../<name>/SKILL.md`. Most of the skills named below are manual-only
+(`disable-model-invocation: true`), so the Skill tool refuses them: read that SKILL.md
+and follow it. For a help question ("/desk:rigor help",
 "which skill does X", "how do I word this"), read `references/help.md` and answer from it
 without starting the work.
 
@@ -40,7 +43,8 @@ Each line is a trigger and the skill it calls.
 - **A skill that is wrong mid-task:** fix it in its own commit, not inside the feature
   work. Don't work around it silently.
 - **Long, unattended or multi-phase work:** a trail with `desk:show-me-your-work`.
-- **The same correction a second time:** the `desk:correct` skill.
+- **The same correction a second time:** the `desk:reflect` skill's correct mode
+  (`../reflect/references/correct.md`).
 
 ## Principles
 

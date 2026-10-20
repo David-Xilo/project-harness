@@ -1,6 +1,6 @@
 ---
 name: reflect
-description: Spawn three parallel review subagents over the active transcript, surface learnings, and route each to a concrete edit on an existing skill. Use when the user says reflect or runs /desk:reflect.
+description: "Spawn three parallel review subagents over the active transcript, surface learnings, and route each to a concrete edit on an existing skill. With 'correct', instead find the mistakes agents keep repeating in this repo and make each one impossible (architecture, types, a lint, a test, docs last). Use when the user says reflect, runs /desk:reflect, or /desk:reflect correct."
 disable-model-invocation: true
 ---
 
@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 Mine the current conversation for durable learnings, then route them into skill edits.
 
-Invoke when the user says "reflect" or "/desk:reflect". Skip when the conversation is trivial, off-topic, or already covered by an existing skill the parent followed correctly. One-offs are not learnings.
+Invoke when the user says "reflect" or "/desk:reflect". When they ask to stop a mistake agents keep repeating ("/desk:reflect correct"), or the operator corrects the same thing a second time, follow `references/correct.md` instead of the steps below. Skip when the conversation is trivial, off-topic, or already covered by an existing skill the parent followed correctly. One-offs are not learnings.
 
 ## 1. Locate the active transcript
 

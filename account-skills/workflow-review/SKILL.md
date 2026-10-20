@@ -7,7 +7,7 @@ description: Review how Claude Code was used on this machine over the last days 
 
 Measure where time went in David's Claude Code sessions, fix what a settings file can fix,
 and give him the rest as Operator Board rows with every step written out. Runs every
-weekday morning before `/decisions`; also on demand.
+weekday morning after `/decisions` and `/next`; also on demand.
 
 ## 1. Measure
 
@@ -17,7 +17,7 @@ projects' `.claude` folders; it writes nothing there.
 
 ```sh
 cd ~/Desktop/random/projects
-python3 -I project-harness/desk/skills/workflow-review/scripts/cc_review.py --days 7
+python3 -I project-harness/account-skills/workflow-review/scripts/cc_review.py --days 7
 ```
 
 It prints the paths of `workflow-review/review-<date>.md` and `.json` (also

@@ -28,9 +28,9 @@ Restart any open session, then type `/desk:` to list the skills.
 | Skill | Use it to |
 |---|---|
 | `/desk:rigor` | Run non-trivial work through a playbook (bug fix, feature, perf, refactoring, and more), verified on the real thing |
-| `/desk:how`, `/desk:why`, `/desk:teach` | Understand code before you change it, and the reasons behind it |
-| `/desk:recall` | Pick up your recent work on a topic from your past chats |
-| `/desk:sharpen`, `/desk:in-your-own-words` | Frame a task before you start it |
+| `/desk:how`, `/desk:why` | Understand code before you change it, and the reasons behind it; ask `/desk:how` to teach you for a plain, layered explanation |
+| `/desk:recall` | Pick up your recent work on a topic from your past chats, or (`/desk:recall this chat`) catch up on what changed here while you were away |
+| `/desk:sharpen` | Restate the goal in your own words and frame the task before you start it |
 | `/desk:principles` | Load the engineering rules before a design choice or before calling work done |
 | `/desk:architect`, `/desk:arena` | Design a change from competing sketches on two models, and pick or merge the best |
 | `/desk:figure-it-out` | Plan an auditable run when no narrower skill fits, such as a large migration you review after stepping away |
@@ -39,20 +39,24 @@ Restart any open session, then type `/desk:` to list the skills.
 | `/desk:blast-radius` | Find what a change could break outside its diff |
 | `/desk:interrogate` | Review a diff from subagents on other models |
 | `/desk:code-cleanup` | Run a maintenance pass: comments, dead code, duplication, tests and a verdict on the design |
-| `/desk:refactor` | Refactor one module's architecture and code without changing behaviour: rank targets from git history and per-stack tools, pin, subtract, fix boundaries, simplify hotspots, then guard the result |
 | `/desk:show-me-your-work` | Keep a log of each decision and its evidence during a long run, and check it at the end |
-| `/desk:ketchup` | Catch up on what changed while you were away, and what needs you |
-| `/desk:reflect` | Turn what went wrong in a chat into fixes for the project's skills and CLAUDE.md |
-| `/desk:correct` | Make a mistake agents keep repeating impossible: architecture, types, a lint, then a test |
+| `/desk:reflect` | Turn what went wrong in a chat into fixes for the project's skills and CLAUDE.md; `/desk:reflect correct` makes a mistake agents keep repeating impossible (architecture, types, a lint, then a test) |
 | `/desk:create-verification-skill`, `/desk:maintain-verification-skill` | Give the project a skill that drives the real app to verify a change, and keep it true |
 | `/desk:benchmark-checklist` | Vet a performance measurement before you report or act on it |
 | `/desk:typescript-best-practices` | Write TypeScript with types that make bad states impossible |
 | `/desk:no-comments` | Strip comments that restate the code, with the `desk:comment-sicko` agent |
 | `/desk:technical-writing`, `/desk:unslop` | Write docs, commit messages and PR bodies |
-| `/desk:adopt` | Turn an old harness project's docs and plans into a backlog of PR-sized tasks, one doc at a time with you |
-| `/desk:kickoff` | Read a project's plan, challenge it with you in one round of questions, then start its ready work as parallel threads or background sessions, each with its own brief |
 
 Not sure which skill fits? Ask `/desk:rigor help`.
+
+Most skills are manual-only (`disable-model-invocation: true`): they cost nothing until you
+type them. `how`, `sharpen`, `blast-radius`, `tdd`, `principles`, `show-me-your-work`,
+`no-comments`, `unslop` and `typescript-best-practices` also load on their own when a task
+matches.
+
+`kickoff`, `refactor` and `workflow-review` are account skills, not plugin skills. Their
+source is in [account-skills/](account-skills/), and each runs as `/kickoff`, `/refactor` or
+`/workflow-review`.
 
 ## More
 
