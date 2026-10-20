@@ -52,14 +52,14 @@ truth for the next work:
 
 | Project | Read | Where work is listed | How one unit starts |
 |---|---|---|---|
-| ikarus | `status.md` (Now, Phase 1 lanes, Sessions today); `docs/roadmap.md` (the current phase's sections and lanes, "What waits on you", "Running the plan with Claude Code"); `docs/tasks/<ID>-*.md` for each candidate | roadmap task rows `W<phase>.<n>` with Do, Acceptance, Depends on, Size; lane locks in `status.md` | `/task W<phase>.<n>` in a worktree session at the ikarus root |
-| games | root `plan.md` (Projects and tracks, Phases and gates); `tracks.md`; each game's `plan.md` (Start here, Current state, Next); open `operator.md` entries | each game's "Ready for Claude"; "Waiting on David" is his | `/next <game>` in a session in the game's folder |
+| ikarus | `status.md` (Now, Phase 1 lanes, v1.0.0 path); `docs/roadmap.md` (the current phase's sections and lanes, "What waits on you", "Running the plan with Claude Code"); `docs/tasks/<ID>-*.md` for each candidate | roadmap task rows `W<phase>.<n>` with Do, Acceptance, Depends on, Size; lane locks in `status.md` | `/task W<phase>.<n>` in a worktree session at the ikarus root |
+| games | root `plan.md` (How to work, Waiting on David, Projects and tracks, Phases and gates); `tracks.md`; each game's `plan.md` (Start here, Current state, Next, including its "Waiting on David") | each game's "Ready for Claude"; "Waiting on David" (root and per game) is his | a worktree session in the game's folder with the brief |
 | game-theory | `plan.md` (Phases, Open decisions, Next step); `experiments/README.md`; the experiment ladder in `references/frontier-review-2026-10-18.md` section 5 | the ladder's next `E<nn>`, "(to verify)" leads in `references/` | a session at the root with the brief |
 | portfolios | `goals.md`, `rules.md`, `decisions.md`; `portfolio-swe/plan.md` and `portfolio-researcher/plan.md` (Status, Next, Waiting on David) | each site's "Next" | a session in the site's folder |
-| safehouse | `plan.md` (Priorities, Milestone, Backlog, How work is split); `sessions.md` (the briefs); each candidate module's `plan.md` (Status, Next, Needs) | backlog rows and `sessions.md` briefs | a worktree session in the module's folder with the brief |
+| safehouse | `plan.md` (Priorities, Milestone, How work is split, Backlog with its Needs column); each candidate module's `plan.md` (Status, Next, Needs) | backlog rows (Needs says what each waits on) and each module plan's Next | a worktree session in the module's folder with the brief |
 
 Another project: read its root `AGENTS.md` or `CLAUDE.md` for where plans live, then its
-`plan.md`, roadmap, status and session files. A project instruction file that names
+`plan.md`, roadmap and status files. A project instruction file that names
 another place wins over this table.
 
 Also read:
