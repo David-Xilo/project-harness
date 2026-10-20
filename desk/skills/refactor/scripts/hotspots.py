@@ -5,9 +5,9 @@ A hotspot is a file that is both large and changed often; that is where cleanup 
 Change coupling is two files that keep changing in the same commits; across directories
 it usually means a boundary leaks.
 
-Usage: hotspots.py [PATH] [--months N] [--top N] [--min-shared N] [--tsv]
+Usage: hotspots.py [PATH] [--months N] [--top N] [--min-shared N] [--docs] [--tsv]
 Run it from inside the repository. PATH narrows to one module (default: the whole repo).
-Stdlib only, read-only.
+Docs (.md, .rst, .txt) are left out unless --docs. Stdlib only, read-only.
 """
 
 import argparse
@@ -21,6 +21,7 @@ SKIP_SUFFIXES = (
     ".lock", ".sum", ".svg", ".png", ".jpg", ".jpeg", ".gif", ".ico", ".pdf", ".snap",
     ".min.js", ".map", ".json", ".csv", ".parquet",
 )
+DOC_SUFFIXES = (".md", ".mdx", ".rst", ".txt")
 SKIP_NAMES = {"package-lock.json", "Cargo.lock", "uv.lock", "go.sum", "pnpm-lock.yaml"}
 SKIP_DIRS = {"node_modules", "dist", "build", "target", "vendor", ".venv", "__snapshots__"}
 BULK_COMMIT = 40
@@ -33,17 +34,18 @@ def git(*args):
     return out.stdout
 
 
-def skipped(path):
+def skipped(path, docs):
     parts = path.split("/")
     name = parts[-1]
     return (
         name in SKIP_NAMES
+        or (not docs and name.endswith(DOC_SUFFIXES))
         or name.endswith(SKIP_SUFFIXES)
         or any(p in SKIP_DIRS for p in parts[:-1])
     )
 
 
-def commits(path, months):
+def commits(path, months, docs):
     log = git("log", f"--since={months}.months", "--no-merges", "--name-only",
               "--format=--%H", "--", path)
     current = None
@@ -52,7 +54,7 @@ def commits(path, months):
             if current:
                 yield current
             current = set()
-        elif line.strip() and current is not None and not skipped(line):
+        elif line.strip() and current is not None and not skipped(line, docs):
             current.add(line.strip())
     if current:
         yield current
@@ -77,6 +79,7 @@ def main():
     ap.add_argument("--months", type=int, default=12)
     ap.add_argument("--top", type=int, default=20)
     ap.add_argument("--min-shared", type=int, default=4)
+    ap.add_argument("--docs", action="store_true", help="include markdown and text files")
     ap.add_argument("--tsv", action="store_true")
     a = ap.parse_args()
 
@@ -86,7 +89,7 @@ def main():
 
     churn = collections.Counter()
     pairs = collections.Counter()
-    for files in commits(a.path, a.months):
+    for files in commits(a.path, a.months, a.docs):
         churn.update(files)
         if len(files) <= BULK_COMMIT:
             pairs.update(itertools.combinations(sorted(files), 2))

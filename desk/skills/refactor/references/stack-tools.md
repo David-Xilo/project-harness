@@ -11,7 +11,7 @@ Record each tool's count in the survey: the before/after table is built from the
 
 | What | Command |
 |---|---|
-| Hotspots and change coupling | `python3 <skill>/scripts/hotspots.py . --months 12` |
+| Hotspots and change coupling | `python3 <skill>/scripts/hotspots.py . --months 12` (code only; `--docs` adds markdown) |
 | Complexity (CCN over 15, functions over 80 lines) | `uvx lizard -C 15 -L 80 -w .` (add `-l python`, `-l go`, `-l rust` or `-l typescript` to narrow) |
 | Duplication | `npx --yes jscpd --min-tokens 70 --reporters consoleFull --ignore "**/node_modules/**,**/target/**,**/dist/**,**/.venv/**" .` |
 | Comments that restate code | the `desk:no-comments` skill |

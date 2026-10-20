@@ -93,7 +93,8 @@ Measure before choosing. Read-only.
 
 1. Hotspots and change coupling: `python3 <skill>/scripts/hotspots.py . --months 12`.
    The top files by commits x lines are the targets. Pairs marked `*` change together
-   across directories: a leaking boundary, a candidate for phase 5.
+   across directories: a leaking boundary, a candidate for phase 5. Docs are left out;
+   add `--docs` when the module is mostly prose.
 2. The stack's tools from `<skill>/references/stack-tools.md`: dead code, unused
    dependencies, complexity, duplication, the import graph and its cycles. Record each
    count.
