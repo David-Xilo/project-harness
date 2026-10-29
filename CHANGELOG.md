@@ -33,11 +33,15 @@ version moves to 1.1.0 so `claude plugin update desk@project-harness` picks the 
   owns only `ready-` rows and reads only "Ready for Claude" where a plan has it.
   `workflow-review` keeps the account copy's text with the analyzer path in
   `account-skills/`.
-- The five account skills name no project. Each project declares its plans, ready work,
-  operator steps, decision log, work unit, hard lines, check and git route in a
-  `## Operator contract` section of its root `AGENTS.md`
-  ([account-skills/shared/operator-contract.md](account-skills/shared/operator-contract.md)), and the
-  skills find projects by that heading at any depth under `~/Desktop/random/projects`.
+- The account skills are rebuilt as four single files: `kickoff`, `decisions`, `refactor`
+  and `analyze-workflow` (the old `workflow-review`). `next` is retired; `/kickoff` finds
+  what is ready. The shared `projects.py`, the operator-contract and operator-folder
+  references, the refactor playbook and stack tools, `hotspots.py`, `cc_review.py`, the
+  `.operator/` folder and the upload zips are gone. Each skill runs from a project's root
+  and reads its `AGENTS.md` for where the plan, the waiting items, the decisions, the
+  check and the git rules live; the plan rows, git and the desktop session list are the
+  only state. `/kickoff` starts streams as desktop sessions and stays up as the hub;
+  `/analyze-workflow` writes a throwaway parser per run instead of carrying one.
   `account-skills/shared/projects.py` lists them with their contracts.
 - The account skills are self-contained and name nothing in this repository: each upload
   carries its own scripts and references, built by `account-skills/build.sh`.
