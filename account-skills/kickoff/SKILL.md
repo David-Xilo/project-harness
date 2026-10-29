@@ -10,11 +10,19 @@ in parallel and get out of the way. The deliverable is a set of running workstre
 with a brief that needs nothing from this conversation, plus a kickoff file that says
 what runs, what waits and why.
 
-Arguments: the project (`ikarus`, `games`, `game-theory`, `portfolios`, `safehouse`, or
-any folder under `~/Desktop/random/projects`), optionally a module or plan section to
-narrow to (`ikarus phase 2`, `games pokersim`, `safehouse traffic-sniffer`), and
-`dry run` to stop after the briefs are written. No project given: ask which one, with the
-one whose board rows and "ready" items are freshest as the recommendation.
+Arguments: the project (a folder name, or a path under `~/Desktop/random/projects`),
+optionally a module or plan section to narrow to (`<project> phase 2`,
+`<project> <module>`), and `dry run` to stop after the briefs are written. No project
+given: ask which one, with the one whose board rows and "ready" items are freshest as the
+recommendation.
+
+The project is the folder whose `AGENTS.md` has a `## Operator contract` section (on the
+desktop, `python3 -I ~/Desktop/random/projects/project-harness/account-skills/scripts/projects.py <name>`
+prints it). Every project rule this skill uses comes from that contract: **Plans**,
+**Ready work**, **Waiting on David**, **Decisions**, **Work unit**, **Hard lines**,
+**Check** and **Git**. A project without a contract: say so, read its root `AGENTS.md`
+or `CLAUDE.md` for where plans live, and recommend adding the contract
+(`project-harness/account-skills/operator-contract.md` has the template).
 
 ## Start
 
@@ -46,20 +54,9 @@ the project's `CLAUDE.md` and `AGENTS.md` already load; read the root `AGENTS.md
 
 ## Phase 1: Ground
 
-Read the plan, not the code. Read only these, plus any file they name as the source of
-truth for the next work:
-
-| Project | Read | Where work is listed | How one unit starts |
-|---|---|---|---|
-| ikarus | `status.md` (Now, Phase 1 lanes, v1.0.0 path); `docs/roadmap.md` (the current phase's sections and lanes, "What waits on you", "Running the plan with Claude Code"); `docs/tasks/<ID>-*.md` for each candidate | roadmap task rows `W<phase>.<n>` with Do, Acceptance, Depends on, Size; lane locks in `status.md` | `/task W<phase>.<n>` in a worktree session at the ikarus root |
-| games | root `plan.md` (How to work, Waiting on David, Projects and tracks, Phases and gates); `tracks.md`; each game's `plan.md` (Start here, Current state, Next, including its "Waiting on David") | each game's "Ready for Claude"; "Waiting on David" (root and per game) is his | a worktree session in the game's folder with the brief |
-| game-theory | `plan.md` (Phases, Open decisions, Next step); `experiments/README.md`; the experiment ladder in `references/frontier-review-2026-10-18.md` section 5 | the ladder's next `E<nn>`, "(to verify)" leads in `references/` | a session at the root with the brief |
-| portfolios | `goals.md`, `rules.md`, `decisions.md`; `portfolio-swe/plan.md` and `portfolio-researcher/plan.md` (Status, Next, Waiting on David) | each site's "Next" | a session in the site's folder |
-| safehouse | `plan.md` (Priorities, Milestone, How work is split, Backlog with its Needs column); each candidate module's `plan.md` (Status, Next, Needs) | backlog rows (Needs says what each waits on) and each module plan's Next | a worktree session in the module's folder with the brief |
-
-Another project: read its root `AGENTS.md` or `CLAUDE.md` for where plans live, then its
-`plan.md`, roadmap and status files. A project instruction file that names
-another place wins over this table.
+Read the plan, not the code. Read only what the contract's **Plans** field names, the
+places its **Ready work** and **Waiting on David** fields name, and any file they name as
+the source of truth for the next work. **Work unit** says how one unit starts.
 
 Also read:
 
@@ -94,10 +91,8 @@ Look for, and only raise what you found:
   the board contradicts.
 - **Order.** A unit that depends on another the plan runs in parallel; a shared contract
   that must land before its consumers; the riskiest unknown placed late.
-- **Gates and hard lines.** Work that would cross a gate before its check passes
-  (ikarus: paper only, no orders before G6; safehouse: no live-host change without his
-  yes; games: no asset without provenance; portfolios: no invented facts; game-theory:
-  his notes are his, decisions are his, off-host calls need his yes per batch).
+- **Gates and hard lines.** Work that would cross a gate before its check passes, or a
+  line in the contract's **Hard lines**.
 - **Blocked on David.** Board rows or "Waiting on David" items that block a candidate.
   Name the stream each one unblocks, so he knows which to do first.
 - **Scope.** A unit too big for one PR or one session; a "done when" that is not a
@@ -109,7 +104,7 @@ found, the options, and your recommendation, so "go" or "all recommended" is a f
 answer:
 
 ```
-3. W1.20 and W1.21 both write ikarus-orchestration/config. Run them in series
+3. W1.20 and W1.21 both write orchestration/config. Run them in series
    (recommended: W1.20 first, it is in review) or split the config change into its own
    task first?
 ```
@@ -122,35 +117,30 @@ His answer settles each question. An unanswered question takes your recommendati
 second round only when his answer opens a fork that changes the goal; never a third.
 "Go" with nothing else takes every recommendation.
 
-Record each answer that changes the plan where the project records decisions, with the
-next free ID: ikarus `decisions.md` (`S<n>`) or the module plan for a module decision,
-games `decisions.md` (`D<n>`) or the game's `docs/decision-log.md`, game-theory the
-`plan.md` decision log (the D-row moves out of "Open decisions"), portfolios
-`decisions.md` (`D<n>`) or the site plan's Decisions, safehouse `decisions.md`
-(`SD<n>`) or the module plan's `D<n>`; follow the project's instruction file where it
-says more. On the desktop, commit that file alone in its repository's message style
-(`docs: S94 W1.20 before W1.21 (kickoff)`), and push it where the project's rules allow. In a thread, write it to the device
+Record each answer that changes the plan where the contract's **Decisions** field says,
+with the next free ID in its series; follow the project's instruction file where it says
+more. On the desktop, commit that file alone in its repository's message style
+(`docs: S94 W1.20 before W1.21 (kickoff)`), on the branch and by the route the
+contract's **Git** field gives, and push it. In a thread, write it to the device
 with `device_commit_files` and put its commit command in the hand-back. Answers that only
 shape this kickoff (how many streams, which first) go in the kickoff file only.
 
 ## Phase 3: Cut workstreams
 
-A workstream is one unit the project already defines (an ikarus `W` task, a game's ready
-item, a safehouse backlog row, an experiment, a site's next step), run by one session in
-one worktree on one branch, ending in a PR or a recorded result. Do not invent units the
+A workstream is one unit the project already defines (the contract's **Work unit**: a
+roadmap task, a ready item, a backlog row, an experiment), run by one session in one
+worktree on one branch, ending in a PR or a recorded result. Do not invent units the
 plan does not have; a needed unit the plan lacks is a question for Phase 2.
 
 Take a unit as a stream only when all hold:
 
 - Its dependencies are done, or are streams in an earlier wave.
-- It writes no path another stream in the same wave writes (ikarus: no package another
-  lane locks in `status.md`).
+- It writes no path another stream in the same wave writes, and nothing a lock named
+  in **Work unit** holds.
 - Nothing only David can do stands in front of it. If something does, the stream still
   starts when it has useful work before that step, and its brief says where it stops.
-- It fits the project's limit: ikarus at most four sessions, one lane each (S87);
-  safehouse one task per repository at a time, three to five at once; games one session
-  per game; portfolios one per site; game-theory any number of experiment scripts, never
-  a stream that writes David's notes.
+- It fits the limit the contract's **Work unit** gives (sessions at once, one per
+  repository, module or lane).
 
 As many streams as pass, up to the project's limit and at most six in one wave unless
 David asked for more. Everything else is a later wave, queued behind the stream that
@@ -164,7 +154,7 @@ tool in a thread, and fold their result into the kickoff file before Phase 5.
 
 ## Phase 4: Write briefs
 
-Make the kickoff folder: `~/Desktop/random/projects/kickoff/<project>-<YYYY-MM-DD>/` on
+Make the kickoff folder: `~/Desktop/random/projects/operator/kickoff/<project>-<YYYY-MM-DD>/` on
 xillz. In a thread, also keep a copy at `/mnt/project-files/kickoff/<project>-<date>/` and
 write the device copy with `device_commit_files`.
 
@@ -179,7 +169,7 @@ Kickoff <project> <date>, stream NN of M, wave W. Board row: kick-<project>-<slu
 
 Folder: <absolute path on xillz>  (open the session here; read its AGENTS.md first)
 Plan: <file>#<heading>. The plan row is the source of truth; this brief only points.
-Start with: </task W1.13 | /next pokersim | "Do <ID> from plan.md">
+Start with: <the start the contract's Work unit gives: a slash command such as /task W1.13, or "Do <ID> from plan.md">
 
 Goal: <one sentence>
 Do: <the plan's Do, plus anything the kickoff settled>
@@ -246,13 +236,13 @@ Attach David's `/kickoff` message and his answer to the challenge round by id; h
 answer is the approval to start them. Keep each message under 2000 characters; send more
 than one when the list is long. For each stream give:
 
-- the thread title: the plan ID and two to five plain words (`W1.13 Lean kernel
+- the thread title: the plan ID and two to five plain words (`W1.13 Kernel
   fixtures`);
 - one sentence on the goal;
 - this brief for the new thread, verbatim with the paths filled in:
 
 > Your workstream brief is `/mnt/project-files/kickoff/<project>-<date>/NN-<slug>.md`
-> (same file on xillz under `~/Desktop/random/projects/kickoff/`). Read it, and the
+> (same file on xillz under `~/Desktop/random/projects/operator/kickoff/`). Read it, and the
 > kickoff's `README.md` next to it. First, write `links/kick-<project>-<slug>` on the
 > Operator Board (https://claude.ai/artifact/MTb2tzyWAGDkQv9xy4tVx2) with ArtifactData:
 > `{links: [{label: "<your thread title>", url:
@@ -276,7 +266,7 @@ Start each stream as a background session in its own worktree, from its folder:
 
 ```sh
 cd <folder>
-claude --bg -w <slug> -n "<Plan ID> <title>" "$(cat ~/Desktop/random/projects/kickoff/<project>-<date>/NN-<slug>.md)"
+claude --bg -w <slug> -n "<Plan ID> <title>" "$(cat ~/Desktop/random/projects/operator/kickoff/<project>-<date>/NN-<slug>.md)"
 ```
 
 `claude agents` lists them; `claude attach "<Plan ID>"` opens one. Run the commands
@@ -286,7 +276,7 @@ with the `cd` for each, and the fallback for an older CLI:
 
 ```sh
 cd <folder>
-claude -w <slug> -n "<Plan ID> <title>" "$(cat ~/Desktop/random/projects/kickoff/<project>-<date>/NN-<slug>.md)"
+claude -w <slug> -n "<Plan ID> <title>" "$(cat ~/Desktop/random/projects/operator/kickoff/<project>-<date>/NN-<slug>.md)"
 ```
 
 one terminal tab per stream; or in the desktop app: open `<folder>`, turn on the

@@ -62,6 +62,11 @@ is then updated to match the file. The account copy carries only `SKILL.md` with
 path. On the Operator Board, `/next` owns the `ready-` rows, `/kickoff` the `kick-` rows,
 `/workflow-review` the `wf-` rows and `/decisions` the rest.
 
+The account skills name no project. A project joins them by adding a `## Operator
+contract` section to its root `AGENTS.md`;
+[account-skills/operator-contract.md](account-skills/operator-contract.md) lists the
+fields and has a template.
+
 ## More
 
 - [CHANGELOG.md](CHANGELOG.md), [CONTRIBUTING.md](CONTRIBUTING.md),

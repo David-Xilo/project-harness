@@ -6,7 +6,7 @@ subagent transcripts), the prompt history and the permission settings of the use
 each project. Writes a Markdown report and a JSON file with the same facts for a skill
 to act on. Standard library only, read-only: nothing under ~/.claude is changed.
 
-    python3 -I cc_review.py --days 7 --out ~/Desktop/random/projects/workflow-review
+    python3 -I cc_review.py --days 7 --out ~/Desktop/random/projects/operator/workflow-review
 
 Signals, per session and summed over the window:
 
@@ -15,7 +15,7 @@ Signals, per session and summed over the window:
   that took very long, so a prompt probably sat waiting
 - interrupted turns, context compactions, tool errors, repeated identical commands
 - sessions restarted on the same task (same project, soon after, same opening prompt)
-- Stop-hook blocks (the ikarus `stop-checks.py` reason text)
+- Stop-hook blocks (a Stop hook's block reason in the transcript)
 - shell commands that could be allowlisted: run often, read-only, not auto-allowed and
   not already in a settings file
 """
@@ -572,7 +572,7 @@ def main():
     ap.add_argument("--days", type=float, default=7)
     ap.add_argument("--claude-dir", default=os.path.join(HOME, ".claude"))
     ap.add_argument("--projects-root", default=os.path.join(HOME, "Desktop", "random", "projects"))
-    ap.add_argument("--out", default=os.path.join(HOME, "Desktop", "random", "projects", "workflow-review"))
+    ap.add_argument("--out", default=os.path.join(HOME, "Desktop", "random", "projects", "operator", "workflow-review"))
     ap.add_argument("--min-count", type=int, default=3, help="times a command must recur to be suggested")
     args = ap.parse_args()
 

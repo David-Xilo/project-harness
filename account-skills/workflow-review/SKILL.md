@@ -20,7 +20,7 @@ cd ~/Desktop/random/projects
 python3 -I project-harness/account-skills/workflow-review/scripts/cc_review.py --days 7
 ```
 
-It prints the paths of `workflow-review/review-<date>.md` and `.json` (also
+It prints the paths of `operator/workflow-review/review-<date>.md` and `.json` (also
 `latest.md` / `latest.json`). Read the Markdown report whole. Read a session file under
 `~/.claude/projects/<slug>/` only when a finding needs the surrounding conversation
 (what was asked before a denial, why a command was retried). Never quote a transcript
@@ -51,7 +51,7 @@ Safe means reversible by deleting a line and visible in `git diff`:
 
 - Allow rules into `<project>/.claude/settings.json` (create it with `{"permissions": {"allow": []}}` when missing). Keep existing keys and order, de-duplicate, never touch `deny` or `ask`.
 - One-line rules into AGENTS.md / CLAUDE.md, in the style of the lines around them.
-- Nothing in `~/.claude/settings.json`, no hook changes. Commit and push the changed files in each repo with a one-line message, following that repo's AGENTS.md (ikarus and safehouse: on a task branch, by PR); never force-push. If the harness blocks the write or the commit as self-modification, put the exact commands in the steps file instead.
+- Nothing in `~/.claude/settings.json`, no hook changes. Commit and push the changed files in each repo with a one-line message, following that repo's AGENTS.md and the **Git** field of its `## Operator contract` (a task branch and a PR where it says work lands that way); never force-push. If the harness blocks the write or the commit as self-modification, put the exact commands in the steps file instead.
 
 Say what was changed, file by file, in the reply.
 
@@ -65,7 +65,7 @@ the recommended one marked and the sentence to send back ("WF-2026-10-20-1 done"
 
 Write the steps to `workflow-review/steps-<date>.md` and the rows into
 `board/rows.json`, both under the shared project folder (`/mnt/project-files/`
-when it exists, else `~/Desktop/random/projects/`): replace the rows whose id starts
+when it exists, else `~/Desktop/random/projects/operator/`): replace the rows whose id starts
 with `wf-` and leave every other row as it is. Skip a row that is already on the board
 from an earlier day unless its number grew.
 
