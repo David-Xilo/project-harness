@@ -11,8 +11,11 @@ the effort and in what order; the existing desk skills do each step.
 
 Arguments: $ARGUMENTS
 
-- `<project> <module>`: the full pass on that module (`ikarus ikarus-features`,
-  `games pokersim`, `safehouse traffic-sniffer`, `portfolios portfolio-swe`).
+- `<project> <module>`: the full pass on that module. The project is a folder whose
+  `AGENTS.md` has a `## Operator contract` section (on the desktop,
+  `python3 -I ~/Desktop/random/projects/project-harness/account-skills/scripts/projects.py <name>`
+  prints it); its **Work unit**, **Hard lines**, **Check** and **Git** fields are the
+  project rules this skill follows.
 - `<project>` alone, or `survey`: survey every module of the project, rank them, write
   the top ones into their plans as refactor steps, and stop. `/next` and `/kickoff`
   then pick them up like any other step.
@@ -31,11 +34,12 @@ Arguments: $ARGUMENTS
   (hotspots), not where it looks ugly. Code nobody touches stays as it is unless it is dead.
 - **Commit and push without asking.** Commits follow the project's AGENTS.md
   conventions. Push the refactor branch and open its PR yourself; never force-push.
-  Merging follows the project's rules.
-- **Plan edits go to `development`.** `/next`, `/kickoff` and `/decisions` read the plans
-  in the main checkout, so every plan step or "Waiting on David" entry this skill writes
-  is a separate docs commit there (`docs(<module>): refactor follow-ups`), never only on
-  the refactor branch.
+  Merging follows the contract's **Git** field.
+- **Plan edits land apart.** `/next`, `/kickoff` and `/decisions` read the plans in the
+  main checkout, so every plan step or "Waiting on David" entry this skill writes is a
+  separate docs commit (`docs(<module>): refactor follow-ups`), never only on the
+  refactor branch: on `development` where the **Git** field allows it, else on its own
+  docs branch and pull request.
 - **Pick the default and continue.** Ask only when a choice changes the goal or a
   contract another module or a user depends on; that becomes a plan step for David.
 - **Keep the branch reviewable.** Past about 800 changed lines (pure deletions do not
@@ -62,28 +66,28 @@ thread): 0 Claim, 1 Baseline, 2 Survey, 3 Pin, 4 Subtract, 5 Boundaries, 6 Simpl
 
 ## Phase 0: Claim the module
 
-1. Check nobody else is in it: `git worktree list` in the repo, lane locks in ikarus
-   `status.md`, `kick-*` streams in the kickoff README for the project. Busy: take the
-   next module from the survey ranking and say so.
+1. Check nobody else is in it: `git worktree list` in the repo, the locks the
+   contract's **Work unit** names, `kick-*` streams in the kickoff README for the
+   project. Busy: take the next module from the survey ranking and say so.
 2. Create a worktree on a new branch off the working branch, where the project's
    AGENTS.md puts worktrees; without a convention:
    `git worktree add ../<repo>-refactor -b refactor/<module>-<YYYY-MM-DD> development`.
-3. Respect the project's hard lines: ikarus never prints `data/ibkr/gateway/paper.env`
-   and touches no order path behaviour; safehouse makes no live-host change and runs heavy
-   checks one at a time under `systemd-run --user --scope -p MemoryMax=8G <cmd>`.
+3. Respect the contract's **Hard lines** for the whole run (secrets never printed, paths
+   whose behaviour a refactor may not touch, memory caps on heavy checks).
 
 ## Phase 1: Baseline
 
-Run the module's gate as its AGENTS.md or CLAUDE.md states it. Known gates:
+Run the module's gate as its AGENTS.md or CLAUDE.md states it, else the contract's
+**Check**. Known gates by stack:
 
 | Module type | Gate |
 |---|---|
 | Go | `go test ./... -race -cover && go vet ./... && golangci-lint run` |
 | Python/uv | `make check`, or `uv run pytest && uv run ruff check .` |
 | Rust | `cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test` |
-| TS/Vite, Astro | `npm run check` (portfolio-swe adds `test:unit`, `build:draft`, `links`) |
-| Lean 4 (ikarus-risk) | `make check` |
-| game-theory experiments | run each `experiments/eNN_*.py` with `python3` and keep its output; outputs are seeded, so the baseline output is the pin |
+| TS/Vite, Astro | `npm run check`, plus the scripts the module's AGENTS.md adds |
+| Lean 4 | `make check` |
+| Seeded experiment scripts | run each with `python3` and keep its output; outputs are seeded, so the baseline output is the pin |
 
 Save the commands and results to `baseline.md` in the report folder. A red gate on
 `development` is not this skill's to fix: record it, write a plan step, and stop.
@@ -111,8 +115,8 @@ item names its evidence.
 **Survey mode** (whole project): run steps 1 and 2 on every module, rank the modules by
 hotspot score and finding counts, write `~/Desktop/random/projects/operator/refactor/<project>-<date>/survey.md`,
 add a step "Refactor pass: run `/refactor <project> <module>` (see <survey path>)" to the
-"Next" list of the top three modules' `plan.md` (or the project plan where modules
-have none), commit those plan edits, and go to phase 9.
+top three modules' work list, in the place the contract's **Ready work** names, commit
+those plan edits, and go to phase 9.
 
 ## Phase 3: Pin the behaviour
 
@@ -155,12 +159,12 @@ Fix the architecture inside the module, then write down the rest.
    derive hand-synced lists from one source, collapse pass-through layers. Follow the
    `desk:rigor` Refactoring playbook: move every caller and delete the old path in the
    same wave, no shims.
-3. Changes that cross the module's contract (ikarus `contracts`, wire formats, a
-   database schema, another repo's imports) are not applied. Write each as a plan step in
+3. Changes that cross the module's contract (a shared contracts package, wire formats,
+   a database schema, another repo's imports) are not applied. Write each as a plan step in
    the module's `plan.md` with what it fixes, what it costs and the order of steps
    (`desk:rigor` Multi-phase plan playbook). When it changes what the system does or
-   costs David a decision, put it under "Waiting on David" with options and a
-   recommendation, so `/decisions` shows it on the Operator Board.
+   costs David a decision, put it where the contract's **Waiting on David** says, with
+   options and a recommendation, so `/decisions` shows it on the Operator Board.
 
 Commit each move on its own: `refactor(<module>): <move>`.
 
@@ -198,8 +202,8 @@ Commit: `chore(<module>): guard <rule>`.
 ## Phase 8: Verify
 
 1. The full gate, plus the module's verification skill when it has one. Compare with
-   `baseline.md`: same tests passing, same outputs for the game-theory experiments,
-   same Lean statements and `#print axioms`.
+   `baseline.md`: same tests passing, same outputs for seeded scripts, same Lean
+   statements and `#print axioms`.
 2. Rerun the phase 2 tools and fill the before/after table: lines of code, dead-code
    findings, unused dependencies, cycles, functions over the complexity threshold,
    duplicated blocks, top hotspot sizes.
@@ -221,9 +225,9 @@ Commit: `chore(<module>): guard <rule>`.
    gh pr create --base development --head refactor/<module>-<date> --title "refactor(<module>): <summary>" --body-file ~/Desktop/random/projects/operator/refactor/<project>-<module>-<date>/report.md
    ```
 
-   Where the project leaves the merge to David, add it to the module's `plan.md` under
-   "Waiting on David" with the PR link, and commit that on `development` with the phase 5
-   plan steps. When the branch is merged, the next `/decisions apply` or the next run
+   Where the project leaves the merge to David, add it where the contract's **Waiting
+   on David** says, with the PR link, and land that with the phase 5 plan steps as
+   "Plan edits land apart" says. When the branch is merged, the next `/decisions apply` or the next run
    removes the entry.
 3. Reply in one short message: the before/after numbers that moved, the commits, the PR,
    the plan steps and decisions written, and the path of `report.md`.

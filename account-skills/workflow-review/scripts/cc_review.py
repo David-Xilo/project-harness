@@ -15,7 +15,7 @@ Signals, per session and summed over the window:
   that took very long, so a prompt probably sat waiting
 - interrupted turns, context compactions, tool errors, repeated identical commands
 - sessions restarted on the same task (same project, soon after, same opening prompt)
-- Stop-hook blocks (the ikarus `stop-checks.py` reason text)
+- Stop-hook blocks (a Stop hook's block reason in the transcript)
 - shell commands that could be allowlisted: run often, read-only, not auto-allowed and
   not already in a settings file
 """

@@ -51,7 +51,7 @@ Safe means reversible by deleting a line and visible in `git diff`:
 
 - Allow rules into `<project>/.claude/settings.json` (create it with `{"permissions": {"allow": []}}` when missing). Keep existing keys and order, de-duplicate, never touch `deny` or `ask`.
 - One-line rules into AGENTS.md / CLAUDE.md, in the style of the lines around them.
-- Nothing in `~/.claude/settings.json`, no hook changes. Commit and push the changed files in each repo with a one-line message, following that repo's AGENTS.md (ikarus and safehouse: on a task branch, by PR); never force-push. If the harness blocks the write or the commit as self-modification, put the exact commands in the steps file instead.
+- Nothing in `~/.claude/settings.json`, no hook changes. Commit and push the changed files in each repo with a one-line message, following that repo's AGENTS.md and the **Git** field of its `## Operator contract` (a task branch and a PR where it says work lands that way); never force-push. If the harness blocks the write or the commit as self-modification, put the exact commands in the steps file instead.
 
 Say what was changed, file by file, in the reply.
 

@@ -7,7 +7,8 @@ description: "List every decision, manual step and play session that waits on Da
 
 One table of everything only David can do, across every project, so he can scan it in a
 minute and tell a session "O20 done: valuation price" instead of hunting through plans.
-Read only the sections named below; do not read code, research files or history.
+Read only the sections the projects' contracts name; do not read code, research files
+or history.
 
 Operator Board: https://claude.ai/artifact/MTb2tzyWAGDkQv9xy4tVx2. Its database has four
 collections: `items` (the rows: `/next` owns ids starting `ready-`, `/kickoff` owns
@@ -18,21 +19,21 @@ board) and `signals` (one doc per click of "Steps done" or "Ask a question" on a
 `{rowId, kind: done|question, text, createdAt, status, commentThreadId?, forwardedTo?,
 answer?, handledNote?}`).
 
-## Where each project keeps them
+## Find the projects
 
-Root: `~/Desktop/random/projects`; game-theory lives at `study/game-theory`. Skip
-`archived/`, `operator/`, `oss/`, `tests/` and the rest of `study/`. If a project is given as the argument, read only that one.
+A project is a folder under `~/Desktop/random/projects`, at any depth, whose `AGENTS.md`
+has a `## Operator contract` section. Skip the top-level `archived/`, `operator/`,
+`oss/` and `tests/`, any `node_modules` or `.worktrees` folder, and folders that are git
+worktrees (their `.git` file points into `/worktrees/`). The outermost match is the
+project; its name is the folder's basename. On the desktop,
+`python3 -I ~/Desktop/random/projects/project-harness/account-skills/scripts/projects.py`
+prints them all with their contract fields; in a thread, search the device folders for
+the heading. If a project is given as the argument, read only that one.
 
-| Project | Read | What counts |
-|---|---|---|
-| ikarus | `ikarus/docs/roadmap.md` section "What waits on you" (the `O<n>` table and each `### O<n>` entry); `ikarus/status.md` "Waiting on the operator" | every row; a row whose entry says "It is a decision" is a decision, the rest are actions |
-| games | `games/plan.md` section "Waiting on David"; every `games/*/plan.md` section "Waiting on David" (under "Next") | a question Claude asked is a decision; a play round or device check is a play session; installs, accounts and fees are actions |
-| game-theory | `study/game-theory/plan.md` section "Open decisions" (D-rows not marked Decided) and "Operator tasks" | D-rows are decisions; operator tasks are actions |
-| portfolios | `portfolios/portfolio-swe/plan.md` and `portfolios/portfolio-researcher/plan.md`, section "Waiting on David" | reviews and picks are decisions; tokens, DNS and console steps are actions; her intake is someone else's |
-| safehouse | `safehouse/plan.md` "Backlog" rows, and each `safehouse/*/plan.md` "Next" row, whose Needs column names the operator (a yes, `sudo`, a key, an account) | a yes to a live change is a decision; `sudo`, `setcap` and restarts are actions |
-
-A project that has a `CLAUDE.md` or `AGENTS.md` naming another place for operator steps
-wins over this table; follow it and note the difference in the reply.
+For each project, read only the places its contract's **Waiting on David** names, and
+tell each item's kind by the rule written there. A project whose contract has no
+**Waiting on David** gets one line in the reply ("<name>: contract names no operator
+steps") and no rows.
 
 ## Output
 
@@ -84,9 +85,10 @@ row already in the file whose id starts with `ready-`, `kick-` or `wf-` as it is
 array of objects
 `{id, project, code, title, kind, when, unblocks, tell, note, source, steps, links, choices}`:
 
-- `id`: `<project>-<code>` in lower case with dots turned into dashes (`ikarus-o20`,
-  `games-ttt-4-1-18`); keep the id an existing board row already uses.
-- `source`: the file path and heading anchor the row came from; `steps`: the numbered
+- `id`: `<project>-<code>` in lower case with dots turned into dashes (`<project>-o20`,
+  `<project>-ttt-4-1-18`); keep the id an existing board row already uses.
+- `source`: the file path from `~/Desktop/random/projects` and the heading anchor the
+  row came from; `steps`: the numbered
   steps block as plain text.
 - `links`: `[{label, url, kind}]` for what the source entry itself points at. A pull
   request named as "PR <n>" in a folder whose `git remote get-url origin` is GitHub
@@ -141,18 +143,17 @@ session the row names.
       entry's own words ("it moves to the decision log", "removes the entry"). With no
       such rule, add `Decided <YYYY-MM-DD>: <label> (picked on the Operator Board)` and
       the typed `text` under the entry, and take it off the waiting list or table.
-      game-theory: move the D-row from "Open decisions" into "Decision log". ikarus:
-      write the decision into the `O<n>` entry and drop its row from "What waits on
-      you". Workflow-review rows: add the line under the item's heading in
-      `workflow-review/steps-<date>.md`.
+      The contract's **Decisions** field says how where it differs. Workflow-review
+      rows: add the line under the item's heading in `workflow-review/steps-<date>.md`.
    3. Record only. Do not start the work the decision unblocks (that stays with the
       session named in `tell`, which reads it from the plan), and never run a live-host
-      change, `sudo`, a push, a merge or a payment because of a pick; safehouse's "no
-      live-host change without David's yes" still needs his yes in the session that
-      makes the change.
+      change, `sudo`, a push, a merge or a payment because of a pick; a contract's
+      **Hard lines** (such as "no live-host change without David's yes") still need his
+      yes in the session that makes the change.
    4. Commit the edited file in its own repository, nothing else staged, with a message
       in that repository's style such as `docs(plan): D2 decided, essays (Operator
-      Board)`, and push it where the project's rules allow; never force-push. Then on
+      Board)`, on the branch and by the route the contract's **Git** field gives (a
+      task branch and a pull request where it says so), and push it; never force-push. Then on
       the board, pinned to the versions you read:
       - applied: `answers/<id>` `update` `{status: "applied", appliedAt: now,
         appliedNote: "<file>, commit <short hash>"}` and `items/<id>` `update`

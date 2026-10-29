@@ -1,7 +1,7 @@
 ---
 name: next
 description: For each project in ~/Desktop/random/projects, find the tasks that are ready to start as their own session now, the work already in flight (worktrees, unmerged branches, unpushed commits), and the stale leftovers. Writes a "Ready to start" group to the Operator Board. Use for /next, "what should run next", "what can I start", "should I spawn more sessions", or after /decisions in the morning refresh.
-argument-hint: "[project]  (ikarus, games, game-theory, portfolios, safehouse; default all)"
+argument-hint: "[project]  (a project folder name; default all)"
 ---
 
 # Next
@@ -10,14 +10,25 @@ Answer one question per project: what can a new session start right now, without
 waiting on David? Report it in chat and on the Operator Board. This skill reads; it
 never commits, merges, removes a worktree or starts a session by itself.
 
-Projects (root folder under `~/Desktop/random/projects`): `ikarus`, `games`,
-`game-theory` (at `study/game-theory`), `portfolios`, `safehouse`. With an argument, do
-only that one.
+## 0. Find the projects
+
+A project is a folder under `~/Desktop/random/projects`, at any depth, whose `AGENTS.md`
+has a `## Operator contract` section. Skip the top-level `archived/`, `operator/`,
+`oss/` and `tests/`, any `node_modules` or `.worktrees` folder, and folders that are git
+worktrees (their `.git` file points into `/worktrees/`). The outermost match is the
+project; its name is the folder's basename. On the desktop,
+`python3 -I ~/Desktop/random/projects/project-harness/account-skills/scripts/projects.py`
+prints them all with their contract fields. With an argument, do only that one.
+
+Each step below reads one contract field: **Ready work** for the candidates, **Waiting
+on David** for what is not a candidate, **Work unit** for where a session opens and how
+many may run, **Check** for "done when", and **Git** for the repositories to skip.
 
 ## 1. Git state (one Bash call per project)
 
 For every repository under the project (`find <project> -maxdepth 4 -name .git`, skipping
-`*/worktrees/*`, `node_modules` and `ikarus/nautilus_trader`):
+`*/worktrees/*`, `node_modules` and the repositories the contract's **Git** field says to
+skip):
 
 - current branch, `git status --short | wc -l`, ahead/behind its upstream;
 - `git worktree list`: for each extra worktree, its branch, last commit date, dirty
@@ -34,16 +45,15 @@ Classify each worktree or branch:
 
 ## 2. Candidate tasks from the plans
 
-Read each module plan's `## Next` (safehouse root: `## Backlog`; game-theory:
-`## 6. Next step`; ikarus root: `docs/roadmap.md`). Where `## Next` has a
-`### Ready for Claude` subsection, read only that one; its "Waiting on David" and
-"After that" rows are not candidates. Take the rows in their written order. A row is
-**ready** when all of these hold:
+Read the places the contract's **Ready work** names, with the rule it gives for which
+rows count. Take the rows in the order it gives (written order when it says none). A row
+is **ready** when all of these hold:
 
 - it names no unmet dependency: every "waits on", "after" or "needs" it cites is marked
-  done in that plan or the owning plan;
-- nothing in it waits on David: it is not in a "Waiting on David" section and is not an
-  open row on the Operator Board;
+  done in that plan or the owning plan, and no lock the **Work unit** field names holds
+  what it touches;
+- nothing in it waits on David: it is not in a place the **Waiting on David** field
+  names and is not an open row on the Operator Board;
 - nobody is already on it: no worktree, branch or open PR (`gh pr list --state open`,
   where the repo has a GitHub remote) carries its code or title.
 
@@ -52,9 +62,9 @@ leave it out and name it under "unclear" rather than guess.
 
 For each ready row write a brief a new session could start from: the folder to open
 (the module, not the root), the row code and title, the files or area it touches, and
-the check that shows it is done (from the module's AGENTS.md, or the project's
-CLAUDE.md where there is none). Two rows that touch the
-same files are one session, not two.
+the check that shows it is done (from the module's AGENTS.md, else the contract's
+**Check**). Open it where the **Work unit** field says. Two rows that touch the same
+files are one session, not two, and no more sessions than **Work unit** allows at once.
 
 ## 3. Report in chat
 
