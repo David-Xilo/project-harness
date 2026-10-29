@@ -44,6 +44,9 @@ version moves to 1.1.0 so `claude plugin update desk@project-harness` picks the 
 - `refactor` and `kickoff` no longer call desk skills: `refactor` carries what it used from
   them in its own `references/playbook.md`, and `kickoff` describes its read-only fan-out
   itself.
+- The account skills link nothing outside this machine. The Operator Board, its sync and
+  comment relay, and the claude.ai project-thread mode are gone; open items live in
+  `operator/waiting.md`, and `/decisions apply` records answers David gives in chat.
 
 ## v1.0.0 (installed, not tagged)
 

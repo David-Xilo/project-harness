@@ -14,7 +14,7 @@ project.
   file points into a `/worktrees/` git dir).
 - The outermost match is the project; modules inside it are not searched.
 - The project's name is its folder's basename (`study/<name>` is `<name>`). It
-  is the skill argument, the board's `project` field and the board row id prefix.
+  is the skill argument and the `Project` column in `operator/waiting.md`.
 
 On the desktop, `python3 -I <skill folder>/scripts/projects.py` prints every project and
 its fields as JSON; `projects.py <name>` prints one.
@@ -30,7 +30,7 @@ reply and skips that part for the project.
 | Plans | the files and sections to read before choosing work | `/kickoff` |
 | Ready work | where work for Claude is listed, which rows count, in what order | `/next`, `/kickoff` |
 | Waiting on David | where the steps only David can do are kept, and how each one's kind (decision, action, play, others) is told | `/decisions` |
-| Decisions | where decisions are recorded, their ID series, and how a board pick or a "steps done" note is written back | `/decisions apply`, `/kickoff` |
+| Decisions | where decisions are recorded, their ID series, and how a choice or a "steps done" note David gives in chat is written back | `/decisions apply`, `/kickoff` |
 | Work unit | what one unit of work is, where its session opens, how it starts, how many run at once, and the locks to respect | `/next`, `/kickoff`, `/refactor` |
 | Hard lines | the gates and limits no session crosses | `/kickoff`, `/refactor` |
 | Check | the command that proves work is done, at the root and per module | `/next`, `/kickoff`, `/refactor` |
