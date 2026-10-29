@@ -2,4 +2,3 @@
 .env
 *.swp
 .DS_Store
-account-skills/dist/

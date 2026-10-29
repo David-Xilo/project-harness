@@ -54,22 +54,13 @@ type them. `how`, `sharpen`, `blast-radius`, `tdd`, `principles`, `show-me-your-
 `no-comments`, `unslop` and `typescript-best-practices` also load on their own when a task
 matches.
 
-`decisions`, `next`, `kickoff`, `refactor` and `workflow-review` are account skills, not
-plugin skills, and each runs as `/<name>`. Their source is in
-[account-skills/](account-skills/): a change starts as a commit there, and the account copy
-is then updated to match. Each skill is self-contained: it names files only inside its own
-folder and never this repository. `account-skills/build.sh` copies the shared files in
-[account-skills/shared/](account-skills/shared/) into each skill that uses them and writes one
-upload zip per skill to `account-skills/dist/`; `--install` also puts the build in
-`~/.claude/skills/`. The skills name nothing outside their own folder: they work on the
-projects at or under the folder they run from, and anything they keep between runs goes in
-that project's `.operator/` folder, which they create and keep out of commits themselves
-([account-skills/shared/operator-folder.md](account-skills/shared/operator-folder.md)).
-
-The account skills name no project. A project joins them by adding a `## Operator
-contract` section to its root `AGENTS.md`;
-[account-skills/shared/operator-contract.md](account-skills/shared/operator-contract.md) lists the
-fields and has a template.
+`kickoff`, `decisions`, `refactor` and `analyze-workflow` are account skills, not plugin
+skills, and each runs as `/<name>`. Their source is in [account-skills/](account-skills/):
+one `SKILL.md` per skill, no scripts and no reference files, installed into
+`~/.claude/skills/` by `account-skills/build.sh --install`. Each runs from a project's
+root folder and reads that project's `AGENTS.md` to learn where its plan, its items
+waiting on David, its decision log, its check and its git rules live; it names no
+project and keeps no files between runs.
 
 ## More
 

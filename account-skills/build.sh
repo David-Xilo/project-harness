@@ -1,27 +1,22 @@
 #!/usr/bin/env bash
-# Build each account skill as a self-contained folder and zip under dist/, ready to upload.
-# Usage: build.sh [--install]   (--install also replaces ~/.claude/skills/<name>/ with the build)
+# Install the account skills: copy each <skill>/SKILL.md to ~/.claude/skills/<skill>/.
+# Usage: build.sh --install
 set -euo pipefail
 cd "$(dirname "$0")"
+[[ "${1:-}" == --install ]] || { echo "usage: build.sh --install" >&2; exit 2; }
 
-SKILLS=(decisions next kickoff refactor workflow-review)
-USES_CONTRACT=(decisions next kickoff refactor)
-
-rm -rf dist && mkdir dist
-for s in "${SKILLS[@]}"; do
-  cp -r "$s" "dist/$s"
-  mkdir -p "dist/$s/references"
-  cp shared/operator-folder.md "dist/$s/references/"
-  if [[ " ${USES_CONTRACT[*]} " == *" $s "* ]]; then
-    mkdir -p "dist/$s/scripts"
-    cp shared/projects.py "dist/$s/scripts/"
-    cp shared/operator-contract.md "dist/$s/references/"
-  fi
-  find "dist/$s" -name __pycache__ -prune -exec rm -rf {} +
-  (cd dist && zip -qr "$s.zip" "$s")
-  if [[ "${1:-}" == --install ]]; then
-    rm -rf "$HOME/.claude/skills/$s"
-    cp -r "dist/$s" "$HOME/.claude/skills/$s"
+dest="$HOME/.claude/skills"
+for d in */; do
+  s="${d%/}"
+  [[ -f "$s/SKILL.md" ]] || continue
+  rm -rf "$dest/$s"
+  mkdir -p "$dest/$s"
+  cp "$s/SKILL.md" "$dest/$s/SKILL.md"
+  echo "installed $s"
+done
+for old in next workflow-review; do
+  if [[ -d "$dest/$old" ]]; then
+    rm -rf "$dest/$old"
+    echo "removed $old"
   fi
 done
-ls dist/*.zip
