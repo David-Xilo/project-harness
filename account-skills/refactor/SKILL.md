@@ -47,8 +47,8 @@ Arguments: $ARGUMENTS
 
 ## Where it runs
 
-On xillz, in Claude Code (desktop app or CLI), or from a project thread through a Remote
-Control session there: the survey tools and the gate need the machine. Reports go to
+In Claude Code on this machine (desktop app or CLI): the survey tools and the gate need
+the machine. Reports go to
 `~/Desktop/random/projects/operator/refactor/<project>-<module>-<YYYY-MM-DD>/`, outside the repos.
 
 `<skill>` below is this skill's own folder. It holds `references/playbook.md` (how to do
@@ -57,8 +57,8 @@ each step; the phases name its sections), `references/stack-tools.md`,
 
 ## Start
 
-Open a todo list with one entry per phase (`TodoWrite`, or the progress checklist in a
-thread): 0 Claim, 1 Baseline, 2 Survey, 3 Pin, 4 Subtract, 5 Boundaries, 6 Simplify,
+Open a todo list with one entry per phase (`TodoWrite`, or the session's task list):
+0 Claim, 1 Baseline, 2 Survey, 3 Pin, 4 Subtract, 5 Boundaries, 6 Simplify,
 7 Guard, 8 Verify, 9 Hand back. In survey mode, phases 0 to 2 then 9.
 
 ## Phase 0: Claim the module
@@ -161,7 +161,7 @@ Fix the architecture inside the module, then write down the rest.
    the module's `plan.md` with what it fixes, what it costs and the order of steps
    (playbook "Writing a plan step"). When it changes what the system does or
    costs David a decision, put it where the contract's **Waiting on David** says, with
-   options and a recommendation, so `/decisions` shows it on the Operator Board.
+   options and a recommendation, so `/decisions` lists it.
 
 Commit each move on its own: `refactor(<module>): <move>`.
 

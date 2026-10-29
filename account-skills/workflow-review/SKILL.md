@@ -6,8 +6,8 @@ description: "Review how Claude Code was used on this machine over the last days
 # Workflow review
 
 Measure where time went in David's Claude Code sessions, fix what a settings file can fix,
-and give him the rest as Operator Board rows with every step written out. Runs every
-weekday morning after `/decisions --json` and `/next`; also on demand.
+and give him the rest with every step written out. Runs every weekday morning after
+`/decisions` and `/next`; also on demand.
 
 ## 1. Measure
 
@@ -57,20 +57,20 @@ Say what was changed, file by file, in the reply.
 
 ## 4. Hand David the rest
 
-Everything that only David can do becomes a board row and a steps block, exactly as the
-`/decisions` skill writes them: code `WF-<date>-<n>`, project `claude-code`, kind
-`decision` or `action`, when `now`, the steps numbered with the `cd` first and every
-command in a fenced `sh` block, a "Done when" line, and for a decision the options with
-the recommended one marked and the sentence to send back ("WF-2026-10-20-1 done").
+Everything that only David can do becomes a steps block, exactly as the `/decisions`
+skill writes them: code `WF-<date>-<n>`, kind `decision` or `action`, the steps numbered
+with the `cd` first and every command in a fenced `sh` block, a "Done when" line, and
+for a decision the options with the recommended one marked and the sentence to send
+back ("WF-2026-10-20-1 done").
 
-Write the steps to `workflow-review/steps-<date>.md` and the rows into
-`board/rows.json`, both under the shared project folder (`/mnt/project-files/`
-when it exists, else `~/Desktop/random/projects/operator/`): replace the rows whose id starts
-with `wf-` and leave every other row as it is. Skip a row that is already on the board
-from an earlier day unless its number grew.
+Write the steps to `~/Desktop/random/projects/operator/workflow-review/steps-<date>.md`.
+Then replace the `## Workflow review` section of `~/Desktop/random/projects/operator/waiting.md` (create the file with its four
+section headings when it is missing) with a line `Updated <YYYY-MM-DD>`, one row per
+item (`| Code | What | Kind | Steps file |`), and leave the other sections untouched.
+Skip an item already listed from an earlier day unless its number grew.
 
 ## 5. Reply
 
 Under fifteen lines: the three largest time sinks with their minutes, what was fixed
-(file and rule), what is on the board for David, then the paths of the report and the
+(file and rule), what is waiting on David, then the paths of the report and the
 steps file. No table of every session; the report has it.

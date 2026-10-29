@@ -61,8 +61,9 @@ is then updated to match. Each skill is self-contained: it names files only insi
 folder and never this repository. `account-skills/build.sh` copies the shared files in
 [account-skills/shared/](account-skills/shared/) into each skill that uses them and writes one
 upload zip per skill to `account-skills/dist/`; `--install` also puts the build in
-`~/.claude/skills/`. On the Operator Board, `/next` owns the `ready-` rows, `/kickoff` the `kick-` rows,
-`/workflow-review` the `wf-` rows and `/decisions` the rest.
+`~/.claude/skills/`. The skills link nothing outside this machine: open items live in
+`~/Desktop/random/projects/operator/waiting.md`, where `/decisions`, `/next`, `/kickoff`
+and `/workflow-review` each rewrite only their own section.
 
 The account skills name no project. A project joins them by adding a `## Operator
 contract` section to its root `AGENTS.md`;
