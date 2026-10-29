@@ -14,7 +14,7 @@ Record each tool's count in the survey: the before/after table is built from the
 | Hotspots and change coupling | `python3 <skill>/scripts/hotspots.py . --months 12` (code only; `--docs` adds markdown) |
 | Complexity (CCN over 15, functions over 80 lines) | `uvx lizard -C 15 -L 80 -w .` (add `-l python`, `-l go`, `-l rust` or `-l typescript` to narrow) |
 | Duplication | `npx --yes jscpd --min-tokens 70 --reporters consoleFull --ignore "**/node_modules/**,**/target/**,**/dist/**,**/.venv/**" .` |
-| Comments that restate code | the `desk:no-comments` skill |
+| Comments that restate code | playbook "Comments" |
 | Stale docs | every path, command and symbol named in README, AGENTS.md, plan.md and docs/ still exists (`rg` each one) |
 
 ## Go
@@ -47,7 +47,7 @@ used only inside their package, and wire or storage types crossing package lines
 | Pin strength (optional) | `uv run --with mutmut mutmut run` with `[tool.mutmut] paths_to_mutate` set to the hotspot only |
 
 Vulture guesses: a function called by name from a framework, a CLI entry point or
-`getattr` looks dead and is not. Prove each removal with `desk:blast-radius`.
+`getattr` looks dead and is not. Prove each removal with playbook "Proving a removal safe".
 
 ## Rust
 

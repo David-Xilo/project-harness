@@ -7,7 +7,7 @@ description: "Refactor one module's architecture and code without changing behav
 
 Make one module smaller, simpler and easier to change while it does exactly what it did
 before, and leave guards behind so it stays that way. This skill decides where to spend
-the effort and in what order; the existing desk skills do each step.
+the effort and in what order; `<skill>/references/playbook.md` says how to do each step.
 
 Arguments: $ARGUMENTS
 
@@ -29,7 +29,7 @@ Arguments: $ARGUMENTS
   on the way becomes a plan step with its repro, not a fix on this branch.
 - **Small verified steps.** Every commit leaves the module's gate green. A red gate means
   revert the last step, not push on.
-- **Delete before you reshape, reshape before you polish** (`subtract-before-you-add`).
+- **Delete before you reshape, reshape before you polish.**
 - **Rank by evidence.** Work goes where change is frequent and code is complex
   (hotspots), not where it looks ugly. Code nobody touches stays as it is unless it is dead.
 - **Commit and push without asking.** Commits follow the project's AGENTS.md
@@ -51,10 +51,9 @@ On xillz, in Claude Code (desktop app or CLI), or from a project thread through 
 Control session there: the survey tools and the gate need the machine. Reports go to
 `~/Desktop/random/projects/operator/refactor/<project>-<module>-<YYYY-MM-DD>/`, outside the repos.
 
-Most desk skills named below are manual-only, so the Skill tool refuses them: read the
-skill's SKILL.md from the installed desk plugin and follow it. `<skill>` below is this
-skill's own folder, which holds `references/stack-tools.md`, `scripts/hotspots.py` and
-`scripts/projects.py`.
+`<skill>` below is this skill's own folder. It holds `references/playbook.md` (how to do
+each step; the phases name its sections), `references/stack-tools.md`,
+`scripts/hotspots.py` and `scripts/projects.py`.
 
 ## Start
 
@@ -101,9 +100,9 @@ Measure before choosing. Read-only.
 2. The stack's tools from `<skill>/references/stack-tools.md`: dead code, unused
    dependencies, complexity, duplication, the import graph and its cycles. Record each
    count.
-3. A design read of the top hotspots against `architect/references/design-red-flags.md`
-   (shallow modules, leakage, pass-throughs, split ownership, two ways to do one task,
-   importable internals, hand-synced lists). For a large module, spread this across
+3. A design read of the top hotspots against playbook "Design red flags" (shallow
+   modules, leakage, pass-throughs, split ownership, two ways to do one task, importable
+   internals, hand-synced lists). For a large module, spread this across
    read-only subagents (`sonnet`, one slice each) that return file pointers, not dumps.
 
 Write `survey.md`: the counts, the top hotspots, the coupled pairs and a ranked worklist
@@ -128,39 +127,39 @@ Before moving anything in a hotspot, make sure a test fails if its behaviour cha
   diffs old and new outputs on recorded inputs). Do not "fix" an odd output in a pin; it
   is the contract until a plan step says otherwise.
 - Before deleting or reshaping something that looks wrong on purpose, read why it is
-  there (`desk:why`, or `git log -L` on the lines). Agents break unwritten invariants
-  most often here.
+  there (playbook "Why a line is there"). Agents break unwritten invariants most often
+  here.
 
 Pins that only serve this refactor may stay out of the repository; pins that guard
-tricky logic stay, within the `desk:tdd` test budget. Commit kept pins first:
+tricky logic stay, within playbook "The test budget". Commit kept pins first:
 `test(<module>): pin <behaviour> before refactor`.
 
 ## Phase 4: Subtract
 
-Run the `desk:code-cleanup` skill's areas 1 and 2 on the module: comments
-(`desk:no-comments`), then dead code, unused dependencies, unused options and files,
-leftovers of dropped designs, and docs describing what no longer exists. Use the counts
-from phase 2 as the worklist. Prove each removal of anything public or reached by name
-(CLI entry points, config keys, routes, serde fields, `getattr`, templates) with
-`desk:blast-radius`. One commit per area, gate green after each.
+Two areas, in order: comments (playbook "Comments"), then dead code, unused
+dependencies, unused options and files, leftovers of dropped designs, and docs
+describing what no longer exists. Use the counts from phase 2 as the worklist. Prove
+each removal of anything public or reached by name (CLI entry points, config keys,
+routes, serde fields, `getattr`, templates) with playbook "Proving a removal safe". One
+commit per area, gate green after each.
 
 ## Phase 5: Boundaries
 
 Fix the architecture inside the module, then write down the rest.
 
 1. Name the target shape: which package owns which state and decision, which way
-   dependencies point, what the public surface is. Follow `desk:architect` (read its SKILL.md; the Skill tool refuses it) when the change
-   crosses more than one function boundary.
+   dependencies point, what the public surface is (playbook "Moving code", step 1; sketch
+   two shapes when the change crosses more than one function boundary).
 2. Apply the moves that stay inside the module and keep its public contract: break
    cycles, hide internals (`internal/`, `pub(crate)`, no re-exports of wire or storage
    types), merge split ownership into one owner, delete the second way of doing a task,
-   derive hand-synced lists from one source, collapse pass-through layers. Follow the
-   `desk:rigor` Refactoring playbook: move every caller and delete the old path in the
-   same wave, no shims.
+   derive hand-synced lists from one source, collapse pass-through layers. Follow
+   playbook "Moving code": move every caller and delete the old path in the same commit,
+   no shims.
 3. Changes that cross the module's contract (a shared contracts package, wire formats,
    a database schema, another repo's imports) are not applied. Write each as a plan step in
    the module's `plan.md` with what it fixes, what it costs and the order of steps
-   (`desk:rigor` Multi-phase plan playbook). When it changes what the system does or
+   (playbook "Writing a plan step"). When it changes what the system does or
    costs David a decision, put it where the contract's **Waiting on David** says, with
    options and a recommendation, so `/decisions` shows it on the Operator Board.
 
@@ -168,14 +167,13 @@ Commit each move on its own: `refactor(<module>): <move>`.
 
 ## Phase 6: Simplify
 
-1. Duplication: `desk:code-cleanup` area 3. Merge copies only when they must change
+1. Duplication: playbook "Duplication". Merge copies only when they must change
    together.
-2. Hotspots, top first: `desk:code-cleanup` area 4 with the code-quality lens
-   (`interrogate/references/code-quality-review.md`). Look for the move that deletes a
-   branch, a mode or a layer, not one that spreads the same complexity around. Hand pure
+2. Hotspots, top first: playbook "Simplifying a hotspot". Look for the move that deletes
+   a branch, a mode or a layer, not one that spreads the same complexity around. Hand pure
    mechanical edits (renames, moves) to a `sonnet` or `haiku` subagent with the paths and
    the names.
-3. Tests: `desk:code-cleanup` area 5. Delete tests of obvious code and tests pinned to
+3. Tests: playbook "The test budget". Delete tests of obvious code and tests pinned to
    internals; never weaken a test to make it pass.
 4. Run the built-in `/simplify` on the branch diff and keep what it finds that holds.
 
@@ -184,8 +182,8 @@ move, replace conditional with polymorphism, and so on) and the pin it held agai
 
 ## Phase 7: Guard
 
-Make the cleanup stick, with the order of `desk:reflect`'s correct mode (`reflect/references/correct.md`): architecture first, then types,
-then a lint, then a test.
+Make the cleanup stick, in the order of playbook "Guards": architecture first, then
+types, then a lint, then a test.
 
 - Wire into the module's gate the guards this run made true, chosen from
   stack-tools.md "Which guards join the gate": zero cycles, the layer rules, no unused
@@ -205,16 +203,16 @@ Commit: `chore(<module>): guard <rule>`.
 2. Rerun the phase 2 tools and fill the before/after table: lines of code, dead-code
    findings, unused dependencies, cycles, functions over the complexity threshold,
    duplicated blocks, top hotspot sizes.
-3. Review the whole branch with `/code-review` (or `desk:interrogate` when the branch is
-   large or touches a boundary). Fix what holds and commit.
-4. A step that did not lower reader load gets reverted (`minimize-reader-load`).
+3. Review the whole branch as playbook "Reviewing the branch" says. Fix what holds and
+   commit.
+4. A step that did not make the code easier to read somewhere gets reverted.
 
 ## Phase 9: Hand back
 
 1. Write `report.md` in the report folder: the before/after table, each structural
    change in plain words (what moved where and why, so David's picture of the code stays
-   true), the guards added, the plan steps written, what was reverted and why. Run it
-   through `desk:unslop`.
+   true), the guards added, the plan steps written, what was reverted and why. Write it
+   as playbook "Writing the report" says.
 2. Push the branch and open the PR, from the repository:
 
    ```sh

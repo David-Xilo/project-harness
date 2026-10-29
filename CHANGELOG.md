@@ -41,6 +41,9 @@ version moves to 1.1.0 so `claude plugin update desk@project-harness` picks the 
   `account-skills/shared/projects.py` lists them with their contracts.
 - The account skills are self-contained and name nothing in this repository: each upload
   carries its own scripts and references, built by `account-skills/build.sh`.
+- `refactor` and `kickoff` no longer call desk skills: `refactor` carries what it used from
+  them in its own `references/playbook.md`, and `kickoff` describes its read-only fan-out
+  itself.
 
 ## v1.0.0 (installed, not tagged)
 
