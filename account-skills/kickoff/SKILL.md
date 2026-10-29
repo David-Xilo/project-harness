@@ -11,7 +11,7 @@ with a brief that needs nothing from this conversation, plus a kickoff file that
 what runs, what waits and why.
 
 Arguments: the project (`ikarus`, `games`, `game-theory`, `portfolios`, `safehouse`, or
-any folder under `~/Desktop/random/projects`), optionally a module or plan section to
+any folder under `~/Desktop/random/projects`; game-theory is at `study/game-theory`), optionally a module or plan section to
 narrow to (`ikarus phase 2`, `games pokersim`, `safehouse traffic-sniffer`), and
 `dry run` to stop after the briefs are written. No project given: ask which one, with the
 one whose board rows and "ready" items are freshest as the recommendation.
@@ -164,7 +164,7 @@ tool in a thread, and fold their result into the kickoff file before Phase 5.
 
 ## Phase 4: Write briefs
 
-Make the kickoff folder: `~/Desktop/random/projects/kickoff/<project>-<YYYY-MM-DD>/` on
+Make the kickoff folder: `~/Desktop/random/projects/operator/kickoff/<project>-<YYYY-MM-DD>/` on
 xillz. In a thread, also keep a copy at `/mnt/project-files/kickoff/<project>-<date>/` and
 write the device copy with `device_commit_files`.
 
@@ -252,7 +252,7 @@ than one when the list is long. For each stream give:
 - this brief for the new thread, verbatim with the paths filled in:
 
 > Your workstream brief is `/mnt/project-files/kickoff/<project>-<date>/NN-<slug>.md`
-> (same file on xillz under `~/Desktop/random/projects/kickoff/`). Read it, and the
+> (same file on xillz under `~/Desktop/random/projects/operator/kickoff/`). Read it, and the
 > kickoff's `README.md` next to it. First, write `links/kick-<project>-<slug>` on the
 > Operator Board (https://claude.ai/artifact/MTb2tzyWAGDkQv9xy4tVx2) with ArtifactData:
 > `{links: [{label: "<your thread title>", url:
@@ -276,7 +276,7 @@ Start each stream as a background session in its own worktree, from its folder:
 
 ```sh
 cd <folder>
-claude --bg -w <slug> -n "<Plan ID> <title>" "$(cat ~/Desktop/random/projects/kickoff/<project>-<date>/NN-<slug>.md)"
+claude --bg -w <slug> -n "<Plan ID> <title>" "$(cat ~/Desktop/random/projects/operator/kickoff/<project>-<date>/NN-<slug>.md)"
 ```
 
 `claude agents` lists them; `claude attach "<Plan ID>"` opens one. Run the commands
@@ -286,7 +286,7 @@ with the `cd` for each, and the fallback for an older CLI:
 
 ```sh
 cd <folder>
-claude -w <slug> -n "<Plan ID> <title>" "$(cat ~/Desktop/random/projects/kickoff/<project>-<date>/NN-<slug>.md)"
+claude -w <slug> -n "<Plan ID> <title>" "$(cat ~/Desktop/random/projects/operator/kickoff/<project>-<date>/NN-<slug>.md)"
 ```
 
 one terminal tab per stream; or in the desktop app: open `<folder>`, turn on the

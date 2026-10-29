@@ -11,7 +11,8 @@ waiting on David? Report it in chat and on the Operator Board. This skill reads;
 never commits, merges, removes a worktree or starts a session by itself.
 
 Projects (root folder under `~/Desktop/random/projects`): `ikarus`, `games`,
-`game-theory`, `portfolios`, `safehouse`. With an argument, do only that one.
+`game-theory` (at `study/game-theory`), `portfolios`, `safehouse`. With an argument, do
+only that one.
 
 ## 1. Git state (one Bash call per project)
 

@@ -45,7 +45,7 @@ Arguments: $ARGUMENTS
 
 On xillz, in Claude Code (desktop app or CLI), or from a project thread through a Remote
 Control session there: the survey tools and the gate need the machine. Reports go to
-`~/Desktop/random/projects/refactor/<project>-<module>-<YYYY-MM-DD>/`, outside the repos.
+`~/Desktop/random/projects/operator/refactor/<project>-<module>-<YYYY-MM-DD>/`, outside the repos.
 
 Most desk skills named below are manual-only, so the Skill tool refuses them: read the
 skill's SKILL.md and follow it, from the installed desk plugin or from
@@ -109,7 +109,7 @@ Write `survey.md`: the counts, the top hotspots, the coupled pairs and a ranked 
 item names its evidence.
 
 **Survey mode** (whole project): run steps 1 and 2 on every module, rank the modules by
-hotspot score and finding counts, write `~/Desktop/random/projects/refactor/<project>-<date>/survey.md`,
+hotspot score and finding counts, write `~/Desktop/random/projects/operator/refactor/<project>-<date>/survey.md`,
 add a step "Refactor pass: run `/refactor <project> <module>` (see <survey path>)" to the
 "Next" list of the top three modules' `plan.md` (or the project plan where modules
 have none), commit those plan edits, and go to phase 9.
@@ -218,7 +218,7 @@ Commit: `chore(<module>): guard <rule>`.
    ```sh
    cd <repo path>
    git push -u origin refactor/<module>-<date>
-   gh pr create --base development --head refactor/<module>-<date> --title "refactor(<module>): <summary>" --body-file ~/Desktop/random/projects/refactor/<project>-<module>-<date>/report.md
+   gh pr create --base development --head refactor/<module>-<date> --title "refactor(<module>): <summary>" --body-file ~/Desktop/random/projects/operator/refactor/<project>-<module>-<date>/report.md
    ```
 
    Where the project leaves the merge to David, add it to the module's `plan.md` under

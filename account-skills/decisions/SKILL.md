@@ -20,14 +20,14 @@ answer?, handledNote?}`).
 
 ## Where each project keeps them
 
-Root: `~/Desktop/random/projects`. Skip `archived/`, `worktrees/`, `*-aside/` and
-`tests/`. If a project is given as the argument, read only that one.
+Root: `~/Desktop/random/projects`; game-theory lives at `study/game-theory`. Skip
+`archived/`, `operator/`, `oss/`, `tests/` and the rest of `study/`. If a project is given as the argument, read only that one.
 
 | Project | Read | What counts |
 |---|---|---|
 | ikarus | `ikarus/docs/roadmap.md` section "What waits on you" (the `O<n>` table and each `### O<n>` entry); `ikarus/status.md` "Waiting on the operator" | every row; a row whose entry says "It is a decision" is a decision, the rest are actions |
 | games | `games/plan.md` section "Waiting on David"; every `games/*/plan.md` section "Waiting on David" (under "Next") | a question Claude asked is a decision; a play round or device check is a play session; installs, accounts and fees are actions |
-| game-theory | `game-theory/plan.md` section "Open decisions" (D-rows not marked Decided) and "Operator tasks" | D-rows are decisions; operator tasks are actions |
+| game-theory | `study/game-theory/plan.md` section "Open decisions" (D-rows not marked Decided) and "Operator tasks" | D-rows are decisions; operator tasks are actions |
 | portfolios | `portfolios/portfolio-swe/plan.md` and `portfolios/portfolio-researcher/plan.md`, section "Waiting on David" | reviews and picks are decisions; tokens, DNS and console steps are actions; her intake is someone else's |
 | safehouse | `safehouse/plan.md` "Backlog" rows, and each `safehouse/*/plan.md` "Next" row, whose Needs column names the operator (a yes, `sudo`, a key, an account) | a yes to a live change is a decision; `sudo`, `setcap` and restarts are actions |
 
@@ -79,7 +79,7 @@ they become due.
 ## `--json`
 
 With `--json`, also write `board/rows.json` under the shared project folder
-(`/mnt/project-files/` when it exists, else `~/Desktop/random/projects/`), keeping every
+(`/mnt/project-files/` when it exists, else `~/Desktop/random/projects/operator/`), keeping every
 row already in the file whose id starts with `ready-`, `kick-` or `wf-` as it is: an
 array of objects
 `{id, project, code, title, kind, when, unblocks, tell, note, source, steps, links, choices}`:
