@@ -17,7 +17,7 @@ projects' `.claude` folders; it writes nothing there.
 
 ```sh
 cd ~/Desktop/random/projects
-python3 -I project-harness/account-skills/workflow-review/scripts/cc_review.py --days 7
+python3 -I <this skill's folder>/scripts/cc_review.py --days 7
 ```
 
 It prints the paths of `operator/workflow-review/review-<date>.md` and `.json` (also

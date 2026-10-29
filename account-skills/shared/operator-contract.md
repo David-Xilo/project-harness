@@ -16,7 +16,7 @@ project.
 - The project's name is its folder's basename (`study/<name>` is `<name>`). It
   is the skill argument, the board's `project` field and the board row id prefix.
 
-On the desktop, `python3 -I scripts/projects.py` in this folder prints every project and
+On the desktop, `python3 -I <skill folder>/scripts/projects.py` prints every project and
 its fields as JSON; `projects.py <name>` prints one.
 
 ## Fields

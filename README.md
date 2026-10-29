@@ -57,14 +57,16 @@ matches.
 `decisions`, `next`, `kickoff`, `refactor` and `workflow-review` are account skills, not
 plugin skills, and each runs as `/<name>`. Their source is in
 [account-skills/](account-skills/): a change starts as a commit there, and the account copy
-is then updated to match the file. The account copy carries only `SKILL.md` with `name` and
-`description` frontmatter; the scripts and references stay here, and each skill names their
-path. On the Operator Board, `/next` owns the `ready-` rows, `/kickoff` the `kick-` rows,
+is then updated to match. Each skill is self-contained: it names files only inside its own
+folder and never this repository. `account-skills/build.sh` copies the shared files in
+[account-skills/shared/](account-skills/shared/) into each skill that uses them and writes one
+upload zip per skill to `account-skills/dist/`; `--install` also puts the build in
+`~/.claude/skills/`. On the Operator Board, `/next` owns the `ready-` rows, `/kickoff` the `kick-` rows,
 `/workflow-review` the `wf-` rows and `/decisions` the rest.
 
 The account skills name no project. A project joins them by adding a `## Operator
 contract` section to its root `AGENTS.md`;
-[account-skills/operator-contract.md](account-skills/operator-contract.md) lists the
+[account-skills/shared/operator-contract.md](account-skills/shared/operator-contract.md) lists the
 fields and has a template.
 
 ## More

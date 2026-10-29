@@ -17,12 +17,12 @@ given: ask which one, with the one whose board rows and "ready" items are freshe
 recommendation.
 
 The project is the folder whose `AGENTS.md` has a `## Operator contract` section (on the
-desktop, `python3 -I ~/Desktop/random/projects/project-harness/account-skills/scripts/projects.py <name>`
+desktop, `python3 -I <this skill's folder>/scripts/projects.py <name>`
 prints it). Every project rule this skill uses comes from that contract: **Plans**,
 **Ready work**, **Waiting on David**, **Decisions**, **Work unit**, **Hard lines**,
 **Check** and **Git**. A project without a contract: say so, read its root `AGENTS.md`
 or `CLAUDE.md` for where plans live, and recommend adding the contract
-(`project-harness/account-skills/operator-contract.md` has the template).
+(`references/operator-contract.md` in this skill's folder has the template).
 
 ## Start
 
@@ -149,8 +149,11 @@ review) is never a stream; it goes in his steps.
 
 Use a subagent instead of a session only for a short, read-only stream with no PR and no
 step of David's: a research question, a prototype that answers a Phase 2 doubt, a
-survey of a module. Run those with the `desk:swarm` skill on the desktop (read its SKILL.md; the Skill tool refuses it), or the Agent
-tool in a thread, and fold their result into the kickoff file before Phase 5.
+survey of a module. Spawn them all in one message with the Agent tool (`sonnet`, one
+slice each). Each brief stands alone: the goal, the exact slice, how to check the
+answer, and to report `PASS`, `ISSUES` or `BLOCKED` with evidence and file pointers, not
+dumps. Respawn a worker once if its result misses what the brief asked; after a second
+miss, record the gap. Fold the results into the kickoff file before Phase 5.
 
 ## Phase 4: Write briefs
 
