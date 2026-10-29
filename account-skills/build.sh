@@ -10,8 +10,10 @@ USES_CONTRACT=(decisions next kickoff refactor)
 rm -rf dist && mkdir dist
 for s in "${SKILLS[@]}"; do
   cp -r "$s" "dist/$s"
+  mkdir -p "dist/$s/references"
+  cp shared/operator-folder.md "dist/$s/references/"
   if [[ " ${USES_CONTRACT[*]} " == *" $s "* ]]; then
-    mkdir -p "dist/$s/scripts" "dist/$s/references"
+    mkdir -p "dist/$s/scripts"
     cp shared/projects.py "dist/$s/scripts/"
     cp shared/operator-contract.md "dist/$s/references/"
   fi

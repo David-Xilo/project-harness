@@ -47,6 +47,10 @@ version moves to 1.1.0 so `claude plugin update desk@project-harness` picks the 
 - The account skills link nothing outside this machine. The Operator Board, its sync and
   comment relay, and the claude.ai project-thread mode are gone; open items live in
   `operator/waiting.md`, and `/decisions apply` records answers David gives in chat.
+- The skills name no path on this machine. They find projects at or under the folder they
+  run from, and keep their files in each project's `.operator/` (created on first use,
+  excluded through `.git/info/exclude`); `projects.py` and `cc_review.py` default to the
+  current folder.
 
 ## v1.0.0 (installed, not tagged)
 

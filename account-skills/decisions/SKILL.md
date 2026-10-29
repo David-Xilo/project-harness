@@ -1,6 +1,6 @@
 ---
 name: "decisions"
-description: "List every decision, manual step and play session that waits on David across the projects in ~/Desktop/random/projects, in one table with full steps and commands, kept in operator/waiting.md; use for /decisions, 'what waits on me', 'what do I need to decide', or with 'apply' to record the choices and steps-done notes David gives in chat."
+description: "List every decision, manual step and play session that waits on David across the projects at or under the folder you run it from, in one table with full steps and commands, kept in each project's .operator/waiting.md; use for /decisions, 'what waits on me', 'what do I need to decide', or with 'apply' to record the choices and steps-done notes David gives in chat."
 ---
 
 # Decisions
@@ -10,20 +10,18 @@ minute and tell a session "O20 done: valuation price" instead of hunting through
 Read only the sections the projects' contracts name; do not read code, research files
 or history.
 
-The open items live in `~/Desktop/random/projects/operator/waiting.md`, one section per
-skill: this skill owns `## Decisions and steps`; `/next`, `/kickoff` and
-`/workflow-review` own `## Ready to start`, `## Kickoff streams` and `## Workflow
-review`. Each skill rewrites only its own section and leaves the others as they are.
+The open items live in each project's `.operator/waiting.md`, section `## Decisions and
+steps` (`references/operator-folder.md` in this skill's folder says how the folder and file are made and
+shared).
 
 ## Find the projects
 
-A project is a folder under `~/Desktop/random/projects`, at any depth, whose `AGENTS.md`
-has a `## Operator contract` section. Skip the top-level `archived/`, `operator/`,
-`oss/` and `tests/`, any `node_modules` or `.worktrees` folder, and folders that are git
-worktrees (their `.git` file points into `/worktrees/`). The outermost match is the
-project; its name is the folder's basename. On the desktop,
-`python3 -I <this skill's folder>/scripts/projects.py`
-prints them all with their contract fields. If a project is given as the argument, read only that one.
+A project is a folder at or under the one you run from, at any depth, whose
+`AGENTS.md` has a `## Operator contract` section. Skip hidden folders, `node_modules`,
+and folders that are git worktrees (their `.git` file points into `/worktrees/`). The
+outermost match is the project; its name is the folder's basename.
+`python3 -I <this skill's folder>/scripts/projects.py` prints them all with their
+contract fields; if a project is given as the argument, read only that one.
 
 For each project, read only the places its contract's **Waiting on David** names, and
 tell each item's kind by the rule written there. A project whose contract has no
@@ -74,17 +72,16 @@ they become due.
 
 ## Write `waiting.md`
 
-After the reply, replace the `## Decisions and steps` section of
-`~/Desktop/random/projects/operator/waiting.md` (create the file with the four section
-headings when it is missing) with:
+After the reply, for each project, replace the `## Decisions and steps` section of its
+`.operator/waiting.md` (make the folder and file as `references/operator-folder.md`
+says when they are missing) with:
 
 1. A line `Updated <YYYY-MM-DD HH:MM>` and the count of items due now.
-2. The table, with a `Source` column added: the file path from
-   `~/Desktop/random/projects` and the heading anchor the row came from.
+2. That project's rows, with a `Source` column added: the file path from the project
+   root and the heading anchor the row came from.
 3. The steps blocks for everything due now, exactly as in the reply.
 
-Leave the other sections untouched. The file is not in any repository; write it and do
-not commit it.
+Leave the other sections untouched. Never commit the file.
 
 ## `apply`
 
@@ -95,8 +92,8 @@ table, so the table shows what is left.
 
 For each answer:
 
-1. Find the entry: the `Source` of the row in `waiting.md`, else search the places the
-   project's contract names. If it is gone, or already records a different decision,
+1. Find the entry: the `Source` of the row in the project's `.operator/waiting.md`,
+   else search the places the project's contract names. If it is gone, or already records a different decision,
    report it blocked with what you found, and go on.
 2. Record it where the project records decisions, as the named session would on
    receiving the sentence: follow the project's `AGENTS.md` or `CLAUDE.md`, the
@@ -104,8 +101,8 @@ For each answer:
    log", "removes the entry"). With no such rule, add `Decided <YYYY-MM-DD>: <choice>`
    under a decision, or `Done <YYYY-MM-DD>, reported by David: <note>` under a step, and
    take it off the waiting list. For a step, leave the "Done when" check to the named
-   session. Workflow-review items: add the line under the item's heading in
-   `~/Desktop/random/projects/operator/workflow-review/steps-<date>.md`.
+   session. Workflow-review items: add the line under the item's heading in the
+   `.operator/workflow-review/steps-<date>.md` the row's `Source` names.
 3. Record only. Do not start the work the decision unblocks (that stays with the
    session named in `tell`, which reads it from the plan), and never run a live-host
    change, `sudo`, a push, a merge or a payment because of an answer; a contract's

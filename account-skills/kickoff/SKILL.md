@@ -10,14 +10,16 @@ in parallel and get out of the way. The deliverable is a set of running workstre
 with a brief that needs nothing from this conversation, plus a kickoff file that says
 what runs, what waits and why.
 
-Arguments: the project (a folder name, or a path under `~/Desktop/random/projects`),
+Arguments: the project (a folder name, or a path from the folder you run from),
 optionally a module or plan section to narrow to (`<project> phase 2`,
 `<project> <module>`), and `dry run` to stop after the briefs are written. No project
-given: ask which one, with the one whose rows in `operator/waiting.md` are freshest as the
+given: ask which one, with the one whose `.operator/waiting.md` is freshest as the
 recommendation.
 
-The project is the folder whose `AGENTS.md` has a `## Operator contract` section
-(`python3 -I <this skill's folder>/scripts/projects.py <name>` prints it). Every project rule this skill uses comes from that contract: **Plans**,
+The project is the folder, at or under the one you run from, whose `AGENTS.md` has a
+`## Operator contract` section (`python3 -I <this skill's folder>/scripts/projects.py
+<name>` prints it). Its files for this skill live in its `.operator/` folder
+(`references/operator-folder.md` in this skill's folder says how it is made). Every project rule this skill uses comes from that contract: **Plans**,
 **Ready work**, **Waiting on David**, **Decisions**, **Work unit**, **Hard lines**,
 **Check** and **Git**. A project without a contract: say so, read its root `AGENTS.md`
 or `CLAUDE.md` for where plans live, and recommend adding the contract
@@ -36,10 +38,10 @@ Open a todo list with one entry per phase (`TodoWrite`, or the session's task li
 
 ## Where it runs
 
-In Claude Code on this machine, from the projects root or the project's folder: you read
-files directly and start sessions with the `claude` CLI. The project's `CLAUDE.md` and
-`AGENTS.md` load on their own; read the project's root `AGENTS.md` (or `CLAUDE.md`)
-anyway when you run from the projects root.
+In Claude Code, from the project's folder or a folder above it: you read files directly
+and start sessions with the `claude` CLI. The project's `CLAUDE.md` and `AGENTS.md`
+load on their own; read the project's root `AGENTS.md` (or `CLAUDE.md`) anyway when you
+run from a folder above it.
 
 ## Phase 1: Ground
 
@@ -49,11 +51,9 @@ the source of truth for the next work. **Work unit** says how one unit starts.
 
 Also read:
 
-- The project's rows in `~/Desktop/random/projects/operator/waiting.md`
-  (`## Decisions and steps` and `## Kickoff streams`): what waits on David and what is
-  already running.
-- An earlier kickoff of the project
-  (`~/Desktop/random/projects/operator/kickoff/<project>-*/README.md`, newest first). If
+- The project's `.operator/waiting.md` (`## Decisions and steps` and `## Kickoff
+  streams`): what waits on David and what is already running.
+- An earlier kickoff of the project (`.operator/kickoff/*/README.md`, newest first). If
   one exists, this run continues it: streams marked done, running or queued keep their
   state, its settled answers stay settled, and you spawn the next wave.
 - The git state of each repository a candidate touches:
@@ -143,7 +143,8 @@ miss, record the gap. Fold the results into the kickoff file before Phase 5.
 
 ## Phase 4: Write briefs
 
-Make the kickoff folder: `~/Desktop/random/projects/operator/kickoff/<project>-<YYYY-MM-DD>/`.
+Make the kickoff folder, `.operator/kickoff/<YYYY-MM-DD>/` in the project (the folder
+as `references/operator-folder.md` says, when it is missing).
 
 One file per stream, `NN-<slug>.md`, written so a fresh session that has never seen this
 conversation can do the work. It is the session's opening prompt, so it holds only what
@@ -200,7 +201,7 @@ Start each stream as a background session in its own worktree, from its folder:
 
 ```sh
 cd <folder>
-claude --bg -w <slug> -n "<Plan ID> <title>" "$(cat ~/Desktop/random/projects/operator/kickoff/<project>-<date>/NN-<slug>.md)"
+claude --bg -w <slug> -n "<Plan ID> <title>" "$(cat .operator/kickoff/<date>/NN-<slug>.md)"
 ```
 
 `claude agents` lists them; `claude attach "<Plan ID>"` opens one. Run the commands
@@ -210,18 +211,16 @@ with the `cd` for each, and the fallback for an older CLI:
 
 ```sh
 cd <folder>
-claude -w <slug> -n "<Plan ID> <title>" "$(cat ~/Desktop/random/projects/operator/kickoff/<project>-<date>/NN-<slug>.md)"
+claude -w <slug> -n "<Plan ID> <title>" "$(cat .operator/kickoff/<date>/NN-<slug>.md)"
 ```
 
 one terminal tab per stream; or in the desktop app: open `<folder>`, turn on the
 worktree option, start a session and paste the brief file's text.
 
-Then, in `~/Desktop/random/projects/operator/waiting.md` (create it with the headings
-`## Decisions and steps`, `## Ready to start`, `## Kickoff streams` and
-`## Workflow review` when it is missing), replace this project's rows under
-`## Kickoff streams` with one row per stream, queued ones too:
-`| Project | Plan ID | Title | Wave | State | Session | Brief |`. Leave every other row
-and section as it is. The file is not in any repository; do not commit it.
+Then replace the `## Kickoff streams` section of the project's `.operator/waiting.md`
+(made as `references/operator-folder.md` says when missing) with one row per stream,
+queued ones too: `| Plan ID | Title | Wave | State | Session | Brief |`. Leave every
+other section as it is. Never commit the file.
 
 ## Phase 6: Hand back
 
