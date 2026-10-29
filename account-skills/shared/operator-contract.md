@@ -7,17 +7,18 @@ project.
 
 ## How a project is found
 
-- Search `~/Desktop/random/projects` at any depth for an `AGENTS.md` with the heading, so
-  nested projects such as `study/<name>` count.
-- Skip the top-level `archived/`, `operator/`, `oss/` and `tests/`, any `node_modules`,
-  `.worktrees` or `worktrees` folder, and any folder that is a git worktree (its `.git`
+- Search the folder the skill runs from, at any depth, for an `AGENTS.md` with the
+  heading, so the skill works from one project or from a folder holding many.
+- Skip hidden folders, `node_modules`, and any folder that is a git worktree (its `.git`
   file points into a `/worktrees/` git dir).
 - The outermost match is the project; modules inside it are not searched.
-- The project's name is its folder's basename (`study/<name>` is `<name>`). It
-  is the skill argument and the `Project` column in `operator/waiting.md`.
+- The project's name is its folder's basename (`study/<name>` is `<name>`). It is the
+  skill argument.
+- What a skill keeps between runs goes in the project's `.operator/` folder
+  (`operator-folder.md` next to this file).
 
-On the desktop, `python3 -I <skill folder>/scripts/projects.py` prints every project and
-its fields as JSON; `projects.py <name>` prints one.
+`python3 -I <skill folder>/scripts/projects.py` prints every project at or under the
+current folder with its fields as JSON; `projects.py <name>` prints one.
 
 ## Fields
 

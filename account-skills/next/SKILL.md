@@ -1,24 +1,24 @@
 ---
 name: next
-description: For each project in ~/Desktop/random/projects, find the tasks that are ready to start as their own session now, the work already in flight (worktrees, unmerged branches, unpushed commits), and the stale leftovers. Writes a "Ready to start" section to operator/waiting.md. Use for /next, "what should run next", "what can I start", "should I spawn more sessions", or after /decisions in the morning refresh.
+description: For each project at or under the folder you run it from, find the tasks that are ready to start as their own session now, the work already in flight (worktrees, unmerged branches, unpushed commits), and the stale leftovers. Writes a "Ready to start" section to each project's .operator/waiting.md. Use for /next, "what should run next", "what can I start", "should I spawn more sessions", or after /decisions in the morning refresh.
 argument-hint: "[project]  (a project folder name; default all)"
 ---
 
 # Next
 
 Answer one question per project: what can a new session start right now, without
-waiting on David? Report it in chat and in `operator/waiting.md`. This skill reads; it
+waiting on David? Report it in chat and in each project's `.operator/waiting.md`. This
+skill reads; it
 never commits, merges, removes a worktree or starts a session by itself.
 
 ## 0. Find the projects
 
-A project is a folder under `~/Desktop/random/projects`, at any depth, whose `AGENTS.md`
-has a `## Operator contract` section. Skip the top-level `archived/`, `operator/`,
-`oss/` and `tests/`, any `node_modules` or `.worktrees` folder, and folders that are git
-worktrees (their `.git` file points into `/worktrees/`). The outermost match is the
-project; its name is the folder's basename. On the desktop,
-`python3 -I <this skill's folder>/scripts/projects.py`
-prints them all with their contract fields. With an argument, do only that one.
+A project is a folder at or under the one you run from, at any depth, whose
+`AGENTS.md` has a `## Operator contract` section. Skip hidden folders, `node_modules`,
+and folders that are git worktrees (their `.git` file points into `/worktrees/`). The
+outermost match is the project; its name is the folder's basename.
+`python3 -I <this skill's folder>/scripts/projects.py` prints them all with their
+contract fields; with an argument, do only that one.
 
 Each step below reads one contract field: **Ready work** for the candidates, **Waiting
 on David** for what is not a candidate, **Work unit** for where a session opens and how
@@ -53,8 +53,8 @@ is **ready** when all of these hold:
   done in that plan or the owning plan, and no lock the **Work unit** field names holds
   what it touches;
 - nothing in it waits on David: it is not in a place the **Waiting on David** field
-  names and is not an open row in the `## Decisions and steps` section of
-  `operator/waiting.md`;
+  names and is not an open row in the `## Decisions and steps` section of the
+  project's `.operator/waiting.md`;
 - nobody is already on it: no worktree, branch or open PR (`gh pr list --state open`,
   where the repo has a GitHub remote) carries its code or title.
 
@@ -95,15 +95,14 @@ without David's yes.
 
 ## 4. `waiting.md`
 
-Replace the `## Ready to start` section of `~/Desktop/random/projects/operator/waiting.md` (create the file with the
-headings `## Decisions and steps`, `## Ready to start`, `## Kickoff streams` and
-`## Workflow review` when it is missing) with a line `Updated <YYYY-MM-DD HH:MM>` and
-one row per ready task:
+For each project, replace the `## Ready to start` section of its `.operator/waiting.md`
+(make the folder and file as `references/operator-folder.md` in this skill's folder says when they are
+missing) with a line `Updated <YYYY-MM-DD HH:MM>` and one row per ready task:
 
-| Project | Code | Title | Brief | Source | Unblocks |
+| Code | Title | Brief | Source | Unblocks |
 
 `Brief` is one or two sentences, `Source` is `<plan path>#next`. Leave the other
-sections untouched. The file is not in any repository; do not commit it.
+sections untouched. Never commit the file.
 
 ## Rules
 

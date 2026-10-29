@@ -47,9 +47,9 @@ Arguments: $ARGUMENTS
 
 ## Where it runs
 
-In Claude Code on this machine (desktop app or CLI): the survey tools and the gate need
-the machine. Reports go to
-`~/Desktop/random/projects/operator/refactor/<project>-<module>-<YYYY-MM-DD>/`, outside the repos.
+In Claude Code, from the project's folder or a folder above it: the survey tools and
+the gate need the machine. Reports go to `.operator/refactor/<module>-<YYYY-MM-DD>/`
+in the project (`references/operator-folder.md` in this skill's folder says how the folder is made and kept out of commits).
 
 `<skill>` below is this skill's own folder. It holds `references/playbook.md` (how to do
 each step; the phases name its sections), `references/stack-tools.md`,
@@ -110,7 +110,7 @@ Write `survey.md`: the counts, the top hotspots, the coupled pairs and a ranked 
 item names its evidence.
 
 **Survey mode** (whole project): run steps 1 and 2 on every module, rank the modules by
-hotspot score and finding counts, write `~/Desktop/random/projects/operator/refactor/<project>-<date>/survey.md`,
+hotspot score and finding counts, write `.operator/refactor/survey-<date>.md`,
 add a step "Refactor pass: run `/refactor <project> <module>` (see <survey path>)" to the
 top three modules' work list, in the place the contract's **Ready work** names, commit
 those plan edits, and go to phase 9.
@@ -218,7 +218,7 @@ Commit: `chore(<module>): guard <rule>`.
    ```sh
    cd <repo path>
    git push -u origin refactor/<module>-<date>
-   gh pr create --base development --head refactor/<module>-<date> --title "refactor(<module>): <summary>" --body-file ~/Desktop/random/projects/operator/refactor/<project>-<module>-<date>/report.md
+   gh pr create --base development --head refactor/<module>-<date> --title "refactor(<module>): <summary>" --body-file .operator/refactor/<module>-<date>/report.md
    ```
 
    Where the project leaves the merge to David, add it where the contract's **Waiting

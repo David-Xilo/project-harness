@@ -6,7 +6,8 @@ subagent transcripts), the prompt history and the permission settings of the use
 each project. Writes a Markdown report and a JSON file with the same facts for a skill
 to act on. Standard library only, read-only: nothing under ~/.claude is changed.
 
-    python3 -I cc_review.py --days 7 --out ~/Desktop/random/projects/operator/workflow-review
+    python3 -I cc_review.py --days 7            # projects under the current folder,
+                                                # reports into ./.operator/workflow-review
 
 Signals, per session and summed over the window:
 
@@ -567,12 +568,32 @@ def config_inventory(claude_dir, projects_root):
     return inv
 
 
+def exclude_operator_dir(out):
+    """Keep a `.operator/` output folder out of the enclosing git repository's commits."""
+    folder = os.path.abspath(out)
+    while os.path.basename(folder) != ".operator":
+        parent = os.path.dirname(folder)
+        if parent == folder:
+            return
+        folder = parent
+    repo = os.path.dirname(folder)
+    info = os.path.join(repo, ".git", "info")
+    if not os.path.isdir(os.path.join(repo, ".git")):
+        return
+    os.makedirs(info, exist_ok=True)
+    exclude = os.path.join(info, "exclude")
+    lines = open(exclude, encoding="utf-8").read().splitlines() if os.path.exists(exclude) else []
+    if ".operator/" not in lines:
+        with open(exclude, "a", encoding="utf-8") as f:
+            f.write(".operator/\n")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--days", type=float, default=7)
     ap.add_argument("--claude-dir", default=os.path.join(HOME, ".claude"))
-    ap.add_argument("--projects-root", default=os.path.join(HOME, "Desktop", "random", "projects"))
-    ap.add_argument("--out", default=os.path.join(HOME, "Desktop", "random", "projects", "operator", "workflow-review"))
+    ap.add_argument("--projects-root", default=os.getcwd())
+    ap.add_argument("--out", default=os.path.join(os.getcwd(), ".operator", "workflow-review"))
     ap.add_argument("--min-count", type=int, default=3, help="times a command must recur to be suggested")
     args = ap.parse_args()
 
@@ -701,6 +722,7 @@ def main():
     }
 
     os.makedirs(args.out, exist_ok=True)
+    exclude_operator_dir(args.out)
     stamp = now.strftime("%Y-%m-%d")
     json_path = os.path.join(args.out, f"review-{stamp}.json")
     md_path = os.path.join(args.out, f"review-{stamp}.md")

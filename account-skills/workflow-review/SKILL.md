@@ -12,15 +12,17 @@ and give him the rest with every step written out. Runs every weekday morning af
 ## 1. Measure
 
 Run the analyzer over the last 7 days (the morning run) or the window given as the
-argument (`/workflow-review 30` reads 30 days). It only reads `~/.claude` and the
-projects' `.claude` folders; it writes nothing there.
+argument (`/workflow-review 30` reads 30 days). It only reads Claude Code's own
+`~/.claude` and the `.claude` folders of the projects at or under the folder you run
+from; it writes nothing there. Its reports go to `.operator/workflow-review/` in the
+folder you run from (`references/operator-folder.md` says how the folder is made).
 
 ```sh
-cd ~/Desktop/random/projects
+cd <the folder you run from>
 python3 -I <this skill's folder>/scripts/cc_review.py --days 7
 ```
 
-It prints the paths of `operator/workflow-review/review-<date>.md` and `.json` (also
+It prints the paths of `.operator/workflow-review/review-<date>.md` and `.json` (also
 `latest.md` / `latest.json`). Read the Markdown report whole. Read a session file under
 `~/.claude/projects/<slug>/` only when a finding needs the surrounding conversation
 (what was asked before a denial, why a command was retried). Never quote a transcript
@@ -63,11 +65,12 @@ with the `cd` first and every command in a fenced `sh` block, a "Done when" line
 for a decision the options with the recommended one marked and the sentence to send
 back ("WF-2026-10-20-1 done").
 
-Write the steps to `~/Desktop/random/projects/operator/workflow-review/steps-<date>.md`.
-Then replace the `## Workflow review` section of `~/Desktop/random/projects/operator/waiting.md` (create the file with its four
-section headings when it is missing) with a line `Updated <YYYY-MM-DD>`, one row per
-item (`| Code | What | Kind | Steps file |`), and leave the other sections untouched.
-Skip an item already listed from an earlier day unless its number grew.
+Write the steps to `.operator/workflow-review/steps-<date>.md`. Then replace the
+`## Workflow review` section of `.operator/waiting.md`, both in the folder you run from
+(made as `references/operator-folder.md` says when missing), with a line
+`Updated <YYYY-MM-DD>` and one row per item (`| Code | What | Kind | Source |`, Source
+the steps file path). Leave the other sections untouched. Skip an item already listed
+from an earlier day unless its number grew.
 
 ## 5. Reply
 

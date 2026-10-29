@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """List the projects under a root and the operator contract each one declares.
 
-A project is a folder whose AGENTS.md has a `## Operator contract` section. The account
-skills read the contract instead of naming projects. Standard library only, read-only.
+A project is a folder at or under the root whose AGENTS.md has a `## Operator contract`
+section. The skills read the contract instead of naming projects. Standard library only, read-only.
 
     python3 -I projects.py                  # every project, as JSON
     python3 -I projects.py <name>           # one project, by folder name or path
-    python3 -I projects.py --root <dir>     # another root
+    python3 -I projects.py --root <dir>     # another root (default: the current folder)
 """
 
 import argparse
@@ -16,8 +16,7 @@ import re
 import sys
 
 MARKER = "## Operator contract"
-SKIP_TOP = {"archived", "operator", "oss", "tests"}
-SKIP_ANY = {".git", "node_modules", ".worktrees", "worktrees"}
+SKIP_ANY = {"node_modules", "worktrees"}
 FIELD = re.compile(r"^- \*\*(?P<name>[^*]+?):\*\*\s*(?P<text>.*)$")
 
 
@@ -56,8 +55,7 @@ def find_projects(root):
     for dirpath, dirnames, filenames in os.walk(root):
         rel = os.path.relpath(dirpath, root)
         dirnames[:] = sorted(
-            d for d in dirnames
-            if d not in SKIP_ANY and not (rel == "." and d in SKIP_TOP)
+            d for d in dirnames if d not in SKIP_ANY and not d.startswith(".")
         )
         if rel != "." and is_worktree(dirpath):
             dirnames[:] = []
@@ -77,7 +75,7 @@ def find_projects(root):
 def main():
     ap = argparse.ArgumentParser(description="List the projects and their operator contracts.")
     ap.add_argument("project", nargs="?", help="folder name or path from the root")
-    ap.add_argument("--root", default=os.path.expanduser("~/Desktop/random/projects"))
+    ap.add_argument("--root", default=os.getcwd())
     args = ap.parse_args()
     projects = find_projects(args.root)
     if args.project:
