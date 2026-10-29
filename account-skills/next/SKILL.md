@@ -17,7 +17,7 @@ has a `## Operator contract` section. Skip the top-level `archived/`, `operator/
 `oss/` and `tests/`, any `node_modules` or `.worktrees` folder, and folders that are git
 worktrees (their `.git` file points into `/worktrees/`). The outermost match is the
 project; its name is the folder's basename. On the desktop,
-`python3 -I ~/Desktop/random/projects/project-harness/account-skills/scripts/projects.py`
+`python3 -I <this skill's folder>/scripts/projects.py`
 prints them all with their contract fields. With an argument, do only that one.
 
 Each step below reads one contract field: **Ready work** for the candidates, **Waiting

@@ -17,12 +17,12 @@ given: ask which one, with the one whose board rows and "ready" items are freshe
 recommendation.
 
 The project is the folder whose `AGENTS.md` has a `## Operator contract` section (on the
-desktop, `python3 -I ~/Desktop/random/projects/project-harness/account-skills/scripts/projects.py <name>`
+desktop, `python3 -I <this skill's folder>/scripts/projects.py <name>`
 prints it). Every project rule this skill uses comes from that contract: **Plans**,
 **Ready work**, **Waiting on David**, **Decisions**, **Work unit**, **Hard lines**,
 **Check** and **Git**. A project without a contract: say so, read its root `AGENTS.md`
 or `CLAUDE.md` for where plans live, and recommend adding the contract
-(`project-harness/account-skills/operator-contract.md` has the template).
+(`references/operator-contract.md` in this skill's folder has the template).
 
 ## Start
 

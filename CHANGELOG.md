@@ -36,9 +36,11 @@ version moves to 1.1.0 so `claude plugin update desk@project-harness` picks the 
 - The five account skills name no project. Each project declares its plans, ready work,
   operator steps, decision log, work unit, hard lines, check and git route in a
   `## Operator contract` section of its root `AGENTS.md`
-  ([account-skills/operator-contract.md](account-skills/operator-contract.md)), and the
+  ([account-skills/shared/operator-contract.md](account-skills/shared/operator-contract.md)), and the
   skills find projects by that heading at any depth under `~/Desktop/random/projects`.
-  `account-skills/scripts/projects.py` lists them with their contracts.
+  `account-skills/shared/projects.py` lists them with their contracts.
+- The account skills are self-contained and name nothing in this repository: each upload
+  carries its own scripts and references, built by `account-skills/build.sh`.
 
 ## v1.0.0 (installed, not tagged)
 

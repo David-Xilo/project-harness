@@ -13,7 +13,7 @@ Arguments: $ARGUMENTS
 
 - `<project> <module>`: the full pass on that module. The project is a folder whose
   `AGENTS.md` has a `## Operator contract` section (on the desktop,
-  `python3 -I ~/Desktop/random/projects/project-harness/account-skills/scripts/projects.py <name>`
+  `python3 -I <this skill's folder>/scripts/projects.py <name>`
   prints it); its **Work unit**, **Hard lines**, **Check** and **Git** fields are the
   project rules this skill follows.
 - `<project>` alone, or `survey`: survey every module of the project, rank them, write
@@ -52,11 +52,9 @@ Control session there: the survey tools and the gate need the machine. Reports g
 `~/Desktop/random/projects/operator/refactor/<project>-<module>-<YYYY-MM-DD>/`, outside the repos.
 
 Most desk skills named below are manual-only, so the Skill tool refuses them: read the
-skill's SKILL.md and follow it, from the installed desk plugin or from
-`~/Desktop/random/projects/project-harness/desk/skills/<name>/SKILL.md`. This skill's
-files are `<skill>/references/stack-tools.md` and `<skill>/scripts/hotspots.py`, where
-`<skill>` is `~/Desktop/random/projects/project-harness/account-skills/refactor` (the
-account copy of this skill carries only its SKILL.md).
+skill's SKILL.md from the installed desk plugin and follow it. `<skill>` below is this
+skill's own folder, which holds `references/stack-tools.md`, `scripts/hotspots.py` and
+`scripts/projects.py`.
 
 ## Start
 
