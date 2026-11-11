@@ -38,6 +38,23 @@ message style.
   output.
 - When reviewing, flag only gaps that affect correctness or the stated requirements.
 
+## Docs
+
+These are the default. Where a project's AGENTS.md says how its plan, research or history
+files are kept, follow that.
+
+- Done means deleted. Remove a finished row or step from the plan in the commit that
+  finishes it. Keep no done list and move no text to another file: the commit is the
+  record.
+- In a file other sessions edit, change only your own row. Locks and progress go in the
+  pull request body.
+- Write by hand nothing a command can print: a count, a version, a list of routes or
+  files.
+- Write a research note only when a decision depends on it. The decision takes one line
+  in the decision log; working notes stay in the commit message or the pull request.
+- When a plan fails its size check (`doc-budget.sh`), cut the plan. Do not raise the
+  budget.
+
 ## Context
 
 When compacting, keep the list of modified files, the checks run with their results, and

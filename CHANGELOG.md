@@ -51,6 +51,11 @@ version moves to 1.1.0 so `claude plugin update desk@project-harness` picks the 
 - The account skills link nothing outside this machine. The Operator Board, its sync and
   comment relay, and the claude.ai project-thread mode are gone; open items live in
   `operator/waiting.md`, and `/decisions apply` records answers David gives in chat.
+- `shared/working-rules.md` gains a Docs section: done means deleted, a session edits only
+  its own row in a shared file, nothing a command can print is written by hand, and a
+  research note needs a decision that depends on it. `shared/doc-budget.sh` fails when a
+  plan file is over its size budget or still holds finished rows; a project copies it and
+  calls it from its check command.
 - The skills name no path on this machine. They find projects at or under the folder they
   run from, and keep their files in each project's `.operator/` (created on first use,
   excluded through `.git/info/exclude`); `projects.py` and `cc_review.py` default to the
