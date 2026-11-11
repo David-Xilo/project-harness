@@ -64,6 +64,10 @@ project and keeps no files between runs.
 
 ## More
 
+- [shared/working-rules.md](shared/working-rules.md): the author's rules for every
+  project on one machine, and [shared/doc-budget.sh](shared/doc-budget.sh), a check that
+  fails when a plan file is over its size budget or still holds finished rows.
+
 - [CHANGELOG.md](CHANGELOG.md), [CONTRIBUTING.md](CONTRIBUTING.md),
   [SECURITY.md](SECURITY.md), [LICENSE](LICENSE) (MIT).
 - Many skills are adapted from
