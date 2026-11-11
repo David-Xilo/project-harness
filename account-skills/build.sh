@@ -14,9 +14,3 @@ for d in */; do
   cp "$s/SKILL.md" "$dest/$s/SKILL.md"
   echo "installed $s"
 done
-for old in next workflow-review; do
-  if [[ -d "$dest/$old" ]]; then
-    rm -rf "$dest/$old"
-    echo "removed $old"
-  fi
-done

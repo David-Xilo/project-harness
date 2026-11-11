@@ -27,9 +27,9 @@ version moves to 1.1.0 so `claude plugin update desk@project-harness` picks the 
 - `architect` and `interrogate` set `effort: high`.
 - `account-skills/` is the single source for all five account skills: `decisions` and
   `next` join `kickoff`, `refactor` and `workflow-review`. Their frontmatter matches the
-  account copies (`name` and `description` only). `/decisions` reads each plan's "Waiting
-  on David" and safehouse's Needs columns instead of the deleted `games/operator.md` and
-  `safehouse/sessions.md`, writes `board/rows.json`, and leaves `kick-` rows alone. `/next`
+  account copies (`name` and `description` only). `/decisions` reads each plan's waiting
+  list and Needs columns instead of the deleted operator and sessions files, writes
+  `board/rows.json`, and leaves `kick-` rows alone. `/next`
   owns only `ready-` rows and reads only "Ready for Claude" where a plan has it.
   `workflow-review` keeps the account copy's text with the analyzer path in
   `account-skills/`.
@@ -50,11 +50,16 @@ version moves to 1.1.0 so `claude plugin update desk@project-harness` picks the 
   itself.
 - The account skills link nothing outside this machine. The Operator Board, its sync and
   comment relay, and the claude.ai project-thread mode are gone; open items live in
-  `operator/waiting.md`, and `/decisions apply` records answers David gives in chat.
+  `operator/waiting.md`, and `/decisions apply` records answers the operator gives in chat.
 - The skills name no path on this machine. They find projects at or under the folder they
   run from, and keep their files in each project's `.operator/` (created on first use,
   excluded through `.git/info/exclude`); `projects.py` and `cc_review.py` default to the
   current folder.
+
+- The account skills and `shared/working-rules.md` name no person and no project: they
+  say "the operator" for the person the session works for. `account-skills/build.sh` no
+  longer removes the retired `next` and `workflow-review` from `~/.claude/skills/`, where
+  the names could belong to someone else's skills.
 
 ## v1.0.0 (installed, not tagged)
 
