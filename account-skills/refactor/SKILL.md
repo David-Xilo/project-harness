@@ -29,14 +29,15 @@ git log --since="12 months ago" --name-only --pretty=format: -- . | grep -v '^$'
 ```
 
 Leave out lockfiles, generated and vendored paths, prose unless the module is prose, the
-paths the project reserves for David, and whatever it says to skip in git scans; in a
-root whose modules are their own repositories, run it inside each module. Code files that
-keep changing in the same commits across folders are a leaking boundary. Add the stack's
-own counts where a tool exists (dead code, unused dependencies, functions over the
-tool's complexity threshold, else 10, import cycles). Write one row "Refactor pass: run
-`/refactor <module>`; <the evidence in one line>" per module worth it, at most three and
-often none, in the shape and place the project lists ready work; commit that file alone
-by the project's git rule; stop. Reply with the ranking.
+paths the project reserves for the operator (the person the session works for), and
+whatever it says to skip in git scans; in a root whose modules are their own
+repositories, run it inside each module. Code files that keep changing in the same
+commits across folders are a leaking boundary. Add the stack's own counts where a tool
+exists (dead code, unused dependencies, functions over the tool's complexity threshold,
+else 10, import cycles). Write one row "Refactor pass: run `/refactor <module>`; <the
+evidence in one line>" per module worth it, at most three and often none, in the shape
+and place the project lists ready work; commit that file alone by the project's git rule;
+stop. Reply with the ranking.
 
 ## Pass
 
@@ -66,7 +67,7 @@ by the project's git rule; stop. Reply with the ranking.
    together. Move every caller and delete the old path in the same commit; no shims, no
    old and new side by side. A change across the module's contract (shared packages,
    wire or storage formats, another repository) becomes a plan row with what it fixes
-   and costs, and goes where the project keeps David's decisions when it needs one.
+   and costs, and goes where the project keeps the operator's decisions when it needs one.
    Commit each move alone: `refactor(<module>): <move>`.
 5. Guard: make the cleanup stick at the highest level that works: the wrong thing
    cannot be written (one owner, internals unreachable), then the bad state does not
@@ -79,9 +80,9 @@ by the project's git rule; stop. Reply with the ranking.
    step that did not make the code easier to read somewhere: fewer branches, layers,
    names or paths.
 7. Hand back: push the branch and open the PR against the base with the report as its
-   body: the before and after table, each move in plain words (what moved where and
-   why), the guards, the plan rows written, what was reverted and why. Where the project
-   leaves the merge to David, add it where the project lists his steps. Reply with the
+   body: the before and after table, each move in plain words (what moved where and why),
+   the guards, the plan rows written, what was reverted and why. Where the project leaves
+   the merge to the operator, add it where the project lists their steps. Reply with the
    numbers that moved, the commits, the PR and the plan rows.
 
 ## Rules

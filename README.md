@@ -59,8 +59,8 @@ skills, and each runs as `/<name>`. Their source is in [account-skills/](account
 one `SKILL.md` per skill, no scripts and no reference files, installed into
 `~/.claude/skills/` by `account-skills/build.sh --install`. Each runs from a project's
 root folder and reads that project's `AGENTS.md` to learn where its plan, its items
-waiting on David, its decision log, its check and its git rules live; it names no
-project and keeps no files between runs.
+waiting on the operator (the person the session works for), its decision log, its check
+and its git rules live; it names no project and keeps no files between runs.
 
 Skills from other authors are installed unchanged and pinned to a reviewed commit.
 [third-party-skills/](third-party-skills/) lists them, and
