@@ -62,7 +62,16 @@ root folder and reads that project's `AGENTS.md` to learn where its plan, its it
 waiting on the operator (the person the session works for), its decision log, its check
 and its git rules live; it names no project and keeps no files between runs.
 
+Skills from other authors are installed unchanged and pinned to a reviewed commit.
+[third-party-skills/](third-party-skills/) lists them, and
+`third-party-skills/sync.sh` checks the installed copies, shows what changed upstream and
+installs an update once you accept it.
+
 ## More
+
+- [shared/working-rules.md](shared/working-rules.md): the author's rules for every
+  project on one machine, and [shared/doc-budget.sh](shared/doc-budget.sh), a check that
+  fails when a plan file is over its size budget or still holds finished rows.
 
 - [CHANGELOG.md](CHANGELOG.md), [CONTRIBUTING.md](CONTRIBUTING.md),
   [SECURITY.md](SECURITY.md), [LICENSE](LICENSE) (MIT).
