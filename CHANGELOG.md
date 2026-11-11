@@ -55,6 +55,9 @@ version moves to 1.1.0 so `claude plugin update desk@project-harness` picks the 
   run from, and keep their files in each project's `.operator/` (created on first use,
   excluded through `.git/info/exclude`); `projects.py` and `cc_review.py` default to the
   current folder.
+- `third-party-skills/` pins nine skills from other authors to a reviewed commit each.
+  `sync.sh` checks the installed copies against the pins, shows the upstream diff, and
+  moves a pin and installs the update on `--accept`. It holds no skill text.
 
 ## v1.0.0 (installed, not tagged)
 

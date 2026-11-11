@@ -1,0 +1,10 @@
+# skill	repository	path in repository	pinned commit
+socratic-tutor	https://github.com/janestreet/agent_skills	socratic-tutor	7c6715c29548a3b39d4a9545c698ee4fd17a7213
+security-audit	https://github.com/cloudflare/security-audit-skill	skills/security-audit	c1c8a8c1471069fb0e188eeaff69b8e8db6564a8
+grill-me	https://github.com/mattpocock/skills	skills/productivity/grill-me	4ae2317ddb22b046e26455e4f9c9b3aaaf62212d
+grilling	https://github.com/mattpocock/skills	skills/productivity/grilling	4ae2317ddb22b046e26455e4f9c9b3aaaf62212d
+handoff	https://github.com/mattpocock/skills	skills/productivity/handoff	4ae2317ddb22b046e26455e4f9c9b3aaaf62212d
+writing-for-agents	https://github.com/mattpocock/skills	skills/productivity/writing-for-agents	4ae2317ddb22b046e26455e4f9c9b3aaaf62212d
+diagnosing-bugs	https://github.com/mattpocock/skills	skills/engineering/diagnosing-bugs	4ae2317ddb22b046e26455e4f9c9b3aaaf62212d
+prototype	https://github.com/mattpocock/skills	skills/engineering/prototype	4ae2317ddb22b046e26455e4f9c9b3aaaf62212d
+wizard	https://github.com/mattpocock/skills	skills/engineering/wizard	4ae2317ddb22b046e26455e4f9c9b3aaaf62212d

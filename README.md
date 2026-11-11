@@ -62,6 +62,11 @@ root folder and reads that project's `AGENTS.md` to learn where its plan, its it
 waiting on David, its decision log, its check and its git rules live; it names no
 project and keeps no files between runs.
 
+Skills from other authors are installed unchanged and pinned to a reviewed commit.
+[third-party-skills/](third-party-skills/) lists them, and
+`third-party-skills/sync.sh` checks the installed copies, shows what changed upstream and
+installs an update once you accept it.
+
 ## More
 
 - [CHANGELOG.md](CHANGELOG.md), [CONTRIBUTING.md](CONTRIBUTING.md),
