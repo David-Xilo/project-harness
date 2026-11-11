@@ -70,7 +70,7 @@ points), goal, do, out of scope, done when (the project's own check, copied, nev
 paraphrased; for a unit that creates the check, the check it must leave behind), the
 paths it owns and the streams running alongside, where it stops for David, the git rule,
 and these lines: "Commit and push your own work without asking; open the PR or push, as
-the project's rules say; never merge. When done, tick the
+the project's rules say; never merge. When done, close the
 plan row as the project's rules say. When a step is David's, write it where the project
 keeps them and tell him in the session: numbered, exact commands from the folder they
 run in, a Done when check." No brief files on disk.
