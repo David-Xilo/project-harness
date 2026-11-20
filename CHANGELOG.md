@@ -56,6 +56,10 @@ version moves to 1.1.0 so `claude plugin update desk@project-harness` picks the 
   research note needs a decision that depends on it. `shared/doc-budget.sh` fails when a
   plan file is over its size budget or still holds finished rows; a project copies it and
   calls it from its check command.
+- `shared/working-rules.md` gains a Scratch files section: a file a session writes is
+  committed, or it goes in `.scratch/<task>/` at the project's root. The folder ignores
+  itself, so no repository needs a `.gitignore` change, and the operator may empty it at
+  any time.
 - The skills name no path on this machine. They find projects at or under the folder they
   run from, and keep their files in each project's `.operator/` (created on first use,
   excluded through `.git/info/exclude`); `projects.py` and `cc_review.py` default to the
