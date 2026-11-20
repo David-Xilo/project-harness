@@ -8,6 +8,10 @@ brings.
 The desk plugin drops from 31 skills to 23, and only 9 of them load on their own. The
 version moves to 1.1.0 so `claude plugin update desk@project-harness` picks the change up.
 
+- `/kickoff` gains a hub merge, off by default. Where a project's `AGENTS.md` has a `Hub
+  merge` line, the hub merges a stream's PR when it is eligible by that line, the
+  project's check passes at the head commit and a reviewer subagent on another model
+  finds nothing; every other PR stays with the operator.
 - `desk:teach` is now teach mode inside `desk:how` ("teach me this").
 - `desk:in-your-own-words` is now the first step of `desk:sharpen`.
 - `desk:ketchup` is now `desk:recall this chat`.
