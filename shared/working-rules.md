@@ -57,6 +57,23 @@ files are kept, follow that.
 - When a plan fails its size check (`doc-budget.sh`), cut the plan. Do not raise the
   budget.
 
+## Scratch files
+
+A file a session writes is committed or it is scratch.
+
+- Commit a script that runs more than once, or whose output a commit, a pull request or
+  a plan cites, where the project keeps its tools.
+- Everything else goes in `.scratch/<task>/` at the project's root (`<task>` is the plan
+  row or the branch): throwaway scripts, logs, clones, fixtures, build caches and
+  `TMPDIR`. Use it in place of `/tmp` and the session's scratchpad.
+- The root is the main checkout, never a worktree (`git worktree list` names it first),
+  and for a module the project that pins it (`git rev-parse
+  --show-superproject-working-tree`).
+- Create the folder with `mkdir -p .scratch && echo '*' > .scratch/.gitignore`: git then
+  ignores it in every repository, with no tracked file changed.
+- Delete your `.scratch/<task>/` once the task's work is pushed. Nothing in `.scratch/`
+  is needed later, so the operator may empty it at any time.
+
 ## Context
 
 When compacting, keep the list of modified files, the checks run with their results, and
