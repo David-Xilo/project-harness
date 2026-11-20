@@ -8,7 +8,7 @@ between runs: the plan rows, git and the desktop session list are the state.
 
 | Skill | What it does |
 |---|---|
-| `/kickoff` | Reads the plan, asks one round of questions, starts each ready unit as a desktop session with its brief, then stays up as the hub. |
+| `/kickoff` | Reads the plan, asks one round of questions, starts each ready unit as a desktop session with its brief, then stays up as the hub. Where a project's `AGENTS.md` has a `Hub merge` line, the hub merges the PRs that pass its gate. |
 | `/decisions` | One table of everything only the operator can do, with full steps for what is due now; `apply` records their chat answers in the plans. |
 | `/refactor` | Surveys hotspots into plan rows, or refactors one module: pin, subtract, reshape, guard, PR with numbers. |
 | `/analyze-workflow` | Reads the Claude Code transcripts and names the three biggest time sinks with copy-paste fixes. |
